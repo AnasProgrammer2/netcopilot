@@ -45,6 +45,10 @@ interface SerialConnectPayload {
 declare global {
   interface Window {
     api: {
+      appInfo: {
+        versions: { electron: string; node: string; chrome: string }
+        platform: string
+      }
       store: {
         getConnections(): Promise<Connection[]>
         saveConnection(conn: Connection): Promise<Connection>
