@@ -230,11 +230,11 @@ export function ConnectionDialog(): JSX.Element {
 
           {tab === 'auth' && (
             <>
-              <Field label="Username" required>
+              <Field label="Username">
                 <input
                   value={form.username ?? ''}
                   onChange={(e) => update('username', e.target.value)}
-                  placeholder="admin"
+                  placeholder="Leave empty to enter on connect"
                   className={inputClass}
                 />
               </Field>
@@ -336,7 +336,7 @@ export function ConnectionDialog(): JSX.Element {
           </button>
           <button
             onClick={handleSave}
-            disabled={saving || !form.name || !form.host || !form.username}
+            disabled={saving || !form.name || !form.host}
             className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {saving ? 'Saving...' : editingConnection ? 'Save Changes' : 'Add Connection'}
