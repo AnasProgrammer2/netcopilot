@@ -21,18 +21,18 @@ export function TerminalTab({ session }: Props): JSX.Element {
 
   const [promptState, setPromptState] = useState<{
     visible: boolean
-    resolve?: (result: { password: string; save: boolean } | null) => void
+    resolve?: (result: { username: string; password: string; save: boolean } | null) => void
   }>({ visible: false })
 
-  const askPassword = (): Promise<{ password: string; save: boolean } | null> => {
+  const askCredentials = (): Promise<{ username: string; password: string; save: boolean } | null> => {
     return new Promise((resolve) => {
       setPromptState({ visible: true, resolve })
     })
   }
 
-  const handlePromptSubmit = (password: string, save: boolean) => {
+  const handlePromptSubmit = (credentials: { username: string; password: string; save: boolean }) => {
     setPromptState({ visible: false })
-    promptState.resolve?.({ password, save })
+    promptState.resolve?.(credentials)
   }
 
   const handlePromptCancel = () => {
@@ -139,28 +139,32 @@ export function TerminalTab({ session }: Props): JSX.Element {
         let privateKey: string | null = null
 
         if (conn.protocol === 'ssh') {
-          // Try to load saved password
+          let username = conn.username
+
+          // Try to load saved credentials
           if (conn.authType === 'password' || conn.authType === 'key+password') {
             password = await window.api.credentials.get(`${conn.id}:password`)
           }
-
-          // Try to load SSH key
           if ((conn.authType === 'key' || conn.authType === 'key+password') && conn.sshKeyId) {
             privateKey = await window.api.credentials.get(`${conn.sshKeyId}:privateKey`)
           }
 
-          // No credentials found → ask user
-          if (!password && !privateKey) {
-            const result = await askPassword()
+          // No username or no password → ask user
+          if (!username || (!password && !privateKey)) {
+            const result = await askCredentials()
             if (!result) {
-              // User cancelled
               setSessionStatus(session.id, 'disconnected')
               termRef.current?.write('\r\n\x1b[33mCancelled\x1b[0m\r\n')
               return
             }
+            if (!username) username = result.username
             password = result.password
             if (result.save) {
               await window.api.credentials.save(`${conn.id}:password`, password)
+              // Save username back to the connection if it was missing
+              if (!conn.username) {
+                window.api.store.saveConnection({ ...conn, username, updatedAt: Date.now() })
+              }
             }
           }
 
@@ -169,7 +173,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
             sessionId: session.id,
             host: conn.host,
             port: conn.port,
-            username: conn.username,
+            username,
             password: password ?? undefined,
             privateKey: privateKey ?? undefined,
             cols,
@@ -249,7 +253,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
       {promptState.visible && (
         <PasswordPrompt
           host={session.connection.host}
-          username={session.connection.username}
+          username={session.connection.username || undefined}
           onSubmit={handlePromptSubmit}
           onCancel={handlePromptCancel}
         />

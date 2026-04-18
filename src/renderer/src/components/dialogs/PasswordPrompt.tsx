@@ -1,26 +1,32 @@
 import { useState, useEffect, useRef } from 'react'
-import { Lock, Eye, EyeOff, Save } from 'lucide-react'
+import { Lock, Eye, EyeOff, Save, User } from 'lucide-react'
 
 interface Props {
   host: string
-  username: string
-  onSubmit: (password: string, save: boolean) => void
+  username?: string
+  onSubmit: (credentials: { username: string; password: string; save: boolean }) => void
   onCancel: () => void
 }
 
-export function PasswordPrompt({ host, username, onSubmit, onCancel }: Props): JSX.Element {
+export function PasswordPrompt({ host, username: initialUsername, onSubmit, onCancel }: Props): JSX.Element {
+  const [username, setUsername] = useState(initialUsername || '')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [save, setSave] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const firstInputRef = useRef<HTMLInputElement>(null)
+
+  const needsUsername = !initialUsername
 
   useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 50)
+    setTimeout(() => firstInputRef.current?.focus(), 50)
   }, [])
+
+  const canSubmit = password && (needsUsername ? username : true)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (password) onSubmit(password, save)
+    if (!canSubmit) return
+    onSubmit({ username: username || initialUsername || '', password, save })
   }
 
   return (
@@ -37,18 +43,39 @@ export function PasswordPrompt({ host, username, onSubmit, onCancel }: Props): J
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground">Authentication Required</p>
             <p className="text-xs text-muted-foreground truncate">
-              {username}@{host}
+              {needsUsername ? host : `${initialUsername}@${host}`}
             </p>
           </div>
         </div>
 
         {/* Body */}
         <div className="px-5 py-4 space-y-3">
+          {/* Username — only if not already set */}
+          {needsUsername && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Username</label>
+              <div className="relative">
+                <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <input
+                  ref={firstInputRef}
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="admin"
+                  className="w-full pl-8 pr-3 py-2 text-sm bg-background border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Password */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Password</label>
             <div className="relative">
               <input
-                ref={inputRef}
+                ref={needsUsername ? undefined : firstInputRef}
                 type={showPass ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -66,6 +93,7 @@ export function PasswordPrompt({ host, username, onSubmit, onCancel }: Props): J
             </div>
           </div>
 
+          {/* Remember */}
           <label className="flex items-center gap-2 cursor-pointer group">
             <div
               onClick={() => setSave(!save)}
@@ -76,7 +104,7 @@ export function PasswordPrompt({ host, username, onSubmit, onCancel }: Props): J
               {save && <Save className="w-2.5 h-2.5 text-white" />}
             </div>
             <span className="text-xs text-muted-foreground group-hover:text-foreground">
-              Remember password for this connection
+              Remember credentials for this connection
             </span>
           </label>
         </div>
@@ -92,7 +120,7 @@ export function PasswordPrompt({ host, username, onSubmit, onCancel }: Props): J
           </button>
           <button
             type="submit"
-            disabled={!password}
+            disabled={!canSubmit}
             className="px-4 py-1.5 text-sm font-medium rounded-md bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Connect
