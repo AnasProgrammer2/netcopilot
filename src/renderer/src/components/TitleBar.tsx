@@ -1,6 +1,8 @@
 import { Terminal, Settings } from 'lucide-react'
+import { useAppStore } from '../store'
 
 export function TitleBar(): JSX.Element {
+  const { setSettingsOpen } = useAppStore()
   const isMac = navigator.userAgent.includes('Mac')
 
   return (
@@ -19,7 +21,8 @@ export function TitleBar(): JSX.Element {
           <span className="ml-1">Quick Connect</span>
         </kbd>
         <button
-          className="ml-2 p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+          onClick={() => setSettingsOpen(true)}
+          className="ml-2 p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
           title="Settings"
         >
           <Settings className="w-4 h-4" />

@@ -4,6 +4,7 @@ import { Sidebar } from './components/sidebar/Sidebar'
 import { TerminalArea } from './components/terminal/TerminalArea'
 import { ConnectionDialog } from './components/dialogs/ConnectionDialog'
 import { QuickConnect } from './components/dialogs/QuickConnect'
+import { SettingsDialog } from './components/dialogs/SettingsDialog'
 import { TitleBar } from './components/TitleBar'
 import { WelcomeScreen } from './components/WelcomeScreen'
 
@@ -45,6 +46,7 @@ export default function App(): JSX.Element {
 
       <ConnectionDialog />
       <QuickConnect />
+      <SettingsDialog />
     </div>
   )
 }

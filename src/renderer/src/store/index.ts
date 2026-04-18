@@ -40,6 +40,8 @@ interface AppState {
   setSidebarWidth: (width: number) => void
   setQuickConnectOpen: (open: boolean) => void
   setConnectionDialogOpen: (open: boolean, connection?: Connection | null) => void
+  settingsOpen: boolean
+  setSettingsOpen: (open: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -52,6 +54,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   quickConnectOpen: false,
   connectionDialogOpen: false,
   editingConnection: null,
+  settingsOpen: false,
 
   loadConnections: async () => {
     const connections = await window.api.store.getConnections()
@@ -205,5 +208,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setQuickConnectOpen: (open) => set({ quickConnectOpen: open }),
 
   setConnectionDialogOpen: (open, connection = null) =>
-    set({ connectionDialogOpen: open, editingConnection: connection })
+    set({ connectionDialogOpen: open, editingConnection: connection }),
+
+  setSettingsOpen: (open) => set({ settingsOpen: open })
 }))
