@@ -11,15 +11,16 @@ const PROTOCOLS: { value: Protocol; label: string; defaultPort: number }[] = [
 ]
 
 const DEVICE_TYPES: { value: DeviceType; label: string }[] = [
-  { value: 'linux', label: 'Linux / Unix' },
-  { value: 'cisco-ios', label: 'Cisco IOS' },
+  { value: 'linux',       label: 'Linux / Unix' },
+  { value: 'cisco-ios',   label: 'Cisco IOS' },
   { value: 'cisco-iosxe', label: 'Cisco IOS-XE' },
-  { value: 'cisco-nxos', label: 'Cisco NX-OS' },
-  { value: 'junos', label: 'Juniper JunOS' },
-  { value: 'arista-eos', label: 'Arista EOS' },
-  { value: 'panos', label: 'Palo Alto PAN-OS' },
-  { value: 'windows', label: 'Windows' },
-  { value: 'generic', label: 'Generic' }
+  { value: 'cisco-nxos',  label: 'Cisco NX-OS' },
+  { value: 'junos',       label: 'Juniper JunOS' },
+  { value: 'arista-eos',  label: 'Arista EOS' },
+  { value: 'panos',       label: 'Palo Alto PAN-OS' },
+  { value: 'nokia-sros',  label: 'Nokia SR-OS' },
+  { value: 'windows',     label: 'Windows' },
+  { value: 'generic',     label: 'Generic' }
 ]
 
 const COLORS = [

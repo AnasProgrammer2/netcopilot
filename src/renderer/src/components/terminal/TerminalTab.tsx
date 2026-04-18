@@ -7,6 +7,7 @@ import '@xterm/xterm/css/xterm.css'
 import { Session } from '../../types'
 import { useAppStore } from '../../store'
 import { PasswordPrompt } from '../dialogs/PasswordPrompt'
+import { TerminalHighlighter } from '../../lib/highlighter'
 
 interface Props {
   session: Session
@@ -17,6 +18,9 @@ export function TerminalTab({ session }: Props): JSX.Element {
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   const connectingRef = useRef(false)
+  const highlighterRef = useRef<TerminalHighlighter>(
+    new TerminalHighlighter(session.connection.deviceType)
+  )
   const { setSessionStatus } = useAppStore()
 
   const [promptState, setPromptState] = useState<{
@@ -203,14 +207,15 @@ export function TerminalTab({ session }: Props): JSX.Element {
   }, [session.id])
 
   useEffect(() => {
+    const writeData = (data: string) => {
+      const colored = highlighterRef.current.process(data)
+      if (colored) termRef.current?.write(colored)
+    }
+
     const unsubData =
       session.connection.protocol === 'ssh'
-        ? window.api.ssh.onData((sid, data) => {
-            if (sid === session.id) termRef.current?.write(data)
-          })
-        : window.api.telnet.onData((sid, data) => {
-            if (sid === session.id) termRef.current?.write(data)
-          })
+        ? window.api.ssh.onData((sid, data) => { if (sid === session.id) writeData(data) })
+        : window.api.telnet.onData((sid, data) => { if (sid === session.id) writeData(data) })
 
     const unsubClosed =
       session.connection.protocol === 'ssh'
