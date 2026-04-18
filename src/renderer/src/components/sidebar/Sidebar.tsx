@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback } from 'react'
-import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb } from 'lucide-react'
+import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb, Pencil, Trash2 } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { Connection, ConnectionGroup } from '../../types'
 import { ConnectionContextMenu } from './ConnectionContextMenu'
+import { GroupDialog } from './GroupDialog'
 import { cn } from '../../lib/utils'
 
 const GROUP_COLORS = [
@@ -20,6 +21,7 @@ export function Sidebar(): JSX.Element {
 
   const [search, setSearch] = useState('')
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+  const [groupDialog, setGroupDialog] = useState<{ open: boolean; group?: ConnectionGroup }>({ open: false })
   const isResizing = useRef(false)
   const startX = useRef(0)
   const startWidth = useRef(0)
@@ -84,7 +86,7 @@ export function Sidebar(): JSX.Element {
               <Plus className="w-3.5 h-3.5" />
             </button>
             <button
-              onClick={() => {/* add group */}}
+              onClick={() => setGroupDialog({ open: true })}
               className="p-1 rounded hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground"
               title="New Group"
             >
@@ -126,22 +128,41 @@ export function Sidebar(): JSX.Element {
             const isCollapsed = collapsedGroups.has(group.id)
             return (
               <div key={group.id}>
-                <button
-                  onClick={() => toggleGroup(group.id)}
-                  className="w-full flex items-center gap-1.5 px-3 py-1.5 text-xs text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent group"
-                >
-                  {isCollapsed ? (
-                    <ChevronRight className="w-3 h-3 shrink-0" />
-                  ) : (
-                    <ChevronDown className="w-3 h-3 shrink-0" />
-                  )}
-                  <div
-                    className="w-2 h-2 rounded-sm shrink-0"
-                    style={{ backgroundColor: group.color || GROUP_COLORS[0] }}
-                  />
-                  <span className="font-medium uppercase tracking-wider truncate">{group.name}</span>
-                  <span className="ml-auto text-sidebar-foreground/30">{groupConns.length}</span>
-                </button>
+                <div className="flex items-center group/grp hover:bg-sidebar-accent">
+                  <button
+                    onClick={() => toggleGroup(group.id)}
+                    className="flex-1 flex items-center gap-1.5 px-3 py-1.5 text-xs text-sidebar-foreground/50 group-hover/grp:text-sidebar-foreground min-w-0"
+                  >
+                    {isCollapsed ? (
+                      <ChevronRight className="w-3 h-3 shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-3 h-3 shrink-0" />
+                    )}
+                    <div
+                      className="w-2 h-2 rounded-sm shrink-0"
+                      style={{ backgroundColor: group.color || GROUP_COLORS[0] }}
+                    />
+                    <span className="font-medium uppercase tracking-wider truncate">{group.name}</span>
+                    <span className="ml-auto text-sidebar-foreground/30 shrink-0">{groupConns.length}</span>
+                  </button>
+                  {/* Edit / Delete group — visible on hover */}
+                  <div className="flex items-center pr-1 opacity-0 group-hover/grp:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => setGroupDialog({ open: true, group })}
+                      className="p-1 rounded hover:bg-sidebar-accent text-sidebar-foreground/40 hover:text-sidebar-foreground"
+                      title="Edit group"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => useAppStore.getState().deleteGroup(group.id)}
+                      className="p-1 rounded hover:bg-sidebar-accent text-sidebar-foreground/40 hover:text-destructive"
+                      title="Delete group"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
                 {!isCollapsed &&
                   groupConns.map((conn) => (
                     <ConnectionItem
@@ -185,6 +206,13 @@ export function Sidebar(): JSX.Element {
         onMouseDown={handleMouseDown}
         className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/30 transition-colors"
       />
+
+      {groupDialog.open && (
+        <GroupDialog
+          group={groupDialog.group}
+          onClose={() => setGroupDialog({ open: false })}
+        />
+      )}
     </div>
   )
 }
