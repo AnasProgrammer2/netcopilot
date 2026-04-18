@@ -8,6 +8,7 @@ export type DeviceType =
   | 'junos'
   | 'arista-eos'
   | 'panos'
+  | 'nokia-sros'
   | 'windows'
   | 'generic'
 
