@@ -58,6 +58,29 @@ const api = {
       ipcRenderer.on('telnet:closed', handler)
       return () => ipcRenderer.removeListener('telnet:closed', handler)
     }
+  },
+
+  // Serial
+  serial: {
+    listPorts: () => ipcRenderer.invoke('serial:list-ports'),
+    connect: (payload: unknown) => ipcRenderer.invoke('serial:connect', payload),
+    send: (sessionId: string, data: string) => ipcRenderer.send('serial:send', sessionId, data),
+    disconnect: (sessionId: string) => ipcRenderer.invoke('serial:disconnect', sessionId),
+    onData: (cb: (sessionId: string, data: string) => void) => {
+      const handler = (_: unknown, sessionId: string, data: string) => cb(sessionId, data)
+      ipcRenderer.on('serial:data', handler)
+      return () => ipcRenderer.removeListener('serial:data', handler)
+    },
+    onClosed: (cb: (sessionId: string) => void) => {
+      const handler = (_: unknown, sessionId: string) => cb(sessionId)
+      ipcRenderer.on('serial:closed', handler)
+      return () => ipcRenderer.removeListener('serial:closed', handler)
+    },
+    onError: (cb: (sessionId: string, error: string) => void) => {
+      const handler = (_: unknown, sessionId: string, error: string) => cb(sessionId, error)
+      ipcRenderer.on('serial:error', handler)
+      return () => ipcRenderer.removeListener('serial:error', handler)
+    }
   }
 }
 

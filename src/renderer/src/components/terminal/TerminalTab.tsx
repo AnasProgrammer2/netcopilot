@@ -93,17 +93,17 @@ export function TerminalTab({ session }: Props): JSX.Element {
     fitRef.current = fitAddon
 
     term.onData((data) => {
-      if (session.connection.protocol === 'ssh') {
-        window.api.ssh.send(session.id, data)
-      } else {
-        window.api.telnet.send(session.id, data)
-      }
+      const proto = session.connection.protocol
+      if (proto === 'ssh')    window.api.ssh.send(session.id, data)
+      else if (proto === 'serial') window.api.serial.send(session.id, data)
+      else                    window.api.telnet.send(session.id, data)
     })
 
+    const target = session.connection.protocol === 'serial'
+      ? (session.connection.serialConfig?.path ?? session.connection.host)
+      : session.connection.host
     term.write(
-      '\r\n\x1b[36m  NetTerm\x1b[0m · Connecting to \x1b[33m' +
-        session.connection.host +
-        '\x1b[0m...\r\n\r\n'
+      '\r\n\x1b[36m  NetTerm\x1b[0m · Connecting to \x1b[33m' + target + '\x1b[0m...\r\n\r\n'
     )
   }, [session.id, session.connection])
 
@@ -193,6 +193,20 @@ export function TerminalTab({ session }: Props): JSX.Element {
             cols,
             rows
           })
+        } else if (conn.protocol === 'serial') {
+          const sc = conn.serialConfig
+          if (!sc?.path) throw { error: 'No serial port configured' }
+          await window.api.serial.connect({
+            sessionId: session.id,
+            path: sc.path,
+            baudRate: sc.baudRate,
+            dataBits: sc.dataBits,
+            stopBits: sc.stopBits,
+            parity: sc.parity,
+            rtscts: sc.rtscts,
+            xon: sc.xon,
+            xoff: sc.xoff
+          })
         }
 
         setSessionStatus(session.id, 'connected')
@@ -213,39 +227,47 @@ export function TerminalTab({ session }: Props): JSX.Element {
       if (colored) termRef.current?.write(colored)
     }
 
-    const unsubData =
-      session.connection.protocol === 'ssh'
-        ? window.api.ssh.onData((sid, data) => { if (sid === session.id) writeData(data) })
-        : window.api.telnet.onData((sid, data) => { if (sid === session.id) writeData(data) })
+    const onClosed = (sid: string) => {
+      if (sid !== session.id) return
+      setSessionStatus(session.id, 'disconnected')
+      termRef.current?.write('\r\n\x1b[33mConnection closed\x1b[0m\r\n')
+    }
 
-    const unsubClosed =
-      session.connection.protocol === 'ssh'
-        ? window.api.ssh.onClosed((sid) => {
-            if (sid === session.id) {
-              setSessionStatus(session.id, 'disconnected')
-              termRef.current?.write('\r\n\x1b[33mConnection closed\x1b[0m\r\n')
-            }
-          })
-        : window.api.telnet.onClosed((sid) => {
-            if (sid === session.id) {
-              setSessionStatus(session.id, 'disconnected')
-              termRef.current?.write('\r\n\x1b[33mConnection closed\x1b[0m\r\n')
-            }
-          })
+    const proto = session.connection.protocol
+    let unsubData: () => void
+    let unsubClosed: () => void
+    let unsubError: (() => void) | undefined
+
+    if (proto === 'ssh') {
+      unsubData   = window.api.ssh.onData((sid, d)  => { if (sid === session.id) writeData(d) })
+      unsubClosed = window.api.ssh.onClosed(onClosed)
+    } else if (proto === 'serial') {
+      unsubData   = window.api.serial.onData((sid, d) => { if (sid === session.id) writeData(d) })
+      unsubClosed = window.api.serial.onClosed(onClosed)
+      unsubError  = window.api.serial.onError((sid, err) => {
+        if (sid === session.id) {
+          setSessionStatus(session.id, 'error', err)
+          termRef.current?.write(`\r\n\x1b[31mSerial error: ${err}\x1b[0m\r\n`)
+        }
+      })
+    } else {
+      unsubData   = window.api.telnet.onData((sid, d) => { if (sid === session.id) writeData(d) })
+      unsubClosed = window.api.telnet.onClosed(onClosed)
+    }
 
     return () => {
       unsubData()
       unsubClosed()
+      unsubError?.()
     }
   }, [session.id, session.connection.protocol])
 
   useEffect(() => {
     return () => {
-      if (session.connection.protocol === 'ssh') {
-        window.api.ssh.disconnect(session.id)
-      } else {
-        window.api.telnet.disconnect(session.id)
-      }
+      const proto = session.connection.protocol
+      if (proto === 'ssh')         window.api.ssh.disconnect(session.id)
+      else if (proto === 'serial') window.api.serial.disconnect(session.id)
+      else                         window.api.telnet.disconnect(session.id)
     }
   }, [session.id, session.connection.protocol])
 

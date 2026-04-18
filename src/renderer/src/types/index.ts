@@ -26,6 +26,17 @@ export interface ConnectionGroup {
   parentId?: string
 }
 
+export interface SerialConfig {
+  path: string
+  baudRate: number
+  dataBits: 5 | 6 | 7 | 8
+  stopBits: 1 | 1.5 | 2
+  parity: 'none' | 'even' | 'odd' | 'mark' | 'space'
+  rtscts: boolean
+  xon: boolean
+  xoff: boolean
+}
+
 export interface Connection {
   id: string
   name: string
@@ -43,6 +54,7 @@ export interface Connection {
   jumpHostId?: string
   startupCommands?: string[]
   enablePassword?: string
+  serialConfig?: SerialConfig
   createdAt: number
   updatedAt: number
   lastConnectedAt?: number

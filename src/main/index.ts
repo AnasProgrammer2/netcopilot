@@ -5,6 +5,7 @@ import { setupStoreHandlers } from './store'
 import { setupSshHandlers } from './ssh'
 import { setupTelnetHandlers } from './telnet'
 import { setupCredentialHandlers } from './credentials'
+import { setupSerialHandlers } from './serial'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -56,6 +57,7 @@ app.whenReady().then(() => {
   setupSshHandlers(ipcMain, () => mainWindow)
   setupTelnetHandlers(ipcMain, () => mainWindow)
   setupCredentialHandlers(ipcMain)
+  setupSerialHandlers(ipcMain, () => mainWindow)
 
   createWindow()
 
