@@ -281,11 +281,11 @@ export function highlightLine(line: string, deviceType: DeviceType): string {
 }
 
 /**
- * Buffered highlighter — handles partial lines arriving in chunks.
- * Call process(chunk) on every data event, it returns colorized output.
+ * Streaming highlighter — NO buffering.
+ * Highlights only complete lines (ending with \r\n or \n).
+ * Everything else (partial echoes, cursor moves, prompts) passes through untouched.
  */
 export class TerminalHighlighter {
-  private buffer = ''
   private deviceType: DeviceType
 
   constructor(deviceType: DeviceType) {
@@ -293,28 +293,28 @@ export class TerminalHighlighter {
   }
 
   process(data: string): string {
-    this.buffer += data
+    // If no newline in this chunk → it's interactive echo / prompt / control seq.
+    // Pass through immediately without touching it.
+    if (!data.includes('\n')) return data
+
+    // Split at every newline boundary.
+    // parts = [segment, sep, segment, sep, ..., lastSegment]
+    const parts = data.split(/(\r?\n)/g)
     let out = ''
 
-    // Split on newline boundaries, keep last partial line in buffer
-    const parts = this.buffer.split(/(\r?\n)/)
-    // parts = [line, sep, line, sep, ..., lastPartial]
-    // Every even index is content, odd is separator
-    for (let i = 0; i < parts.length - 1; i += 2) {
-      const lineContent = parts[i]
-      const sep         = parts[i + 1] ?? ''
-      out += highlightLine(lineContent, this.deviceType) + sep
+    for (let i = 0; i < parts.length; i++) {
+      if (i % 2 === 1) {
+        // Newline separator — keep as-is
+        out += parts[i]
+      } else if (i === parts.length - 1) {
+        // Last segment has no trailing newline → partial / prompt → pass through
+        out += parts[i]
+      } else {
+        // Complete line (followed by newline) → apply highlighting
+        out += highlightLine(parts[i], this.deviceType)
+      }
     }
 
-    // Last element is the incomplete line — keep buffered
-    this.buffer = parts[parts.length - 1]
-
     return out
-  }
-
-  flush(): string {
-    const remaining = this.buffer ? highlightLine(this.buffer, this.deviceType) : ''
-    this.buffer = ''
-    return remaining
   }
 }
