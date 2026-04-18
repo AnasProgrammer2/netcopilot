@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
@@ -6,6 +6,7 @@ import { SearchAddon } from '@xterm/addon-search'
 import '@xterm/xterm/css/xterm.css'
 import { Session } from '../../types'
 import { useAppStore } from '../../store'
+import { PasswordPrompt } from '../dialogs/PasswordPrompt'
 
 interface Props {
   session: Session
@@ -15,7 +16,28 @@ export function TerminalTab({ session }: Props): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
-  const { setSessionStatus, closeSession } = useAppStore()
+  const { setSessionStatus } = useAppStore()
+
+  const [promptState, setPromptState] = useState<{
+    visible: boolean
+    resolve?: (result: { password: string; save: boolean } | null) => void
+  }>({ visible: false })
+
+  const askPassword = (): Promise<{ password: string; save: boolean } | null> => {
+    return new Promise((resolve) => {
+      setPromptState({ visible: true, resolve })
+    })
+  }
+
+  const handlePromptSubmit = (password: string, save: boolean) => {
+    setPromptState({ visible: false })
+    promptState.resolve?.({ password, save })
+  }
+
+  const handlePromptCancel = () => {
+    setPromptState({ visible: false })
+    promptState.resolve?.(null)
+  }
 
   const initTerminal = useCallback(() => {
     if (!containerRef.current || termRef.current) return
@@ -54,12 +76,9 @@ export function TerminalTab({ session }: Props): JSX.Element {
     })
 
     const fitAddon = new FitAddon()
-    const webLinksAddon = new WebLinksAddon()
-    const searchAddon = new SearchAddon()
-
     term.loadAddon(fitAddon)
-    term.loadAddon(webLinksAddon)
-    term.loadAddon(searchAddon)
+    term.loadAddon(new WebLinksAddon())
+    term.loadAddon(new SearchAddon())
 
     term.open(containerRef.current)
     fitAddon.fit()
@@ -75,12 +94,15 @@ export function TerminalTab({ session }: Props): JSX.Element {
       }
     })
 
-    term.write('\r\n\x1b[36m  NetTerm\x1b[0m · Connecting to \x1b[33m' + session.connection.host + '\x1b[0m...\r\n\r\n')
+    term.write(
+      '\r\n\x1b[36m  NetTerm\x1b[0m · Connecting to \x1b[33m' +
+        session.connection.host +
+        '\x1b[0m...\r\n\r\n'
+    )
   }, [session.id, session.connection])
 
   useEffect(() => {
     initTerminal()
-
     return () => {
       termRef.current?.dispose()
       termRef.current = null
@@ -113,14 +135,32 @@ export function TerminalTab({ session }: Props): JSX.Element {
         let password: string | null = null
         let privateKey: string | null = null
 
-        if (conn.authType === 'password' || conn.authType === 'key+password') {
-          password = await window.api.credentials.get(`${conn.id}:password`)
-        }
-        if ((conn.authType === 'key' || conn.authType === 'key+password') && conn.sshKeyId) {
-          privateKey = await window.api.credentials.get(`${conn.sshKeyId}:privateKey`)
-        }
-
         if (conn.protocol === 'ssh') {
+          // Try to load saved password
+          if (conn.authType === 'password' || conn.authType === 'key+password') {
+            password = await window.api.credentials.get(`${conn.id}:password`)
+          }
+
+          // Try to load SSH key
+          if ((conn.authType === 'key' || conn.authType === 'key+password') && conn.sshKeyId) {
+            privateKey = await window.api.credentials.get(`${conn.sshKeyId}:privateKey`)
+          }
+
+          // No credentials found → ask user
+          if (!password && !privateKey) {
+            const result = await askPassword()
+            if (!result) {
+              // User cancelled
+              setSessionStatus(session.id, 'disconnected')
+              termRef.current?.write('\r\n\x1b[33mCancelled\x1b[0m\r\n')
+              return
+            }
+            password = result.password
+            if (result.save) {
+              await window.api.credentials.save(`${conn.id}:password`, password)
+            }
+          }
+
           const { cols, rows } = termRef.current ?? { cols: 220, rows: 50 }
           await window.api.ssh.connect({
             sessionId: session.id,
@@ -156,27 +196,29 @@ export function TerminalTab({ session }: Props): JSX.Element {
   }, [session.id])
 
   useEffect(() => {
-    const unsubData = session.connection.protocol === 'ssh'
-      ? window.api.ssh.onData((sid, data) => {
-          if (sid === session.id) termRef.current?.write(data)
-        })
-      : window.api.telnet.onData((sid, data) => {
-          if (sid === session.id) termRef.current?.write(data)
-        })
+    const unsubData =
+      session.connection.protocol === 'ssh'
+        ? window.api.ssh.onData((sid, data) => {
+            if (sid === session.id) termRef.current?.write(data)
+          })
+        : window.api.telnet.onData((sid, data) => {
+            if (sid === session.id) termRef.current?.write(data)
+          })
 
-    const unsubClosed = session.connection.protocol === 'ssh'
-      ? window.api.ssh.onClosed((sid) => {
-          if (sid === session.id) {
-            setSessionStatus(session.id, 'disconnected')
-            termRef.current?.write('\r\n\x1b[33mConnection closed\x1b[0m\r\n')
-          }
-        })
-      : window.api.telnet.onClosed((sid) => {
-          if (sid === session.id) {
-            setSessionStatus(session.id, 'disconnected')
-            termRef.current?.write('\r\n\x1b[33mConnection closed\x1b[0m\r\n')
-          }
-        })
+    const unsubClosed =
+      session.connection.protocol === 'ssh'
+        ? window.api.ssh.onClosed((sid) => {
+            if (sid === session.id) {
+              setSessionStatus(session.id, 'disconnected')
+              termRef.current?.write('\r\n\x1b[33mConnection closed\x1b[0m\r\n')
+            }
+          })
+        : window.api.telnet.onClosed((sid) => {
+            if (sid === session.id) {
+              setSessionStatus(session.id, 'disconnected')
+              termRef.current?.write('\r\n\x1b[33mConnection closed\x1b[0m\r\n')
+            }
+          })
 
     return () => {
       unsubData()
@@ -195,10 +237,20 @@ export function TerminalTab({ session }: Props): JSX.Element {
   }, [session.id, session.connection.protocol])
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-full bg-[#0d0f14]"
-      style={{ fontVariantLigatures: 'none' }}
-    />
+    <div className="relative w-full h-full">
+      <div
+        ref={containerRef}
+        className="w-full h-full bg-[#0d0f14]"
+        style={{ fontVariantLigatures: 'none' }}
+      />
+      {promptState.visible && (
+        <PasswordPrompt
+          host={session.connection.host}
+          username={session.connection.username}
+          onSubmit={handlePromptSubmit}
+          onCancel={handlePromptCancel}
+        />
+      )}
+    </div>
   )
 }
