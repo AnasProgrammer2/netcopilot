@@ -80,7 +80,7 @@ const NAV: { id: SettingsSection; label: string; icon: React.ComponentType<{ cla
 
 // ─── Main component ──────────────────────────────────────────────────────────
 export function SettingsDialog(): JSX.Element {
-  const { settingsOpen, setSettingsOpen, setSidebarWidth } = useAppStore()
+  const { settingsOpen, setSettingsOpen, applySettings } = useAppStore()
   const [section, setSection] = useState<SettingsSection>('appearance')
   const [settings, setSettings] = useState<AppSettings>(DEFAULTS)
   const [saved, setSaved] = useState(false)
@@ -106,11 +106,12 @@ export function SettingsDialog(): JSX.Element {
   }
 
   const handleSave = async () => {
+    // Persist all settings
     for (const [k, v] of Object.entries(settings)) {
       await window.api.store.setSetting(k, v)
     }
-    // Apply sidebar width immediately
-    setSidebarWidth(settings.sidebarWidth)
+    // Apply live — updates terminal settings, sidebar width, accent color immediately
+    applySettings(settings as unknown as Record<string, unknown>)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -289,16 +290,21 @@ function TerminalSection({ settings, update }: SectionProps) {
           </div>
         </div>
 
-        {/* Preview */}
+        {/* Live preview */}
         <div
-          className="mt-2 p-3 rounded-md bg-[#0d0f14] text-sm border border-border"
-          style={{ fontFamily: settings.fontFamily, fontSize: settings.fontSize }}
+          className="mt-2 p-3 rounded-md bg-[#0d0f14] border border-border"
+          style={{ fontFamily: `"${settings.fontFamily}", monospace`, fontSize: settings.fontSize, lineHeight: settings.lineHeight }}
         >
-          <span className="text-[#92e' + '91ff']">root</span>
-          <span className="text-gray-400">@</span>
-          <span className="text-[#69ff94]">router</span>
-          <span className="text-[#60a5fa]">:~#</span>
-          <span className="text-white"> show ip int brief</span>
+          <span style={{ color: '#92e991' }}>root</span>
+          <span style={{ color: '#6b7280' }}>@</span>
+          <span style={{ color: '#69ff94' }}>router</span>
+          <span style={{ color: '#60a5fa' }}>:~#</span>
+          <span style={{ color: '#e8eaf0' }}> show ip interface brief</span>
+          <br />
+          <span style={{ color: '#6b7280' }}>GigabitEthernet0/0   192.168.1.1   </span>
+          <span style={{ color: '#69ff94' }}>up</span>
+          <span style={{ color: '#6b7280' }}>   </span>
+          <span style={{ color: '#69ff94' }}>up</span>
         </div>
       </Group>
 

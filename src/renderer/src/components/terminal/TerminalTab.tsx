@@ -8,6 +8,7 @@ import { Session } from '../../types'
 import { useAppStore } from '../../store'
 import { PasswordPrompt } from '../dialogs/PasswordPrompt'
 import { TerminalHighlighter } from '../../lib/highlighter'
+import type { TerminalSettings } from '../../store'
 
 interface Props {
   session: Session
@@ -21,7 +22,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
   const highlighterRef = useRef<TerminalHighlighter>(
     new TerminalHighlighter(session.connection.deviceType)
   )
-  const { setSessionStatus } = useAppStore()
+  const { setSessionStatus, terminalSettings, connectionSettings } = useAppStore()
 
   const [promptState, setPromptState] = useState<{
     visible: boolean
@@ -47,13 +48,15 @@ export function TerminalTab({ session }: Props): JSX.Element {
   const initTerminal = useCallback(() => {
     if (!containerRef.current || termRef.current) return
 
+    const ts: TerminalSettings = terminalSettings
     const term = new Terminal({
-      fontFamily: '"JetBrains Mono", "Cascadia Code", Consolas, monospace',
-      fontSize: 13,
-      lineHeight: 1.4,
-      cursorBlink: true,
-      cursorStyle: 'bar',
-      cursorWidth: 2,
+      fontFamily: `"${ts.fontFamily}", "Cascadia Code", Consolas, monospace`,
+      fontSize: ts.fontSize,
+      lineHeight: ts.lineHeight,
+      cursorBlink: ts.cursorBlink,
+      cursorStyle: ts.cursorStyle,
+      cursorWidth: ts.cursorStyle === 'bar' ? 2 : 1,
+      scrollback: ts.scrollback,
       theme: {
         background: '#0d0f14',
         foreground: '#e8eaf0',
@@ -77,8 +80,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
         brightCyan: '#89dceb',
         brightWhite: '#ffffff'
       },
-      allowProposedApi: true,
-      scrollback: 5000
+      allowProposedApi: true
     })
 
     const fitAddon = new FitAddon()
@@ -182,7 +184,9 @@ export function TerminalTab({ session }: Props): JSX.Element {
             password: password ?? undefined,
             privateKey: privateKey ?? undefined,
             cols,
-            rows
+            rows,
+            readyTimeout: connectionSettings.connectTimeout * 1000,
+            keepaliveInterval: connectionSettings.keepaliveInterval * 1000
           })
         } else if (conn.protocol === 'telnet') {
           const { cols, rows } = termRef.current ?? { cols: 220, rows: 50 }

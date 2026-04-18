@@ -9,12 +9,13 @@ import { TitleBar } from './components/TitleBar'
 import { WelcomeScreen } from './components/WelcomeScreen'
 
 export default function App(): JSX.Element {
-  const { loadConnections, loadGroups, loadSshKeys, sessions, setQuickConnectOpen } = useAppStore()
+  const { loadConnections, loadGroups, loadSshKeys, loadSettings, sessions, setQuickConnectOpen } = useAppStore()
 
   useEffect(() => {
     loadConnections()
     loadGroups()
     loadSshKeys()
+    loadSettings()
   }, [])
 
   const handleKeyDown = useCallback(

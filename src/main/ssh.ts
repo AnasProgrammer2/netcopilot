@@ -26,6 +26,8 @@ export function setupSshHandlers(
         passphrase?: string
         cols?: number
         rows?: number
+        readyTimeout?: number
+        keepaliveInterval?: number
       }
     ) => {
       return new Promise((resolve, reject) => {
@@ -72,8 +74,8 @@ export function setupSshHandlers(
           host: payload.host,
           port: payload.port,
           username: payload.username,
-          readyTimeout: 30000,
-          keepaliveInterval: 30000
+          readyTimeout: payload.readyTimeout ?? 30000,
+          keepaliveInterval: payload.keepaliveInterval ?? 30000
         }
 
         if (payload.privateKey) {
