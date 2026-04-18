@@ -72,7 +72,7 @@ export function setupSshHandlers(
           host: payload.host,
           port: payload.port,
           username: payload.username,
-          readyTimeout: 20000,
+          readyTimeout: 30000,
           keepaliveInterval: 30000
         }
 
@@ -83,10 +83,6 @@ export function setupSshHandlers(
           }
         } else if (payload.password) {
           connectConfig.password = payload.password
-        }
-
-        if (process.env.NODE_ENV === 'development') {
-          connectConfig.debug = (info) => console.log('[SSH Debug]', info)
         }
 
         client.connect(connectConfig)

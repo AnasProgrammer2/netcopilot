@@ -16,6 +16,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
+  const connectingRef = useRef(false)
   const { setSessionStatus } = useAppStore()
 
   const [promptState, setPromptState] = useState<{
@@ -130,6 +131,8 @@ export function TerminalTab({ session }: Props): JSX.Element {
 
   useEffect(() => {
     const connect = async () => {
+      if (connectingRef.current) return
+      connectingRef.current = true
       try {
         const conn = session.connection
         let password: string | null = null
