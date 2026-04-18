@@ -8,39 +8,39 @@
 
 ---
 
-## ما هو NetTerm؟
+## What is NetTerm?
 
-NetTerm هو تطبيق سطح مكتب مفتوح المصدر مخصص لمهندسي الشبكات والـ DevOps، يتيح الاتصال بالراوترات والسويتشات والسيرفرات عبر **SSH** و**Telnet** من واجهة واحدة أنيقة وسريعة.
+NetTerm is an open-source desktop application designed for network engineers and DevOps teams. It provides a fast, modern interface to connect to routers, switches, and servers over **SSH** and **Telnet** — all from one place.
 
-مستوحى من Termius، لكن مفتوح المصدر وقابل للتوسع.
+Inspired by Termius, but open-source and built to be extended with AI capabilities.
 
 ---
 
-## المميزات
+## Features
 
-| الميزة | الوصف |
+| Feature | Description |
 |---|---|
-| **SSH** | اتصال آمن عبر ssh2، يدعم كلمة السر وSSH Keys |
-| **Telnet** | اتصال Telnet مع دعم كامل لـ negotiation (ECHO, NAWS) |
-| **Multi-Tab** | افتح اتصالات متعددة في نفس الوقت كل واحدة في Tab |
-| **Quick Connect** | اضغط ⌘K واكتب `user@host:port` للاتصال فوراً |
-| **Connection Manager** | احفظ اتصالاتك مع Groups وColors وNotes وTags |
-| **Device Types** | دعم خاص لـ Cisco IOS/IOS-XE/NX-OS، Juniper، Arista، PAN-OS، Linux |
-| **Secure Storage** | كلمات السر مشفرة عبر OS keychain (Electron safeStorage) |
-| **Terminal** | xterm.js مع JetBrains Mono، 256 colors، scrollback 5000 سطر |
-| **Resizable Sidebar** | قائمة الاتصالات قابلة للتمديد بالسحب |
-| **macOS Native** | دعم كامل لـ titlebar وtraffic lights على macOS |
+| **SSH** | Secure connections via ssh2, supports password and SSH key auth |
+| **Telnet** | Full Telnet support with proper negotiation (ECHO, NAWS) |
+| **Multi-Tab** | Open multiple sessions simultaneously, each in its own tab |
+| **Quick Connect** | Press ⌘K and type `user@host:port` to connect instantly |
+| **Connection Manager** | Save connections with groups, colors, notes, and tags |
+| **Device Types** | Built-in support for Cisco IOS/IOS-XE/NX-OS, Juniper, Arista, PAN-OS, Linux |
+| **Secure Storage** | Passwords encrypted via OS keychain (Electron safeStorage) |
+| **Terminal** | xterm.js with JetBrains Mono, 256 colors, 5000-line scrollback |
+| **Resizable Sidebar** | Drag to resize the connection list sidebar |
+| **macOS Native** | Full support for native titlebar and traffic lights on macOS |
 
 ---
 
-## تثبيت وتشغيل
+## Getting Started
 
-### المتطلبات
+### Requirements
 
-- [Node.js](https://nodejs.org) v18 أو أحدث
-- npm v9 أو أحدث
+- [Node.js](https://nodejs.org) v18 or later
+- npm v9 or later
 
-### التثبيت
+### Installation
 
 ```bash
 git clone https://github.com/AnasProgrammer2/netterm.git
@@ -48,7 +48,7 @@ cd netterm
 npm install
 ```
 
-### التشغيل (وضع التطوير)
+### Run (Development Mode)
 
 ```bash
 npm run dev
@@ -56,38 +56,38 @@ npm run dev
 
 ---
 
-## بناء التطبيق
+## Building
 
 ```bash
-# macOS → ينتج DMG
+# macOS → produces a DMG
 npm run build:mac
 
-# Windows → ينتج EXE installer
+# Windows → produces an EXE installer
 npm run build:win
 
-# Linux → ينتج AppImage
+# Linux → produces an AppImage
 npm run build:linux
 ```
 
-الملفات الناتجة تجدها في مجلد `dist/`.
+Output files are placed in the `dist/` folder.
 
 ---
 
-## بنية المشروع
+## Project Structure
 
 ```
 src/
 ├── main/                   # Electron Main Process (Node.js)
-│   ├── index.ts            # إنشاء النافذة وإعدادات التطبيق
-│   ├── ssh.ts              # محرك SSH (مكتبة ssh2)
-│   ├── telnet.ts           # محرك Telnet (raw TCP sockets)
-│   ├── store.ts            # قاعدة بيانات الاتصالات (electron-store)
-│   └── credentials.ts      # تشفير كلمات السر (safeStorage)
+│   ├── index.ts            # Window creation and app setup
+│   ├── ssh.ts              # SSH engine (ssh2 library)
+│   ├── telnet.ts           # Telnet engine (raw TCP sockets)
+│   ├── store.ts            # Connection database (electron-store)
+│   └── credentials.ts      # Password encryption (safeStorage)
 │
 ├── preload/
-│   └── index.ts            # جسر IPC آمن بين Main والـ UI
+│   └── index.ts            # Secure IPC bridge between Main and UI
 │
-└── renderer/               # واجهة المستخدم (React + TypeScript)
+└── renderer/               # User Interface (React + TypeScript)
     └── src/
         ├── App.tsx
         ├── store/          # State management (Zustand)
@@ -100,66 +100,66 @@ src/
         │   ├── terminal/
         │   │   ├── TerminalArea.tsx
         │   │   ├── TabBar.tsx
-        │   │   └── TerminalTab.tsx     # xterm.js
+        │   │   └── TerminalTab.tsx     # xterm.js integration
         │   └── dialogs/
-        │       ├── ConnectionDialog.tsx  # إضافة/تعديل اتصال
+        │       ├── ConnectionDialog.tsx  # Add / Edit connection
         │       └── QuickConnect.tsx      # ⌘K palette
         └── types/
 ```
 
 ---
 
-## كيف تستخدمه
+## How to Use
 
-### إضافة اتصال جديد
+### Add a New Connection
 
-1. اضغط **+** في الشريط الجانبي
-2. أدخل الاسم، الـ Host، البروتوكول (SSH/Telnet)، واسم المستخدم
-3. اختر نوع الجهاز (Cisco، Juniper، Linux، إلخ)
-4. احفظ — الاتصال يظهر في القائمة
+1. Click **+** in the sidebar
+2. Enter the name, host, protocol (SSH/Telnet), and username
+3. Choose the device type (Cisco, Juniper, Linux, etc.)
+4. Save — the connection appears in the list
 
 ### Quick Connect
 
-اضغط **⌘K** (أو **Ctrl+K** على Windows) واكتب مثلاً:
+Press **⌘K** (or **Ctrl+K** on Windows) and type something like:
 
 ```
 admin@192.168.1.1:22
 ```
 
-أو ابحث عن اتصال محفوظ بالاسم أو الـ IP.
+Or search for a saved connection by name or IP address.
 
-### فتح اتصالات متعددة
+### Multiple Sessions
 
-كل مرة تضغط على اتصال أو تتصل عبر Quick Connect، يُفتح **Tab** جديد في نفس النافذة.
+Every time you connect, a new **Tab** opens in the same window — keeping all your sessions organized in one place.
 
 ---
 
-## التقنيات المستخدمة
+## Tech Stack
 
-| التقنية | الاستخدام |
+| Technology | Purpose |
 |---|---|
-| [Electron](https://www.electronjs.org) | إطار التطبيق (macOS + Windows) |
-| [React](https://react.dev) + TypeScript | واجهة المستخدم |
-| [electron-vite](https://electron-vite.org) | Build tool وHMR |
-| [xterm.js](https://xtermjs.org) | محاكي الـ Terminal |
-| [ssh2](https://github.com/mscdex/ssh2) | مكتبة SSH |
-| [Tailwind CSS](https://tailwindcss.com) | التصميم |
-| [Zustand](https://zustand-demo.pmnd.rs) | إدارة الحالة |
-| [electron-store](https://github.com/sindresorhus/electron-store) | تخزين الاتصالات |
+| [Electron](https://www.electronjs.org) | Desktop framework (macOS + Windows) |
+| [React](https://react.dev) + TypeScript | UI layer |
+| [electron-vite](https://electron-vite.org) | Build tooling and HMR |
+| [xterm.js](https://xtermjs.org) | Terminal emulator |
+| [ssh2](https://github.com/mscdex/ssh2) | SSH library |
+| [Tailwind CSS](https://tailwindcss.com) | Styling |
+| [Zustand](https://zustand-demo.pmnd.rs) | State management |
+| [electron-store](https://github.com/sindresorhus/electron-store) | Persistent connection storage |
 
 ---
 
-## الخارطة المستقبلية
+## Roadmap
 
-- [ ] **AI Assistant** — تحليل الـ logs، اقتراح أوامر، استكشاف أخطاء الشبكة
-- [ ] **SFTP Browser** — تصفح ونقل الملفات
-- [ ] **Port Forwarding** — Local/Remote/Dynamic tunneling
-- [ ] **Snippets** — حفظ أوامر متكررة وتشغيلها بضغطة زر
-- [ ] **Serial Console** — الاتصال عبر الـ Serial Port
-- [ ] **Jump Host** — الاتصال عبر Bastion/Jump server
+- [ ] **AI Assistant** — log analysis, command suggestions, network troubleshooting
+- [ ] **SFTP Browser** — browse and transfer files visually
+- [ ] **Port Forwarding** — local, remote, and dynamic tunneling
+- [ ] **Snippets** — save frequently used commands and run them with one click
+- [ ] **Serial Console** — connect via serial port
+- [ ] **Jump Host** — connect through a bastion/jump server
 
 ---
 
-## الترخيص
+## License
 
 MIT © 2026 NetTerm
