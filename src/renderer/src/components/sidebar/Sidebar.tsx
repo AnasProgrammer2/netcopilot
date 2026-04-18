@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key } from 'lucide-react'
+import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { Connection, ConnectionGroup } from '../../types'
 import { ConnectionContextMenu } from './ConnectionContextMenu'
@@ -213,7 +213,7 @@ function ConnectionItem({
     setMenuPos({ x: e.clientX, y: e.clientY })
   }
 
-  const DeviceIcon = getDeviceIcon(connection.deviceType)
+  const DeviceIcon = getDeviceIcon(connection.deviceType, connection.protocol)
 
   return (
     <>
@@ -238,7 +238,9 @@ function ConnectionItem({
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium truncate">{connection.name}</p>
           <p className="text-[10px] text-sidebar-foreground/40 truncate">
-            {connection.host}:{connection.port}
+            {connection.protocol === 'serial'
+              ? (connection.serialConfig?.path ?? connection.host)
+              : `${connection.host}:${connection.port}`}
           </p>
         </div>
 
@@ -260,7 +262,8 @@ function ConnectionItem({
   )
 }
 
-function getDeviceIcon(deviceType: string) {
+function getDeviceIcon(deviceType: string, protocol?: string) {
+  if (protocol === 'serial') return Usb
   switch (deviceType) {
     case 'cisco-ios':
     case 'cisco-iosxe':

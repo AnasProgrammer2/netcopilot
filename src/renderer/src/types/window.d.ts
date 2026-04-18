@@ -20,6 +20,28 @@ interface TelnetConnectPayload {
   rows?: number
 }
 
+interface SerialPort {
+  path: string
+  manufacturer?: string
+  serialNumber?: string
+  pnpId?: string
+  locationId?: string
+  productId?: string
+  vendorId?: string
+}
+
+interface SerialConnectPayload {
+  sessionId: string
+  path: string
+  baudRate: number
+  dataBits?: 5 | 6 | 7 | 8
+  stopBits?: 1 | 1.5 | 2
+  parity?: 'none' | 'even' | 'odd' | 'mark' | 'space'
+  rtscts?: boolean
+  xon?: boolean
+  xoff?: boolean
+}
+
 declare global {
   interface Window {
     api: {
@@ -54,10 +76,19 @@ declare global {
         send(sessionId: string, data: string): void
         disconnect(sessionId: string): Promise<boolean>
         onData(cb: (sessionId: string, data: string) => void): () => void
-        onClosed(cb: (sessionId: string) => void): () => void
-      }
+      onClosed(cb: (sessionId: string) => void): () => void
+    }
+    serial: {
+      listPorts(): Promise<SerialPort[]>
+      connect(payload: SerialConnectPayload): Promise<{ success: boolean }>
+      send(sessionId: string, data: string): void
+      disconnect(sessionId: string): Promise<boolean>
+      onData(cb: (sessionId: string, data: string) => void): () => void
+      onClosed(cb: (sessionId: string) => void): () => void
+      onError(cb: (sessionId: string, error: string) => void): () => void
     }
   }
+}
 }
 
 export {}

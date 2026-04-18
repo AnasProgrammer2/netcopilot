@@ -1,14 +1,28 @@
 import { useState, useEffect } from 'react'
-import { X, Eye, EyeOff } from 'lucide-react'
+import { X, Eye, EyeOff, Usb } from 'lucide-react'
 import { useAppStore } from '../../store'
-import { Connection, Protocol, AuthType, DeviceType } from '../../types'
+import { Connection, Protocol, AuthType, DeviceType, SerialConfig } from '../../types'
 import { cn } from '../../lib/utils'
 import { nanoid } from 'nanoid'
 
 const PROTOCOLS: { value: Protocol; label: string; defaultPort: number }[] = [
-  { value: 'ssh', label: 'SSH', defaultPort: 22 },
-  { value: 'telnet', label: 'Telnet', defaultPort: 23 }
+  { value: 'ssh',    label: 'SSH',    defaultPort: 22 },
+  { value: 'telnet', label: 'Telnet', defaultPort: 23 },
+  { value: 'serial', label: 'Serial', defaultPort: 0  }
 ]
+
+const BAUD_RATES = [300, 1200, 2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200, 230400, 460800, 921600]
+
+const DEFAULT_SERIAL: SerialConfig = {
+  path: '',
+  baudRate: 9600,
+  dataBits: 8,
+  stopBits: 1,
+  parity: 'none',
+  rtscts: false,
+  xon: false,
+  xoff: false
+}
 
 const DEVICE_TYPES: { value: DeviceType; label: string }[] = [
   { value: 'linux',       label: 'Linux / Unix' },
@@ -71,25 +85,30 @@ export function ConnectionDialog(): JSX.Element {
     })
   }
 
+  const isSerial = form.protocol === 'serial'
+
   const handleSave = async () => {
-    if (!form.name || !form.host || !form.username) return
+    if (!form.name) return
+    if (!isSerial && !form.host) return
+    if (isSerial && !form.serialConfig?.path) return
     setSaving(true)
     try {
       const conn = await saveConnection({
         id: editingConnection?.id,
         name: form.name!,
-        host: form.host!,
+        host: isSerial ? (form.serialConfig?.path ?? '') : form.host!,
         port: form.port ?? 22,
         protocol: form.protocol ?? 'ssh',
-        username: form.username!,
+        username: form.username ?? '',
         authType: form.authType ?? 'password',
         sshKeyId: form.sshKeyId,
         groupId: form.groupId,
         tags: form.tags ?? [],
         notes: form.notes ?? '',
-        deviceType: form.deviceType ?? 'linux',
+        deviceType: form.deviceType ?? 'generic',
         color: form.color,
-        startupCommands: form.startupCommands
+        startupCommands: form.startupCommands,
+        serialConfig: isSerial ? (form.serialConfig ?? DEFAULT_SERIAL) : undefined
       } as Omit<Connection, 'id' | 'createdAt' | 'updatedAt'> & { id?: string })
 
       if (password && (form.authType === 'password' || form.authType === 'key+password')) {
@@ -102,11 +121,19 @@ export function ConnectionDialog(): JSX.Element {
     }
   }
 
+  const updateSerial = <K extends keyof SerialConfig>(key: K, value: SerialConfig[K]) => {
+    setForm((prev) => ({
+      ...prev,
+      serialConfig: { ...(prev.serialConfig ?? DEFAULT_SERIAL), [key]: value }
+    }))
+  }
+
   const TABS = [
-    { id: 'general', label: 'General' },
-    { id: 'auth', label: 'Authentication' },
+    { id: 'general',  label: 'General' },
+    ...(!isSerial ? [{ id: 'auth', label: 'Authentication' }] : []),
+    { id: 'serial',   label: 'Serial Port', hidden: !isSerial },
     { id: 'advanced', label: 'Advanced' }
-  ] as const
+  ].filter((t) => !('hidden' in t && t.hidden && t.id !== 'serial') || isSerial) as { id: string; label: string }[]
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -180,26 +207,35 @@ export function ConnectionDialog(): JSX.Element {
                 </Field>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <Field label="Host / IP" required>
+              {!isSerial && (
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <Field label="Host / IP" required>
+                      <input
+                        value={form.host ?? ''}
+                        onChange={(e) => update('host', e.target.value)}
+                        placeholder="192.168.1.1"
+                        className={inputClass}
+                      />
+                    </Field>
+                  </div>
+                  <Field label="Port">
                     <input
-                      value={form.host ?? ''}
-                      onChange={(e) => update('host', e.target.value)}
-                      placeholder="192.168.1.1"
+                      type="number"
+                      value={form.port ?? 22}
+                      onChange={(e) => update('port', parseInt(e.target.value))}
                       className={inputClass}
                     />
                   </Field>
                 </div>
-                <Field label="Port">
-                  <input
-                    type="number"
-                    value={form.port ?? 22}
-                    onChange={(e) => update('port', parseInt(e.target.value))}
-                    className={inputClass}
-                  />
-                </Field>
-              </div>
+              )}
+
+              {isSerial && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20 text-xs text-muted-foreground">
+                  <Usb className="w-4 h-4 text-primary shrink-0" />
+                  Configure port settings in the <strong className="text-foreground">Serial Port</strong> tab
+                </div>
+              )}
 
               <Field label="Color">
                 <div className="flex gap-2">
@@ -299,6 +335,14 @@ export function ConnectionDialog(): JSX.Element {
             </>
           )}
 
+          {tab === 'serial' && (
+            <SerialSettings
+              config={form.serialConfig ?? DEFAULT_SERIAL}
+              onChange={updateSerial}
+              inputClass={inputClass}
+            />
+          )}
+
           {tab === 'advanced' && (
             <>
               {form.deviceType?.startsWith('cisco') && (
@@ -337,7 +381,7 @@ export function ConnectionDialog(): JSX.Element {
           </button>
           <button
             onClick={handleSave}
-            disabled={saving || !form.name || !form.host}
+            disabled={saving || !form.name || (!isSerial && !form.host) || (isSerial && !form.serialConfig?.path)}
             className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {saving ? 'Saving...' : editingConnection ? 'Save Changes' : 'Add Connection'}
@@ -359,6 +403,158 @@ function Field({ label, required, children }: { label: string; required?: boolea
         {required && <span className="text-destructive ml-0.5">*</span>}
       </label>
       {children}
+    </div>
+  )
+}
+
+function SerialSettings({
+  config, onChange, inputClass
+}: {
+  config: SerialConfig
+  onChange: <K extends keyof SerialConfig>(key: K, value: SerialConfig[K]) => void
+  inputClass: string
+}): JSX.Element {
+  const [ports, setPorts] = useState<{ path: string; manufacturer?: string }[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const refreshPorts = async () => {
+    setLoading(true)
+    const list = await window.api.serial.listPorts()
+    setPorts(list)
+    setLoading(false)
+  }
+
+  useEffect(() => { refreshPorts() }, [])
+
+  return (
+    <div className="space-y-4">
+      {/* Port path */}
+      <Field label="Serial Port" required>
+        <div className="flex gap-2">
+          <select
+            value={config.path}
+            onChange={(e) => onChange('path', e.target.value)}
+            className={cn(inputClass, 'flex-1')}
+          >
+            <option value="">Select a port...</option>
+            {ports.map((p) => (
+              <option key={p.path} value={p.path}>
+                {p.path}{p.manufacturer ? ` — ${p.manufacturer}` : ''}
+              </option>
+            ))}
+            {config.path && !ports.find((p) => p.path === config.path) && (
+              <option value={config.path}>{config.path}</option>
+            )}
+          </select>
+          <button
+            type="button"
+            onClick={refreshPorts}
+            disabled={loading}
+            className="px-3 py-2 text-xs rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+          >
+            {loading ? '...' : 'Refresh'}
+          </button>
+        </div>
+        <input
+          value={config.path}
+          onChange={(e) => onChange('path', e.target.value)}
+          placeholder="Or type manually: /dev/ttyUSB0, COM3"
+          className={cn(inputClass, 'mt-1.5 text-xs')}
+        />
+      </Field>
+
+      {/* Baud Rate */}
+      <Field label="Baud Rate">
+        <select
+          value={config.baudRate}
+          onChange={(e) => onChange('baudRate', parseInt(e.target.value))}
+          className={inputClass}
+        >
+          {BAUD_RATES.map((b) => (
+            <option key={b} value={b}>{b.toLocaleString()}</option>
+          ))}
+        </select>
+      </Field>
+
+      {/* Data / Stop / Parity */}
+      <div className="grid grid-cols-3 gap-3">
+        <Field label="Data Bits">
+          <select
+            value={config.dataBits}
+            onChange={(e) => onChange('dataBits', parseInt(e.target.value) as 5 | 6 | 7 | 8)}
+            className={inputClass}
+          >
+            {[5, 6, 7, 8].map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </Field>
+        <Field label="Stop Bits">
+          <select
+            value={config.stopBits}
+            onChange={(e) => onChange('stopBits', parseFloat(e.target.value) as 1 | 1.5 | 2)}
+            className={inputClass}
+          >
+            {[1, 1.5, 2].map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </Field>
+        <Field label="Parity">
+          <select
+            value={config.parity}
+            onChange={(e) => onChange('parity', e.target.value as SerialConfig['parity'])}
+            className={inputClass}
+          >
+            {['none', 'even', 'odd', 'mark', 'space'].map((v) => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      {/* Flow Control */}
+      <Field label="Flow Control">
+        <div className="flex gap-3">
+          {[
+            { key: 'rtscts', label: 'RTS/CTS (Hardware)' },
+            { key: 'xon',    label: 'XON' },
+            { key: 'xoff',   label: 'XOFF' }
+          ].map(({ key, label }) => (
+            <label key={key} className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config[key as keyof SerialConfig] as boolean}
+                onChange={(e) => onChange(key as keyof SerialConfig, e.target.checked as never)}
+                className="rounded border-border accent-primary"
+              />
+              <span className="text-xs text-muted-foreground">{label}</span>
+            </label>
+          ))}
+        </div>
+      </Field>
+
+      {/* Common presets */}
+      <div className="space-y-1.5">
+        <p className="text-xs font-medium text-muted-foreground">Common Presets</p>
+        <div className="flex gap-2 flex-wrap">
+          {[
+            { label: 'Cisco Console', baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'none' },
+            { label: 'Juniper Console', baudRate: 9600, dataBits: 8, stopBits: 1, parity: 'none' },
+            { label: 'Fast Console', baudRate: 115200, dataBits: 8, stopBits: 1, parity: 'none' }
+          ].map((preset) => (
+            <button
+              key={preset.label}
+              type="button"
+              onClick={() => {
+                onChange('baudRate', preset.baudRate)
+                onChange('dataBits', preset.dataBits as 8)
+                onChange('stopBits', preset.stopBits as 1)
+                onChange('parity', preset.parity as 'none')
+              }}
+              className="text-xs px-2.5 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
