@@ -60,6 +60,16 @@ const api = {
     }
   },
 
+  // App info
+  appInfo: {
+    versions: {
+      electron: process.versions.electron,
+      node: process.versions.node,
+      chrome: process.versions.chrome
+    },
+    platform: process.platform
+  },
+
   // Serial
   serial: {
     listPorts: () => ipcRenderer.invoke('serial:list-ports'),

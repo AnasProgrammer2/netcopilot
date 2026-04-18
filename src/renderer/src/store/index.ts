@@ -262,6 +262,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const sidebarWidth = (await window.api.store.getSetting('sidebarWidth') as number | null) ?? 260
     const accentColor  = (await window.api.store.getSetting('accentColor')  as string | null) ?? '#3b82f6'
+    const theme        = (await window.api.store.getSetting('theme')         as string | null) ?? 'dark'
 
     set({
       terminalSettings: { ...DEFAULT_TERMINAL_SETTINGS, ...ts },
@@ -270,6 +271,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     })
 
     applyAccentColor(accentColor)
+    applyTheme(theme as 'dark' | 'light' | 'system')
   },
 
   applySettings: (patch) => {
@@ -291,6 +293,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     if ('sidebarWidth' in patch) set({ sidebarWidth: patch.sidebarWidth as number })
     if ('accentColor'  in patch) applyAccentColor(patch.accentColor as string)
+    if ('theme'        in patch) applyTheme(patch.theme as 'dark' | 'light' | 'system')
   },
 
   setSidebarWidth: (width) => set({ sidebarWidth: width }),
@@ -321,6 +324,35 @@ function hexToHsl(hex: string): string {
     }
   }
   return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`
+}
+
+export function applyTheme(theme: 'dark' | 'light' | 'system'): void {
+  const root = document.documentElement
+  const isDark =
+    theme === 'dark' ||
+    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+
+  if (isDark) {
+    root.classList.add('dark')
+    root.classList.remove('light')
+    resetDarkVars()
+  } else {
+    root.classList.add('light')
+    root.classList.remove('dark')
+  }
+}
+
+
+function resetDarkVars(): void {
+  // Remove inline styles to fall back to CSS defaults (dark)
+  const props = [
+    '--background','--foreground','--card','--card-foreground',
+    '--popover','--popover-foreground','--secondary','--secondary-foreground',
+    '--muted','--muted-foreground','--accent','--accent-foreground',
+    '--border','--input','--sidebar-background','--sidebar-foreground',
+    '--sidebar-accent','--sidebar-accent-foreground','--sidebar-border'
+  ]
+  props.forEach((p) => document.documentElement.style.removeProperty(p))
 }
 
 export function applyAccentColor(hex: string): void {

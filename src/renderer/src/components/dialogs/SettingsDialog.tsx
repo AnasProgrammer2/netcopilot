@@ -447,33 +447,55 @@ function SecuritySection({ settings, update }: SectionProps) {
 
 // ─── Section: About ───────────────────────────────────────────────────────────
 function AboutSection() {
+  const info = window.api?.appInfo
+  const platform = info?.platform === 'darwin' ? 'macOS'
+    : info?.platform === 'win32' ? 'Windows'
+    : info?.platform === 'linux' ? 'Linux'
+    : navigator.platform
+
+  const rows = [
+    { label: 'Version',  value: '0.1.0' },
+    { label: 'Electron', value: info?.versions.electron ?? '—' },
+    { label: 'Node.js',  value: info?.versions.node     ?? '—' },
+    { label: 'Chrome',   value: info?.versions.chrome   ?? '—' },
+    { label: 'Platform', value: platform },
+  ]
+
   return (
-    <div className="flex flex-col items-center gap-4 py-6">
+    <div className="flex flex-col items-center gap-5 py-4">
       <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
         <Terminal className="w-8 h-8 text-primary" />
       </div>
+
       <div className="text-center">
-        <h3 className="text-lg font-semibold text-foreground">NetTerm</h3>
-        <p className="text-sm text-muted-foreground">Version 0.1.0</p>
+        <h3 className="text-xl font-semibold text-foreground">NetTerm</h3>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          SSH · Telnet · Serial Console Client
+        </p>
       </div>
-      <div className="w-full max-w-xs space-y-2 mt-2">
-        {[
-          { label: 'Electron',  value: process.versions.electron ?? '—' },
-          { label: 'Node.js',   value: process.versions.node ?? '—'     },
-          { label: 'Chrome',    value: process.versions.chrome ?? '—'   },
-          { label: 'Platform',  value: navigator.userAgent.includes('Mac') ? 'macOS' : 'Windows' },
-        ].map(({ label, value }) => (
-          <div key={label} className="flex justify-between text-sm">
+
+      <div className="w-full rounded-lg border border-border overflow-hidden">
+        {rows.map(({ label, value }, i) => (
+          <div
+            key={label}
+            className={cn(
+              'flex justify-between items-center px-4 py-2.5 text-sm',
+              i % 2 === 0 ? 'bg-background' : 'bg-secondary/30'
+            )}
+          >
             <span className="text-muted-foreground">{label}</span>
-            <span className="text-foreground font-mono text-xs">{value}</span>
+            <span className="text-foreground font-mono text-xs bg-muted px-2 py-0.5 rounded">
+              {value}
+            </span>
           </div>
         ))}
       </div>
+
       <a
         href="https://github.com/AnasProgrammer2/netterm"
         target="_blank"
         rel="noreferrer"
-        className="text-xs text-primary hover:underline mt-2"
+        className="text-xs text-primary hover:underline"
       >
         github.com/AnasProgrammer2/netterm
       </a>

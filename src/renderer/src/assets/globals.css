@@ -70,6 +70,29 @@
   }
 }
 
+/* Light mode — applied via JS when theme = light */
+html.light {
+  --background: 0 0% 98%;
+  --foreground: 222 20% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 20% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 20% 10%;
+  --secondary: 220 14% 93%;
+  --secondary-foreground: 222 20% 20%;
+  --muted: 220 14% 93%;
+  --muted-foreground: 215 16% 40%;
+  --accent: 220 14% 90%;
+  --accent-foreground: 222 20% 10%;
+  --border: 220 14% 85%;
+  --input: 220 14% 85%;
+  --sidebar-background: 220 14% 95%;
+  --sidebar-foreground: 222 20% 25%;
+  --sidebar-accent: 220 14% 88%;
+  --sidebar-accent-foreground: 222 20% 10%;
+  --sidebar-border: 220 14% 82%;
+}
+
 /* xterm.js overrides */
 .xterm {
   height: 100%;
