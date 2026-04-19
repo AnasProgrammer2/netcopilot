@@ -1,9 +1,9 @@
 {
-  "name": "netterm",
+  "name": "netcopilot",
   "version": "0.1.0",
-  "description": "NetTerm – SSH/Telnet client for routers, networks & servers",
+  "description": "NetCopilot – AI-powered SSH/Telnet terminal for network engineers",
   "main": "./out/main/index.js",
-  "author": "NetTerm",
+  "author": "NetCopilot",
   "license": "MIT",
   "scripts": {
     "format": "prettier --write .",
@@ -63,9 +63,9 @@
     "vite": "^5.3.1"
   },
   "build": {
-    "appId": "com.netterm.app",
-    "productName": "NetTerm",
-    "copyright": "Copyright © 2026 NetTerm",
+    "appId": "com.netcopilot.app",
+    "productName": "NetCopilot",
+    "copyright": "Copyright © 2026 NetCopilot",
     "directories": {
       "buildResources": "resources",
       "output": "dist"

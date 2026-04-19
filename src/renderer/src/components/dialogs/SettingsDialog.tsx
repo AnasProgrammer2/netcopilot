@@ -585,7 +585,7 @@ function AboutSection() {
       </div>
 
       <div className="text-center">
-        <h3 className="text-lg font-semibold text-foreground tracking-tight">NetTerm</h3>
+        <h3 className="text-lg font-semibold text-foreground tracking-tight">NetCopilot</h3>
         <p className="text-sm text-muted-foreground mt-1">
           SSH · Telnet · Serial Console Client
         </p>
@@ -609,12 +609,12 @@ function AboutSection() {
       </div>
 
       <a
-        href="https://github.com/AnasProgrammer2/netterm"
+        href="https://github.com/AnasProgrammer2/netcopilot"
         target="_blank"
         rel="noreferrer"
         className="text-xs text-primary hover:underline underline-offset-2"
       >
-        github.com/AnasProgrammer2/netterm
+        github.com/AnasProgrammer2/netcopilot
       </a>
     </div>
   )

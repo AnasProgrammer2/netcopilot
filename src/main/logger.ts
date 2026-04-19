@@ -23,7 +23,7 @@ export function setupLogHandlers(ipcMain: IpcMain, getWindow: () => BrowserWindo
 
     const stream = createWriteStream(result.filePath, { flags: 'a', encoding: 'utf8' })
     openLogs.set(result.filePath, stream)
-    stream.write(`=== NetTerm Log — ${sessionName} — ${new Date().toISOString()} ===\n`)
+    stream.write(`=== NetCopilot Log — ${sessionName} — ${new Date().toISOString()} ===\n`)
     return result.filePath
   })
 
@@ -33,7 +33,7 @@ export function setupLogHandlers(ipcMain: IpcMain, getWindow: () => BrowserWindo
       mkdirSync(path.dirname(filePath), { recursive: true })
       const stream = createWriteStream(filePath, { flags: 'a', encoding: 'utf8' })
       openLogs.set(filePath, stream)
-      stream.write(`=== NetTerm Log — ${sessionName} — ${new Date().toISOString()} ===\n`)
+      stream.write(`=== NetCopilot Log — ${sessionName} — ${new Date().toISOString()} ===\n`)
       return filePath
     } catch (e) {
       console.error('[logger] startAt failed:', e)

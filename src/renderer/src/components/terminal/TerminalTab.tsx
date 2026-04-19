@@ -221,7 +221,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
     const target = session.connection.protocol === 'serial'
       ? (session.connection.serialConfig?.path ?? session.connection.host)
       : session.connection.host
-    term.write('\r\n\x1b[36m  NetTerm\x1b[0m · Connecting to \x1b[33m' + target + '\x1b[0m...\r\n\r\n')
+    term.write('\r\n\x1b[36m  NetCopilot\x1b[0m · Connecting to \x1b[33m' + target + '\x1b[0m...\r\n\r\n')
 
     return () => {
       mountedRef.current = false

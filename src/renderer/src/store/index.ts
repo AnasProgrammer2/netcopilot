@@ -320,7 +320,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       connections,
       groups
     }
-    const filename = `netterm-${new Date().toISOString().slice(0, 10)}.json`
+    const filename = `netcopilot-${new Date().toISOString().slice(0, 10)}.json`
     const result = await window.api.file.export(JSON.stringify(payload, null, 2), filename)
     return result.success
   },
