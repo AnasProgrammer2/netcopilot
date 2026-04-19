@@ -44,7 +44,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
   const [searchRegex, setSearchRegex]       = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
-  const { setSessionStatus, setSessionLogging, terminalSettings } = useAppStore()
+  const { setSessionStatus, setSessionLogging } = useAppStore()
 
   // Derive logging state from the session's loggingPath (store is source of truth)
   const logging = !!session.loggingPath
@@ -163,7 +163,9 @@ export function TerminalTab({ session }: Props): JSX.Element {
     mountedRef.current = true
     if (!containerRef.current || termRef.current) return
 
-    const ts: TerminalSettings = terminalSettings
+    // Read settings at effect-execution time (not from closure) to get the
+    // freshest values even if loadSettings() completed after the first render
+    const ts: TerminalSettings = useAppStore.getState().terminalSettings
     const term = new Terminal({
       fontFamily:  `"${ts.fontFamily}", "Cascadia Code", Consolas, monospace`,
       fontSize:    ts.fontSize,
@@ -500,7 +502,8 @@ export function TerminalTab({ session }: Props): JSX.Element {
       unsubClosed?.()
       unsubError?.()
     }
-  }, [session.id])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.id, session.connection.updatedAt])
 
   // ── 4. Disconnect on unmount ──────────────────────────────────────────────────
   useEffect(() => {

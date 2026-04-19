@@ -338,13 +338,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   importConnections: async () => {
     const content = await window.api.file.import()
     if (!content) return 0
+    // Reject files over 10 MB to guard against DoS / malformed input
+    if (content.length > 10 * 1024 * 1024) return -1
     try {
-      const data = JSON.parse(content) as {
-        connections?: Connection[]
-        groups?: ConnectionGroup[]
-      }
-      const incoming: Connection[]      = data.connections ?? []
-      const inGroups: ConnectionGroup[] = data.groups      ?? []
+      const parsed = JSON.parse(content)
+      // Basic schema guard: must be a plain object (not array, null, etc.)
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return -1
+      const data = parsed as { connections?: unknown[]; groups?: unknown[] }
+      // Only accept array-shaped fields; ignore unknown keys
+      const incoming: Connection[]      = (Array.isArray(data.connections) ? data.connections : []) as Connection[]
+      const inGroups: ConnectionGroup[] = (Array.isArray(data.groups)      ? data.groups      : []) as ConnectionGroup[]
 
       // Remap group IDs so we don't collide with existing ones
       const groupIdMap = new Map<string, string>()
@@ -444,6 +447,7 @@ function resetDarkVars(): void {
 }
 
 export function applyAccentColor(hex: string): void {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return // ignore invalid hex values
   const hsl = hexToHsl(hex)
   document.documentElement.style.setProperty('--primary', hsl)
   document.documentElement.style.setProperty('--ring', hsl)

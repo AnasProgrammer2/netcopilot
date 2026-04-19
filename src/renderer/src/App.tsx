@@ -78,6 +78,15 @@ export default function App(): JSX.Element {
     setLocked(false)
   }
 
+  // Capture keydown at window level while the idle-lock overlay is active so
+  // "press any key" works even when focus is inside the xterm.js canvas
+  useEffect(() => {
+    if (!locked) return
+    const handleKey = () => unlock()
+    window.addEventListener('keydown', handleKey, true) // capture phase
+    return () => window.removeEventListener('keydown', handleKey, true)
+  }, [locked])
+
   // Show master password lock screen if needed
   if (masterLocked === null) return <div className="h-screen w-screen bg-background" /> // loading
   if (masterLocked) {
