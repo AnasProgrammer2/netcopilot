@@ -20,7 +20,7 @@ export function WelcomeScreen(): JSX.Element {
         <div className="text-center space-y-1">
           <h1 className="text-2xl font-semibold text-foreground tracking-tight">NetCopilot</h1>
           <p className="text-sm text-muted-foreground">
-            SSH · Telnet · Serial Console
+            Your AI-Native Network Copilot
           </p>
         </div>
       </div>
