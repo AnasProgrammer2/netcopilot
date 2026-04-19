@@ -8,6 +8,7 @@ import { setupCredentialHandlers } from './credentials'
 import { setupSerialHandlers } from './serial'
 import { setupFileDialogHandlers } from './fileDialog'
 import { setupLogHandlers } from './logger'
+import { setupMasterPasswordHandlers } from './masterPassword'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -66,6 +67,15 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
+  // Block DevTools in production
+  if (!is.dev) {
+    mainWindow.webContents.on('devtools-opened', () => {
+      mainWindow?.webContents.closeDevTools()
+    })
+    globalShortcut.register('CommandOrControl+Shift+I', () => {/* blocked */})
+    globalShortcut.register('F12', () => {/* blocked */})
+  }
+
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -89,6 +99,7 @@ app.whenReady().then(() => {
   setupSerialHandlers(ipcMain, () => mainWindow)
   setupFileDialogHandlers(ipcMain, () => mainWindow)
   setupLogHandlers(ipcMain, () => mainWindow)
+  setupMasterPasswordHandlers(ipcMain)
 
   createWindow()
 

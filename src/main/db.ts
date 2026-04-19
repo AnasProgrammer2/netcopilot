@@ -1,8 +1,9 @@
-import Database from 'better-sqlite3'
+import Database from 'better-sqlite3-multiple-ciphers'
 import { app } from 'electron'
 import path from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { Connection, ConnectionGroup, SSHKey } from '../types/shared'
+import { getDbKey } from './dbKey'
 
 function safeJsonParse<T>(raw: string, fallback: T): T {
   try { return JSON.parse(raw) as T } catch { return fallback }
@@ -13,7 +14,19 @@ let _db: Database.Database | null = null
 export function getDb(): Database.Database {
   if (!_db) {
     const dbPath = path.join(app.getPath('userData'), 'netcopilot.db')
+    const keyFile = path.join(app.getPath('userData'), 'netcopilot.key')
+    const isFirstEncrypt = !existsSync(keyFile)
+
+    if (isFirstEncrypt && existsSync(dbPath)) {
+      // Existing plain DB — open without key, then rekey to encrypt in-place
+      const plainDb = new Database(dbPath)
+      const key = getDbKey() // generates + saves key file
+      plainDb.pragma(`rekey = '${key}'`)
+      plainDb.close()
+    }
+
     _db = new Database(dbPath)
+    _db.pragma(`key = '${getDbKey()}'`)
     _db.pragma('journal_mode = WAL')
     _db.pragma('foreign_keys = ON')
     initSchema(_db)

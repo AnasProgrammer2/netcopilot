@@ -8,19 +8,30 @@ import { QuickConnect } from './components/dialogs/QuickConnect'
 import { SettingsDialog } from './components/dialogs/SettingsDialog'
 import { TitleBar } from './components/TitleBar'
 import { WelcomeScreen } from './components/WelcomeScreen'
+import { MasterPasswordLock } from './components/MasterPasswordLock'
 
 export default function App(): JSX.Element {
   const { loadConnections, loadGroups, loadSshKeys, loadSettings, sessions, setQuickConnectOpen } = useAppStore()
+  const [masterLocked, setMasterLocked] = useState<boolean | null>(null) // null = checking
   const [locked, setLocked] = useState(false)
   const lastActivityRef = useRef(Date.now())
   const autoLockMinsRef = useRef(0)
 
+  // Check master password on startup
   useEffect(() => {
-    loadConnections()
-    loadGroups()
-    loadSshKeys()
-    loadSettings()
+    window.api.auth.hasMasterPassword().then((has) => {
+      setMasterLocked(has) // true = show lock screen, false = skip
+    })
   }, [])
+
+  useEffect(() => {
+    if (masterLocked === false) {
+      loadConnections()
+      loadGroups()
+      loadSshKeys()
+      loadSettings()
+    }
+  }, [masterLocked])
 
   // Auto-lock idle timer
   useEffect(() => {
@@ -65,6 +76,15 @@ export default function App(): JSX.Element {
   const unlock = () => {
     lastActivityRef.current = Date.now()
     setLocked(false)
+  }
+
+  // Show master password lock screen if needed
+  if (masterLocked === null) return <div className="h-screen w-screen bg-background" /> // loading
+  if (masterLocked) {
+    return <MasterPasswordLock onUnlocked={() => {
+      setMasterLocked(false)
+      loadConnections(); loadGroups(); loadSshKeys(); loadSettings()
+    }} />
   }
 
   return (

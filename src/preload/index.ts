@@ -113,6 +113,14 @@ const api = {
       ipcRenderer.on('serial:error', handler)
       return () => ipcRenderer.removeListener('serial:error', handler)
     }
+  },
+
+  // Auth
+  auth: {
+    hasMasterPassword: () => ipcRenderer.invoke('auth:hasMasterPassword'),
+    setMasterPassword: (password: string) => ipcRenderer.invoke('auth:setMasterPassword', password),
+    verifyMasterPassword: (password: string) => ipcRenderer.invoke('auth:verifyMasterPassword', password),
+    clearMasterPassword: (currentPassword: string) => ipcRenderer.invoke('auth:clearMasterPassword', currentPassword)
   }
 }
 

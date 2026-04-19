@@ -106,6 +106,12 @@ declare global {
       onClosed(cb: (sessionId: string) => void): () => void
       onError(cb: (sessionId: string, error: string) => void): () => void
     }
+    auth: {
+      hasMasterPassword(): Promise<boolean>
+      setMasterPassword(password: string): Promise<{ success: boolean; error?: string }>
+      verifyMasterPassword(password: string): Promise<boolean>
+      clearMasterPassword(currentPassword: string): Promise<{ success: boolean; error?: string }>
+    }
   }
 }
 }
