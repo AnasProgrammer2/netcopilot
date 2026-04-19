@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback } from 'react'
-import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb, Pencil, Trash2 } from 'lucide-react'
+import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb, Pencil, Trash2, Download, Upload } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { Connection, ConnectionGroup } from '../../types'
 import { ConnectionContextMenu } from './ConnectionContextMenu'
 import { GroupDialog } from './GroupDialog'
+import { SSHKeyDialog } from '../dialogs/SSHKeyDialog'
 import { cn } from '../../lib/utils'
 
 const GROUP_COLORS = [
@@ -16,8 +17,11 @@ export function Sidebar(): JSX.Element {
     connections, groups, sessions, activeSessionId,
     sidebarWidth, setSidebarWidth,
     setConnectionDialogOpen, setQuickConnectOpen,
-    openSession
+    openSession, exportConnections, importConnections
   } = useAppStore()
+
+  const [importMsg, setImportMsg] = useState<string | null>(null)
+  const [sshKeyDialogOpen, setSshKeyDialogOpen] = useState(false)
 
   const [search, setSearch] = useState('')
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
@@ -192,12 +196,51 @@ export function Sidebar(): JSX.Element {
           ))}
         </div>
 
-        {/* SSH Keys shortcut */}
-        <div className="border-t border-sidebar-border p-2">
-          <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent">
+        {/* Footer actions */}
+        <div className="border-t border-sidebar-border p-2 space-y-0.5">
+          <button
+            onClick={() => setSshKeyDialogOpen(true)}
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          >
             <Key className="w-3.5 h-3.5" />
             SSH Keys
           </button>
+
+          <button
+            onClick={() => exportConnections()}
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+            title="Export all connections to JSON"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export Connections
+          </button>
+
+          <button
+            onClick={async () => {
+              setImportMsg(null)
+              const count = await importConnections()
+              if (count === -1)      setImportMsg('Import failed — invalid file')
+              else if (count === 0)  setImportMsg('No connections imported')
+              else                   setImportMsg(`Imported ${count} connection${count !== 1 ? 's' : ''}`)
+              setTimeout(() => setImportMsg(null), 3500)
+            }}
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+            title="Import connections from JSON"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            Import Connections
+          </button>
+
+          {importMsg && (
+            <p className={cn(
+              'text-xs px-2 py-1 rounded',
+              importMsg.startsWith('Imported')
+                ? 'text-emerald-400 bg-emerald-400/10'
+                : 'text-red-400 bg-red-400/10'
+            )}>
+              {importMsg}
+            </p>
+          )}
         </div>
       </div>
 
@@ -212,6 +255,9 @@ export function Sidebar(): JSX.Element {
           group={groupDialog.group}
           onClose={() => setGroupDialog({ open: false })}
         />
+      )}
+      {sshKeyDialogOpen && (
+        <SSHKeyDialog onClose={() => setSshKeyDialogOpen(false)} />
       )}
     </div>
   )
@@ -229,7 +275,12 @@ interface ConnectionItemProps {
 function ConnectionItem({
   connection, indent = false, sessions, activeSessionId, onConnect, onEdit
 }: ConnectionItemProps): JSX.Element {
-  const { deleteConnection } = useAppStore()
+  const { deleteConnection, saveConnection } = useAppStore()
+
+  const handleDuplicate = async () => {
+    const { id: _id, createdAt: _ca, updatedAt: _ua, lastConnectedAt: _lca, ...rest } = connection
+    await saveConnection({ ...rest, name: `${connection.name} (Copy)` })
+  }
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null)
 
   const activeSession = sessions.find((s) => s.connectionId === connection.id)
@@ -284,6 +335,7 @@ function ConnectionItem({
           onConnect={onConnect}
           onEdit={onEdit}
           onDelete={() => deleteConnection(connection.id)}
+          onDuplicate={handleDuplicate}
         />
       )}
     </>

@@ -10,6 +10,8 @@ interface SshConnectPayload {
   passphrase?: string
   cols?: number
   rows?: number
+  readyTimeout?: number
+  keepaliveInterval?: number
 }
 
 interface TelnetConnectPayload {
@@ -67,6 +69,18 @@ declare global {
         get(key: string): Promise<string | null>
         delete(key: string): Promise<boolean>
       }
+      log: {
+        start(sessionName: string): Promise<string | null>
+        startAt(filePath: string, sessionName: string): Promise<string | null>
+        append(filePath: string, data: string): Promise<boolean>
+        stop(filePath: string): Promise<boolean>
+      }
+      file: {
+        export(content: string, filename?: string): Promise<{ success: boolean; filePath?: string }>
+        import(): Promise<string | null>
+        selectFolder(): Promise<string | null>
+        getDefaultLogDir(): Promise<string>
+      }
       ssh: {
         connect(payload: SshConnectPayload): Promise<{ success: boolean }>
         send(sessionId: string, data: string): void
@@ -78,10 +92,11 @@ declare global {
       telnet: {
         connect(payload: TelnetConnectPayload): Promise<{ success: boolean }>
         send(sessionId: string, data: string): void
+        resize(sessionId: string, cols: number, rows: number): Promise<boolean>
         disconnect(sessionId: string): Promise<boolean>
         onData(cb: (sessionId: string, data: string) => void): () => void
-      onClosed(cb: (sessionId: string) => void): () => void
-    }
+        onClosed(cb: (sessionId: string) => void): () => void
+      }
     serial: {
       listPorts(): Promise<SerialPort[]>
       connect(payload: SerialConnectPayload): Promise<{ success: boolean }>

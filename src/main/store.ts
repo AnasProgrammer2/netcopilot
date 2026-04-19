@@ -1,91 +1,134 @@
 import { IpcMain } from 'electron'
-import Store from 'electron-store'
 import { Connection, ConnectionGroup, SSHKey } from '../types/shared'
+import { getDb, rowToConnection, connToRow, rowToGroup, rowToSshKey } from './db'
 
-const store = new Store<{
-  connections: Connection[]
-  groups: ConnectionGroup[]
-  sshKeys: SSHKey[]
-  settings: Record<string, unknown>
-}>({
-  defaults: {
-    connections: [],
-    groups: [],
-    sshKeys: [],
-    settings: {}
-  }
-})
+type Row = Record<string, unknown>
 
 export function setupStoreHandlers(ipcMain: IpcMain): void {
-  ipcMain.handle('store:get-connections', () => store.get('connections', []))
+  // ── Connections ─────────────────────────────────────────────────────────────
+
+  ipcMain.handle('store:get-connections', () => {
+    const rows = getDb().prepare('SELECT * FROM connections ORDER BY name ASC').all() as Row[]
+    return rows.map(rowToConnection)
+  })
 
   ipcMain.handle('store:save-connection', (_, connection: Connection) => {
-    const connections = store.get('connections', [])
-    const idx = connections.findIndex((c) => c.id === connection.id)
-    if (idx >= 0) {
-      connections[idx] = connection
+    const db = getDb()
+    const exists = db
+      .prepare('SELECT id FROM connections WHERE id = ?')
+      .get(connection.id) as { id: string } | undefined
+
+    if (exists) {
+      const row = connToRow(connection)
+      db.prepare(`
+        UPDATE connections SET
+          name = @name, host = @host, port = @port, protocol = @protocol,
+          username = @username, auth_type = @auth_type, ssh_key_id = @ssh_key_id,
+          group_id = @group_id, tags = @tags, notes = @notes,
+          device_type = @device_type, color = @color, jump_host_id = @jump_host_id,
+          startup_commands = @startup_commands, enable_password = @enable_password,
+          serial_config = @serial_config, auto_reconnect = @auto_reconnect,
+          reconnect_delay = @reconnect_delay, updated_at = @updated_at,
+          last_connected_at = @last_connected_at
+        WHERE id = @id
+      `).run(row)
     } else {
-      connections.push(connection)
+      db.prepare(`
+        INSERT INTO connections
+        (id, name, host, port, protocol, username, auth_type, ssh_key_id, group_id,
+         tags, notes, device_type, color, jump_host_id, startup_commands,
+         enable_password, serial_config, auto_reconnect, reconnect_delay,
+         created_at, updated_at, last_connected_at)
+        VALUES
+        (@id, @name, @host, @port, @protocol, @username, @auth_type, @ssh_key_id, @group_id,
+         @tags, @notes, @device_type, @color, @jump_host_id, @startup_commands,
+         @enable_password, @serial_config, @auto_reconnect, @reconnect_delay,
+         @created_at, @updated_at, @last_connected_at)
+      `).run(connToRow(connection))
     }
-    store.set('connections', connections)
     return connection
   })
 
   ipcMain.handle('store:delete-connection', (_, id: string) => {
-    const connections = store.get('connections', []).filter((c) => c.id !== id)
-    store.set('connections', connections)
+    getDb().prepare('DELETE FROM connections WHERE id = ?').run(id)
     return true
   })
 
-  ipcMain.handle('store:get-groups', () => store.get('groups', []))
+  // ── Groups ──────────────────────────────────────────────────────────────────
+
+  ipcMain.handle('store:get-groups', () => {
+    const rows = getDb().prepare('SELECT * FROM connection_groups ORDER BY name ASC').all() as Row[]
+    return rows.map(rowToGroup)
+  })
 
   ipcMain.handle('store:save-group', (_, group: ConnectionGroup) => {
-    const groups = store.get('groups', [])
-    const idx = groups.findIndex((g) => g.id === group.id)
-    if (idx >= 0) {
-      groups[idx] = group
-    } else {
-      groups.push(group)
-    }
-    store.set('groups', groups)
+    const db = getDb()
+    db.prepare(`
+      INSERT INTO connection_groups (id, name, color, parent_id)
+      VALUES (@id, @name, @color, @parent_id)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        color = excluded.color,
+        parent_id = excluded.parent_id
+    `).run({
+      id:        group.id,
+      name:      group.name,
+      color:     group.color    ?? null,
+      parent_id: group.parentId ?? null,
+    })
     return group
   })
 
   ipcMain.handle('store:delete-group', (_, id: string) => {
-    const groups = store.get('groups', []).filter((g) => g.id !== id)
-    store.set('groups', groups)
+    const db = getDb()
+    // Ungroup connections that belonged to this group
+    db.prepare('UPDATE connections SET group_id = NULL WHERE group_id = ?').run(id)
+    db.prepare('DELETE FROM connection_groups WHERE id = ?').run(id)
     return true
   })
 
-  ipcMain.handle('store:get-ssh-keys', () => store.get('sshKeys', []))
+  // ── SSH Keys ────────────────────────────────────────────────────────────────
+
+  ipcMain.handle('store:get-ssh-keys', () => {
+    const rows = getDb().prepare('SELECT * FROM ssh_keys ORDER BY name ASC').all() as Row[]
+    return rows.map(rowToSshKey)
+  })
 
   ipcMain.handle('store:save-ssh-key', (_, key: SSHKey) => {
-    const keys = store.get('sshKeys', [])
-    const idx = keys.findIndex((k) => k.id === key.id)
-    if (idx >= 0) {
-      keys[idx] = key
-    } else {
-      keys.push(key)
-    }
-    store.set('sshKeys', keys)
+    getDb().prepare(`
+      INSERT INTO ssh_keys (id, name, public_key, created_at)
+      VALUES (@id, @name, @public_key, @created_at)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        public_key = excluded.public_key
+    `).run({
+      id:         key.id,
+      name:       key.name,
+      public_key: key.publicKey,
+      created_at: key.createdAt,
+    })
     return key
   })
 
   ipcMain.handle('store:delete-ssh-key', (_, id: string) => {
-    const keys = store.get('sshKeys', []).filter((k) => k.id !== id)
-    store.set('sshKeys', keys)
+    getDb().prepare('DELETE FROM ssh_keys WHERE id = ?').run(id)
     return true
   })
 
+  // ── Settings ────────────────────────────────────────────────────────────────
+
   ipcMain.handle('store:get-setting', (_, key: string) => {
-    const settings = store.get('settings', {})
-    return settings[key]
+    const row = getDb()
+      .prepare('SELECT value FROM settings WHERE key = ?')
+      .get(key) as { value: string } | undefined
+    return row ? JSON.parse(row.value) : undefined
   })
 
   ipcMain.handle('store:set-setting', (_, key: string, value: unknown) => {
-    const settings = store.get('settings', {})
-    settings[key] = value
-    store.set('settings', settings)
+    getDb().prepare(`
+      INSERT INTO settings (key, value) VALUES (@key, @value)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value
+    `).run({ key, value: JSON.stringify(value) })
     return true
   })
 }

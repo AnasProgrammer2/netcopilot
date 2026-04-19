@@ -131,7 +131,7 @@ function highlightCisco(line: string): string {
     // Interface name → cyan
     out = out.replace(
       /^(GigabitEthernet|FastEthernet|TenGigabitEthernet|HundredGigE|Loopback|Vlan|Tunnel|Serial|Bundle-Ether|mgmt\d*)/i,
-      (m) => col(C.bold + C.cyan, m)
+      (ifname) => col(C.bold + C.cyan, ifname)
     )
     // Status: up → green, down → red
     out = out.replace(/\bup\b/g,   col(C.green, 'up'))
@@ -151,7 +151,7 @@ function highlightCisco(line: string): string {
   out = out.replace(/\b(Idle|Active|Connect|Down|Attempt)\b/g, (m) => col(C.red, m))
 
   // VRF names
-  out = out.replace(/\bvrf\s+(\S+)/gi, (m, v) => `vrf ${col(C.magenta, v)}`)
+  out = out.replace(/\bvrf\s+(\S+)/gi, (_m, v) => `vrf ${col(C.magenta, v)}`)
 
   // Table headers (all caps line)
   if (/^[A-Z][A-Z\s]{10,}$/.test(plain.trim()))
@@ -224,7 +224,7 @@ function highlightArista(line: string): string {
 // ─────────────────────────────────────────────────────────────────────────────
 // NOKIA SR-OS
 // ─────────────────────────────────────────────────────────────────────────────
-function highlightNokia(line: string): string {
+export function highlightNokia(line: string): string {
   const plain = stripAnsi(line)
 
   // Prompt: A:hostname# or B:hostname>
@@ -265,6 +265,156 @@ function highlightPanos(line: string): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// CISCO ASA
+// ─────────────────────────────────────────────────────────────────────────────
+function highlightCiscoAsa(line: string): string {
+  const plain = stripAnsi(line)
+
+  // Prompt: hostname# or hostname/ctx#
+  if (/^[\w/.-]+(\/\w+)?[>#]/.test(plain.trim()))
+    return col(C.bold + C.cyan, plain)
+
+  if (/\b(Teardown|Denied|No route|unreachable|failed|error)\b/i.test(plain))
+    return col(C.red, plain)
+  if (/\b(Built|Permitted|allowed|success|established)\b/i.test(plain))
+    return col(C.green, plain)
+  if (/\b(warning|inspect|nat)\b/i.test(plain))
+    return col(C.yellow, plain)
+
+  let out = plain
+  out = out.replace(/\b(access-list|nat|object|policy-map|class-map|service-policy|crypto|tunnel-group)\b/gi,
+    (kw) => col(C.bold + C.blue, kw))
+  out = out.replace(/\b(inside|outside|dmz)\b/gi, (z) => col(C.magenta, z))
+  return colorIPs(out)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HUAWEI VRP
+// ─────────────────────────────────────────────────────────────────────────────
+function highlightHuawei(line: string): string {
+  const plain = stripAnsi(line)
+
+  // Prompt: <hostname> or [hostname]
+  if (/^[<\[][A-Za-z0-9_.-]+[>\]]/.test(plain.trim()))
+    return col(C.bold + C.cyan, plain)
+
+  if (/\b(Error|failed|invalid|down|unreachable)\b/i.test(plain))
+    return col(C.red, plain)
+  if (/\b(up|success|active|established)\b/i.test(plain))
+    return col(C.green, plain)
+  if (/\b(Warning)\b/i.test(plain))
+    return col(C.yellow, plain)
+
+  let out = plain
+  out = out.replace(/\b(interface|ip route|ospf|bgp|isis|mpls|vpn-instance|acl|firewall|nat|stp|vlan)\b/gi,
+    (kw) => col(C.bold + C.blue, kw))
+  out = out.replace(/\b(GigabitEthernet|XGigabitEthernet|Eth-Trunk|LoopBack|Vlanif|Tunnel|Serial)\b/gi,
+    (iface) => col(C.cyan, iface))
+  out = out.replace(/\b(display|undo|commit|save|quit|return|sysname)\b/gi,
+    (cmd) => col(C.bold + C.green, cmd))
+  return colorIPs(out)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MIKROTIK ROUTEROS
+// ─────────────────────────────────────────────────────────────────────────────
+function highlightMikrotik(line: string): string {
+  const plain = stripAnsi(line)
+
+  // Prompt: [admin@hostname] /path>
+  if (/^\[.*@.*\]/.test(plain.trim()))
+    return col(C.bold + C.cyan, plain)
+
+  if (/\b(failure|invalid|error|no such)\b/i.test(plain))
+    return col(C.red, plain)
+  if (/\b(added|removed|success|running|enabled)\b/i.test(plain))
+    return col(C.green, plain)
+  if (/\b(disabled|warning)\b/i.test(plain))
+    return col(C.yellow, plain)
+
+  let out = plain
+  // Menu paths
+  out = out.replace(/(\/[\w-]+(\/[\w-]+)*)/g, (p) => col(C.bold + C.blue, p))
+  // Properties
+  out = out.replace(/(\w[\w-]*)=([\S]+)/g, (_, k, v) =>
+    `${col(C.cyan, k)}=${col(C.yellow, v)}`)
+  out = out.replace(/\b(add|remove|set|print|export|enable|disable|find|monitor)\b/gi,
+    (cmd) => col(C.bold + C.green, cmd))
+  return colorIPs(out)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FORTINET FORTIOS
+// ─────────────────────────────────────────────────────────────────────────────
+function highlightFortiOS(line: string): string {
+  const plain = stripAnsi(line)
+
+  // Prompt: hostname # or hostname (vdom) #
+  if (/^[\w-]+(\s*\([\w-]+\))?\s*[#$]/.test(plain.trim()))
+    return col(C.bold + C.cyan, plain)
+
+  if (/\b(error|failed|invalid|denied|blocked)\b/i.test(plain))
+    return col(C.red, plain)
+  if (/\b(success|accepted|allowed|up|established)\b/i.test(plain))
+    return col(C.green, plain)
+  if (/\b(warning|notice)\b/i.test(plain))
+    return col(C.yellow, plain)
+
+  let out = plain
+  out = out.replace(/\b(config|edit|set|unset|append|next|end|get|show|execute|diagnose)\b/gi,
+    (cmd) => col(C.bold + C.blue, cmd))
+  out = out.replace(/\b(firewall|policy|address|service|vip|ipsec|ssl-vpn|router|system|interface|vdom)\b/gi,
+    (kw) => col(C.magenta, kw))
+  out = out.replace(/"([^"]+)"/g, (_q, v) => `"${col(C.yellow, v)}"`)
+  return colorIPs(out)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HP PROCURVE / ARUBA
+// ─────────────────────────────────────────────────────────────────────────────
+function highlightHpProcurve(line: string): string {
+  const plain = stripAnsi(line)
+
+  // Prompt: hostname# or hostname(config)#
+  if (/^[\w-]+(\([\w/-]+\))?[#>]/.test(plain.trim()))
+    return col(C.bold + C.cyan, plain)
+
+  if (/\b(error|invalid|failed|down)\b/i.test(plain))  return col(C.red, plain)
+  if (/\b(up|active|success|enabled)\b/i.test(plain))  return col(C.green, plain)
+  if (/\b(warning|disabled)\b/i.test(plain))           return col(C.yellow, plain)
+
+  let out = plain
+  out = out.replace(/\b(interface|vlan|spanning-tree|trunk|lacp|qos|routing|ip|snmp|aaa)\b/gi,
+    (kw) => col(C.bold + C.blue, kw))
+  out = out.replace(/\b(show|configure|no|write|copy|reload)\b/gi,
+    (cmd) => col(C.bold + C.green, cmd))
+  return colorIPs(out)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F5 BIG-IP TMOS
+// ─────────────────────────────────────────────────────────────────────────────
+function highlightF5(line: string): string {
+  const plain = stripAnsi(line)
+
+  // Prompt: user@hostname[ctx]#
+  if (/^\w+@[\w-]+(:\[\w+\])?[#(]/.test(plain.trim()))
+    return col(C.bold + C.cyan, plain)
+
+  if (/\b(error|failed|invalid|down)\b/i.test(plain))  return col(C.red, plain)
+  if (/\b(success|up|active|available)\b/i.test(plain)) return col(C.green, plain)
+  if (/\b(warning|standby|offline)\b/i.test(plain))    return col(C.yellow, plain)
+
+  let out = plain
+  out = out.replace(/\b(ltm|gtm|apm|asm|afm|sys|net|virtual|pool|node|monitor|profile|rule|iRule)\b/gi,
+    (kw) => col(C.bold + C.blue, kw))
+  out = out.replace(/\b(create|modify|delete|list|show|save|load|run|publish)\b/gi,
+    (cmd) => col(C.bold + C.green, cmd))
+  out = out.replace(/\{([^}]*)\}/g, (_b, body) => `{${col(C.yellow, body)}}`)
+  return colorIPs(out)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main dispatcher
 // ─────────────────────────────────────────────────────────────────────────────
 export function highlightLine(line: string, deviceType: DeviceType): string {
@@ -273,9 +423,16 @@ export function highlightLine(line: string, deviceType: DeviceType): string {
     case 'cisco-ios':
     case 'cisco-iosxe':
     case 'cisco-nxos':  return highlightCisco(line)
+    case 'cisco-asa':   return highlightCiscoAsa(line)
     case 'junos':       return highlightJunos(line)
     case 'arista-eos':  return highlightArista(line)
     case 'panos':       return highlightPanos(line)
+    case 'nokia-sros':  return highlightNokia(line)
+    case 'huawei-vrp':  return highlightHuawei(line)
+    case 'mikrotik':    return highlightMikrotik(line)
+    case 'fortios':     return highlightFortiOS(line)
+    case 'hp-procurve': return highlightHpProcurve(line)
+    case 'f5-tmos':     return highlightF5(line)
     default:            return colorIPs(stripAnsi(line))
   }
 }

@@ -16,6 +16,8 @@ export interface ConnectionSettings {
   connectTimeout: number
   sshDefaultPort: number
   telnetDefaultPort: number
+  autoReconnect: boolean
+  reconnectDelay: number
 }
 
 export const DEFAULT_TERMINAL_SETTINGS: TerminalSettings = {
@@ -31,7 +33,9 @@ export const DEFAULT_CONNECTION_SETTINGS: ConnectionSettings = {
   keepaliveInterval: 30,
   connectTimeout: 30,
   sshDefaultPort: 22,
-  telnetDefaultPort: 23
+  telnetDefaultPort: 23,
+  autoReconnect: true,
+  reconnectDelay: 10
 }
 
 interface AppState {
@@ -77,11 +81,22 @@ interface AppState {
   loadSettings: () => Promise<void>
   applySettings: (patch: Record<string, unknown>) => void
 
+  // Actions - Import / Export
+  exportConnections: () => Promise<boolean>
+  importConnections: () => Promise<number>
+
   // Actions - UI
   setSidebarWidth: (width: number) => void
   setQuickConnectOpen: (open: boolean) => void
   setConnectionDialogOpen: (open: boolean, connection?: Connection | null) => void
   setSettingsOpen: (open: boolean) => void
+
+  // Split pane
+  splitSessionId: string | null
+  setSplitSession: (id: string | null) => void
+
+  // Session logging (path stored per session so TabBar can show indicator)
+  setSessionLogging: (sessionId: string, path: string | null) => void
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -97,6 +112,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   connectionDialogOpen: false,
   editingConnection: null,
   settingsOpen: false,
+  splitSessionId: null,
 
   loadConnections: async () => {
     const connections = await window.api.store.getConnections()
@@ -106,9 +122,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   saveConnection: async (connData) => {
     const now = Date.now()
     const conn: Connection = {
+      ...connData,
       id: connData.id || nanoid(),
       createdAt: now,
-      ...connData,
       updatedAt: now
     } as Connection
 
@@ -139,8 +155,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   saveGroup: async (groupData) => {
     const group: ConnectionGroup = {
-      id: groupData.id || nanoid(),
-      ...groupData
+      ...groupData,
+      id: groupData.id || nanoid()
     }
     const saved = await window.api.store.saveGroup(group)
     set((state) => {
@@ -169,9 +185,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   saveSshKey: async (keyData) => {
     const key: SSHKey = {
+      ...keyData,
       id: keyData.id || nanoid(),
-      createdAt: Date.now(),
-      ...keyData
+      createdAt: Date.now()
     }
     const saved = await window.api.store.saveSshKey(key)
     set((state) => {
@@ -296,6 +312,59 @@ export const useAppStore = create<AppState>((set, get) => ({
     if ('theme'        in patch) applyTheme(patch.theme as 'dark' | 'light' | 'system')
   },
 
+  exportConnections: async () => {
+    const { connections, groups } = get()
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      connections,
+      groups
+    }
+    const filename = `netterm-${new Date().toISOString().slice(0, 10)}.json`
+    const result = await window.api.file.export(JSON.stringify(payload, null, 2), filename)
+    return result.success
+  },
+
+  importConnections: async () => {
+    const content = await window.api.file.import()
+    if (!content) return 0
+    try {
+      const data = JSON.parse(content) as {
+        connections?: Connection[]
+        groups?: ConnectionGroup[]
+      }
+      const incoming: Connection[]      = data.connections ?? []
+      const inGroups: ConnectionGroup[] = data.groups      ?? []
+
+      // Remap group IDs so we don't collide with existing ones
+      const groupIdMap = new Map<string, string>()
+      for (const g of inGroups) {
+        const newId = nanoid()
+        groupIdMap.set(g.id, newId)
+        await window.api.store.saveGroup({ ...g, id: newId })
+      }
+
+      let count = 0
+      for (const conn of incoming) {
+        const newGroupId = conn.groupId ? (groupIdMap.get(conn.groupId) ?? undefined) : undefined
+        await window.api.store.saveConnection({
+          ...conn,
+          id: nanoid(),
+          groupId: newGroupId,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        })
+        count++
+      }
+
+      await get().loadConnections()
+      await get().loadGroups()
+      return count
+    } catch {
+      return -1
+    }
+  },
+
   setSidebarWidth: (width) => set({ sidebarWidth: width }),
 
   setQuickConnectOpen: (open) => set({ quickConnectOpen: open }),
@@ -303,7 +372,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   setConnectionDialogOpen: (open, connection = null) =>
     set({ connectionDialogOpen: open, editingConnection: connection }),
 
-  setSettingsOpen: (open) => set({ settingsOpen: open })
+  setSettingsOpen: (open) => set({ settingsOpen: open }),
+
+  setSplitSession: (id) => set({ splitSessionId: id }),
+
+  setSessionLogging: (sessionId, path) =>
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === sessionId ? { ...s, loggingPath: path } : s
+      )
+    })),
 }))
 
 // ── Apply accent color as CSS variable ──────────────────────────────────────
