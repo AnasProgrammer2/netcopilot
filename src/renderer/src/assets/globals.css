@@ -6,46 +6,46 @@
 
 @layer base {
   :root {
-    /* ── 80% dark base ─────────────────────────────── */
-    --background: 254 51% 8%;    /* #0F0A1F */
-    --foreground: 255 15% 95%;   /* #F1EFF9 — near-white, easy on eyes */
+    /* ── 80% neutral dark — easy on the eyes ──────── */
+    --background: 240 10% 7%;    /* #101014 — near-black, no purple fatigue */
+    --foreground: 240 10% 93%;   /* #ECEDF2 — soft white */
 
-    --card: 257 52% 12%;         /* #160E30 */
-    --card-foreground: 255 15% 95%;
+    --card: 240 10% 11%;         /* #18181E — elevated surface */
+    --card-foreground: 240 10% 93%;
 
-    --popover: 257 52% 12%;
-    --popover-foreground: 255 15% 95%;
+    --popover: 240 10% 11%;
+    --popover-foreground: 240 10% 93%;
 
-    /* ── 15% purple accent ─────────────────────────── */
+    /* ── 15% purple — accent only ──────────────────── */
     --primary: 258 90% 66%;      /* #8B5CF6 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 257 47% 16%;    /* #1D1240 */
-    --secondary-foreground: 255 15% 88%;
+    --secondary: 240 8% 15%;     /* #222228 */
+    --secondary-foreground: 240 8% 85%;
 
-    --muted: 257 47% 16%;
-    --muted-foreground: 258 18% 62%; /* #8E82AE — readable grey-purple */
+    --muted: 240 8% 15%;
+    --muted-foreground: 240 8% 56%; /* #8B8B98 — readable neutral */
 
-    --accent: 257 45% 19%;       /* #231649 */
-    --accent-foreground: 255 15% 95%;
+    --accent: 240 8% 18%;        /* #28282F */
+    --accent-foreground: 240 10% 93%;
 
     --destructive: 0 62% 48%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 257 40% 20%;       /* #261947 */
-    --input: 257 40% 20%;
+    --border: 240 8% 20%;        /* #2E2E36 */
+    --input: 240 8% 20%;
     --ring: 258 90% 66%;
 
     --radius: 0.5rem;
 
-    /* ── Sidebar — deeper than background ──────────── */
-    --sidebar-background: 254 53% 6%;   /* #09061A */
-    --sidebar-foreground: 255 18% 84%;  /* #CEC9E2 — clear and readable */
+    /* ── Sidebar — slightly deeper than background ─── */
+    --sidebar-background: 240 10% 5%;   /* #0C0C0F */
+    --sidebar-foreground: 240 8% 80%;   /* #C8C8D0 — clear, comfortable */
     --sidebar-primary: 258 90% 66%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 257 50% 11%;      /* #11092B */
-    --sidebar-accent-foreground: 255 15% 95%;
-    --sidebar-border: 257 44% 15%;      /* #1A1039 */
+    --sidebar-accent: 240 8% 13%;       /* #1E1E24 */
+    --sidebar-accent-foreground: 240 10% 93%;
+    --sidebar-border: 240 8% 16%;       /* #242429 */
     --sidebar-ring: 258 90% 66%;
   }
 }
@@ -96,12 +96,12 @@ html.light {
   --sidebar-border: 220 14% 82%;
 }
 
-/* ── Purple glow utilities ──────────────────────────── */
+/* ── 5% glow — sparingly on key elements ──────────── */
 .glow-primary {
-  box-shadow: 0 0 20px hsl(258 90% 66% / 0.4);
+  box-shadow: 0 0 20px hsl(258 90% 66% / 0.35);
 }
 .glow-primary-sm {
-  box-shadow: 0 0 12px hsl(258 90% 66% / 0.3);
+  box-shadow: 0 0 10px hsl(258 90% 66% / 0.25);
 }
 
 /* xterm.js overrides */
