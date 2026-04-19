@@ -172,11 +172,11 @@ export function TerminalTab({ session }: Props): JSX.Element {
       cursorWidth: ts.cursorStyle === 'bar' ? 2 : 1,
       scrollback:  ts.scrollback,
       theme: {
-        background:          '#0d0f14',
+        background:          '#0B0718',
         foreground:          '#e8eaf0',
         cursor:              '#e8eaf0',
-        cursorAccent:        '#0d0f14',
-        selectionBackground: '#3b82f640',
+        cursorAccent:        '#0B0718',
+        selectionBackground: '#8b5cf640',
         black:         '#1e2030', red:          '#ff6b6b',
         green:         '#69ff94', yellow:       '#ffd93d',
         blue:          '#60a5fa', magenta:      '#c792ea',
@@ -552,7 +552,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
       )}
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-3 py-1 border-b border-border/40 bg-[#0d0f14] shrink-0">
+      <div className="flex items-center justify-between px-3 py-1 border-b border-border/40 bg-background shrink-0">
         <div className="flex items-center gap-1.5">
           <span className="text-[11px] text-muted-foreground/50 font-mono">
             {session.connection.protocol.toUpperCase()} · {session.connection.host}
@@ -602,7 +602,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
       {/* Terminal */}
       <div
         ref={containerRef}
-        className="flex-1 w-full bg-[#0d0f14]"
+        className="flex-1 w-full bg-[#0B0718]"
         style={{ fontVariantLigatures: 'none' }}
       />
 

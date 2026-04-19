@@ -171,8 +171,8 @@ export function QuickConnect(): JSX.Element {
                   <span
                     className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded shrink-0"
                     style={{
-                      backgroundColor: (item.conn.color ?? '#3b82f6') + '20',
-                      color: item.conn.color ?? '#3b82f6'
+                      backgroundColor: (item.conn.color ?? '#8b5cf6') + '20',
+                      color: item.conn.color ?? '#8b5cf6'
                     }}
                   >
                     {item.conn.protocol}

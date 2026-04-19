@@ -76,7 +76,7 @@ function RecentConnectionItem({ connection }: { connection: import('../types').C
   const { openSession } = useAppStore()
 
   const protocolColor: Record<string, string> = {
-    ssh:    'text-blue-400',
+    ssh:    'text-violet-400',
     telnet: 'text-amber-400',
     serial: 'text-emerald-400',
   }
@@ -90,7 +90,7 @@ function RecentConnectionItem({ connection }: { connection: import('../types').C
     >
       <span
         className="w-2 h-2 rounded-full shrink-0"
-        style={{ backgroundColor: connection.color || '#3b82f6' }}
+        style={{ backgroundColor: connection.color || '#8b5cf6' }}
       />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground truncate">{connection.name}</p>
