@@ -48,12 +48,26 @@ export function setupSshHandlers(
 
             activeSessions.set(payload.sessionId, { client, stream })
 
+            // Batch small data chunks to reduce IPC overhead
+            let pending = ''
+            let flushTimer: ReturnType<typeof setTimeout> | null = null
+
+            const flush = () => {
+              flushTimer = null
+              if (pending) {
+                getWindow()?.webContents.send('ssh:data', payload.sessionId, pending)
+                pending = ''
+              }
+            }
+
             stream.on('data', (data: Buffer) => {
-              getWindow()?.webContents.send('ssh:data', payload.sessionId, data.toString('utf-8'))
+              pending += data.toString('utf-8')
+              if (!flushTimer) flushTimer = setTimeout(flush, 4)
             })
 
             stream.stderr.on('data', (data: Buffer) => {
-              getWindow()?.webContents.send('ssh:data', payload.sessionId, data.toString('utf-8'))
+              pending += data.toString('utf-8')
+              if (!flushTimer) flushTimer = setTimeout(flush, 4)
             })
 
             stream.on('close', () => {
