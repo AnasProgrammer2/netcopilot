@@ -1,5 +1,5 @@
 import { IpcMain, safeStorage } from 'electron'
-import { scryptSync, randomBytes, timingSafeEqual } from 'crypto'
+import { scryptSync, randomBytes, timingSafeEqual, createHash } from 'crypto'
 import { getDb } from './db'
 
 const SETTING_KEY = 'masterPasswordHash'
@@ -102,7 +102,28 @@ export function setupMasterPasswordHandlers(ipcMain: IpcMain): void {
     }
 
     const stored = loadHash()
-    if (!stored) return false // M3 fix: no password set → not verified (caller checks hasMasterPassword first)
+    if (!stored) return false // no password set → not verified
+
+    // ── Legacy migration: old SHA-256 hashes have no colon (64-char hex) ──────
+    const isLegacyFormat = !stored.includes(':') && /^[0-9a-f]{64}$/.test(stored)
+    if (isLegacyFormat) {
+      const legacyAttempt = createHash('sha256').update(`netcopilot:${password}`).digest('hex')
+      let legacyOk = false
+      try {
+        legacyOk = timingSafeEqual(Buffer.from(stored, 'hex'), Buffer.from(legacyAttempt, 'hex'))
+      } catch { legacyOk = false }
+
+      if (legacyOk) {
+        // Correct password — silently upgrade to scrypt before returning success
+        const salt = randomBytes(SALT_BYTES)
+        const hash = hashPassword(password, salt)
+        saveHash(encodeRecord(salt, hash))
+        recordVerifySuccess()
+      } else {
+        recordVerifyFailure()
+      }
+      return legacyOk
+    }
 
     const record = decodeRecord(stored)
     if (!record) return false
@@ -124,19 +145,26 @@ export function setupMasterPasswordHandlers(ipcMain: IpcMain): void {
   ipcMain.handle('auth:clearMasterPassword', (_, currentPassword: string) => {
     const stored = loadHash()
     if (stored) {
-      const record = decodeRecord(stored)
-      if (!record) return { success: false, error: 'Incorrect password' }
-      try {
-        const attempt = hashPassword(currentPassword, record.salt)
-        if (!timingSafeEqual(record.hash, attempt)) {
-          return { success: false, error: 'Incorrect password' }
+      const isLegacy = !stored.includes(':') && /^[0-9a-f]{64}$/.test(stored)
+      let verified = false
+
+      if (isLegacy) {
+        const legacyAttempt = createHash('sha256').update(`netcopilot:${currentPassword}`).digest('hex')
+        try { verified = timingSafeEqual(Buffer.from(stored, 'hex'), Buffer.from(legacyAttempt, 'hex')) } catch { /* */ }
+      } else {
+        const record = decodeRecord(stored)
+        if (record) {
+          try {
+            const attempt = hashPassword(currentPassword, record.salt)
+            verified = timingSafeEqual(record.hash, attempt)
+          } catch { /* */ }
         }
-      } catch {
-        return { success: false, error: 'Incorrect password' }
       }
+
+      if (!verified) return { success: false, error: 'Incorrect password' }
     }
     getDb().prepare('DELETE FROM settings WHERE key = ?').run(SETTING_KEY)
-    recordVerifySuccess() // reset rate limiting on successful clear
+    recordVerifySuccess()
     return { success: true }
   })
 }
