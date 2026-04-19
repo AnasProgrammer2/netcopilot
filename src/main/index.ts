@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, globalShortcut, nativeTheme } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, globalShortcut, nativeTheme, nativeImage } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { setupStoreHandlers } from './store'
@@ -12,6 +12,9 @@ import { setupLogHandlers } from './logger'
 let mainWindow: BrowserWindow | null = null
 
 function createWindow(): void {
+  const iconPath = join(__dirname, '../../resources/icon.png')
+  const icon = nativeImage.createFromPath(iconPath)
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -22,6 +25,7 @@ function createWindow(): void {
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
     trafficLightPosition: { x: 16, y: 16 },
     backgroundColor: '#0f1117',
+    icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -29,6 +33,10 @@ function createWindow(): void {
       nodeIntegration: false
     }
   })
+
+  if (process.platform === 'darwin' && !icon.isEmpty()) {
+    app.dock.setIcon(icon)
+  }
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
