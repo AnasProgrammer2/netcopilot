@@ -22,9 +22,9 @@ npm run build:win
 npm run build:linux
 ```
 
-**IMPORTANT — native module rebuild**: `better-sqlite3` must be compiled for Electron's Node version. The `postinstall` script handles this automatically via `electron-rebuild -f -w better-sqlite3`. If you see `ERR_DLOPEN_FAILED` / `NODE_MODULE_VERSION mismatch`, run:
+**IMPORTANT — native module rebuild**: `better-sqlite3-multiple-ciphers` must be compiled for Electron's Node version. The `postinstall` script handles this automatically via `electron-rebuild -f -w better-sqlite3-multiple-ciphers`. If you see `ERR_DLOPEN_FAILED` / `NODE_MODULE_VERSION mismatch`, run:
 ```bash
-npx @electron/rebuild -f -w better-sqlite3
+npx @electron/rebuild -f -w better-sqlite3-multiple-ciphers
 ```
 
 There is **no test suite**. Verification is done via `typecheck` and `lint` only.
@@ -48,11 +48,18 @@ Output: `out/` (runtime JS), `dist/` (packaged distributable).
 
 ---
 
-## Data Storage — SQLite (`better-sqlite3`)
+## Data Storage — Encrypted SQLite (`better-sqlite3-multiple-ciphers`)
 
-All persistent data lives in a single SQLite database:
+All persistent data lives in a single **SQLCipher-encrypted** SQLite database:
 - **Mac**: `~/Library/Application Support/netcopilot/netcopilot.db`
 - **Windows**: `%APPDATA%\netcopilot\netcopilot.db`
+
+The database is encrypted with AES-256 (SQLCipher). The encryption key is:
+1. Generated randomly (32 bytes) on first run by `src/main/dbKey.ts`
+2. Encrypted with `safeStorage` (OS keychain) and saved to `netcopilot.key` in userData
+3. Loaded and applied via `PRAGMA key = '...'` when the DB is opened
+
+**First-run migration**: If an unencrypted DB already exists, `db.ts` opens it without a key then calls `PRAGMA rekey = '...'` to encrypt it in-place before saving the key file.
 
 ### Schema
 
@@ -61,21 +68,44 @@ All persistent data lives in a single SQLite database:
 | `connections` | All connection profiles (full column-per-field schema) |
 | `connection_groups` | Folder groups for organising connections |
 | `ssh_keys` | Stored SSH public keys |
-| `settings` | Key-value store for app settings AND encrypted credentials (prefix `cred:`) |
+| `settings` | Key-value store for app settings AND encrypted credentials (prefix `cred:`) AND master password hash (key `masterPasswordHash`) |
 
 ### Key files
-- `src/main/db.ts` — opens/initialises the DB, defines the schema, row↔domain mappers (`rowToConnection`, `connToRow`, `rowToGroup`, `rowToSshKey`), and runs the **one-time JSON migration** on first launch
-- `src/main/store.ts` — IPC handlers that query/mutate SQLite (replaces the old `electron-store` file)
-- `src/main/credentials.ts` — encrypted credentials stored in the `settings` table under `cred:<key>`; uses `safeStorage.encryptString` (falls back to plain base64)
+- `src/main/db.ts` — opens/initialises the DB, applies SQLCipher key, defines schema, row↔domain mappers, one-time JSON migration
+- `src/main/dbKey.ts` — generates, saves, and loads the AES-256 SQLCipher key via safeStorage
+- `src/main/store.ts` — IPC handlers that query/mutate SQLite
+- `src/main/credentials.ts` — encrypted credentials in `settings` table under `cred:<key>`; uses `safeStorage.encryptString`
+- `src/main/masterPassword.ts` — master password set/verify/clear handlers; hash stored encrypted under `masterPasswordHash`
 
 ### Migration (automatic, runs once)
-On first launch with the SQLite-based code, `db.ts` reads the old `config.json` and `credentials.json` files and inserts their data into SQLite, then sets `settings.migrated_v1 = 'true'` so it never repeats. Old JSON files are left in place but are no longer used.
+On first launch, `db.ts` looks for old `config.json` in:
+1. Current userData (`netcopilot/`)
+2. `NetTerm/` (old app name)
+3. `netterm/` (old app name lowercase)
+
+Sets `settings.migrated_v1 = 'true'` so it never repeats.
 
 ### Row → Domain conversion notes
-- `tags`, `startup_commands`, `serial_config` are stored as JSON text in SQLite
+- `tags`, `startup_commands`, `serial_config` are stored as JSON text — use `safeJsonParse()` helper (never raw `JSON.parse`)
 - `auto_reconnect` is stored as INTEGER 0/1 (SQLite has no BOOLEAN)
 - `auth_type`, `group_id`, `ssh_key_id` use snake_case column names; camelCase in TypeScript
 - `NULL` columns → `undefined` in domain objects (never empty string)
+
+---
+
+## Security Model
+
+Three layers of security:
+
+| Layer | File | Technology |
+|---|---|---|
+| DB encryption | `src/main/dbKey.ts` + `db.ts` | SQLCipher AES-256 via `better-sqlite3-multiple-ciphers` |
+| Credential encryption | `src/main/credentials.ts` | Electron `safeStorage` → OS Keychain |
+| Master password | `src/main/masterPassword.ts` | SHA-256 hash, timing-safe compare, stored encrypted |
+
+**DevTools** are blocked in production:
+- `devtools-opened` event closes them immediately
+- `F12` and `CommandOrControl+Shift+I` global shortcuts are disabled
 
 ---
 
@@ -86,22 +116,26 @@ On first launch with the SQLite-based code, `db.ts` reads the old `config.json` 
 | Namespace | What it does |
 |---|---|
 | `window.api.ssh.*` | connect / send / resize / disconnect / onData / onClosed |
-| `window.api.telnet.*` | connect / send / disconnect / onData / onClosed |
+| `window.api.telnet.*` | connect / send / resize / disconnect / onData / onClosed |
 | `window.api.serial.*` | listPorts / connect / send / disconnect / onData / onClosed / onError |
 | `window.api.store.*` | CRUD for connections, groups, SSH keys, and key-value settings |
 | `window.api.credentials.*` | save / get / delete encrypted passwords |
-| `window.api.file.*` | export (save dialog) / import (open dialog) |
+| `window.api.file.*` | export (save dialog) / import (open dialog) / selectFolder / getDefaultLogDir |
+| `window.api.log.*` | start / startAt / append / stop session logs |
+| `window.api.auth.*` | hasMasterPassword / setMasterPassword / verifyMasterPassword / clearMasterPassword |
 | `window.api.appInfo` | versions + platform (read-only) |
 
 `onData` / `onClosed` / `onError` return an **unsubscribe function** — always call it in a cleanup effect.
 
 Main process IPC handlers live in:
-- `src/main/ssh.ts` — ssh2 library, PTY shell, resize via `stream.setWindow()`
+- `src/main/ssh.ts` — ssh2 library, PTY shell, session batching (4ms flush), teardown via `teardownSession()`
 - `src/main/telnet.ts` — raw `net.Socket`, manual IAC/NAWS negotiation, strips telnet commands before forwarding
 - `src/main/serial.ts` — serialport library, `autoOpen: false` pattern
-- `src/main/store.ts` — SQLite-backed CRUD via `better-sqlite3`; handlers use prepared statements
-- `src/main/credentials.ts` — values encrypted with `safeStorage.encryptString` → base64; stored in `settings` table under `cred:` prefix
-- `src/main/fileDialog.ts` — `dialog.showSaveDialog` / `dialog.showOpenDialog`
+- `src/main/store.ts` — SQLite-backed CRUD via prepared statements
+- `src/main/credentials.ts` — values encrypted with `safeStorage.encryptString` → base64
+- `src/main/masterPassword.ts` — master password hashing and verification
+- `src/main/fileDialog.ts` — `dialog.showSaveDialog` / `dialog.showOpenDialog` with null-safe window ref
+- `src/main/logger.ts` — session logging with duplicate-path stream protection
 
 Each protocol module keeps a `Map<sessionId, activeSession>` of live connections.
 
@@ -111,12 +145,25 @@ Each protocol module keeps a `Map<sessionId, activeSession>` of live connections
 
 1. User double-clicks a connection (or uses Quick Connect) → `useAppStore.openSession(conn)` adds a `Session` (status: `connecting`) and sets it active
 2. `TerminalTab` mounts → initialises xterm.js → calls `window.api.<proto>.connect()`
-3. Main streams data back: `webContents.send('<proto>:data', sessionId, chunk)`
+3. Main streams data back via batched IPC: `webContents.send('<proto>:data', sessionId, chunk)` (SSH batches at 4ms; renderer uses `requestAnimationFrame` flush)
 4. `TerminalHighlighter.process(chunk)` applies per-device ANSI color → written to xterm
 5. On close/error: status → `disconnected` / `error`; if `autoReconnect` is set, a timer fires `doConnect(true)`
 6. On tab close: `closeSession()` removes session from Zustand; `TerminalTab` unmount calls `window.api.<proto>.disconnect()`
 
 All sessions stay mounted in the DOM (absolute-positioned, `hidden` when inactive) so xterm state is preserved when switching tabs.
+
+---
+
+## App Startup Flow
+
+```
+App mounts
+  → check auth:hasMasterPassword
+      → true:  show <MasterPasswordLock> until verified
+      → false: proceed
+  → loadConnections / loadGroups / loadSshKeys / loadSettings
+  → render main UI
+```
 
 ---
 
@@ -134,14 +181,24 @@ Single Zustand store (`useAppStore`):
 
 **Settings change flow**: always call `applySettings(patch)` — it updates Zustand state AND immediately applies CSS variables / theme classes. Never call `set()` directly for settings keys.
 
+### Critical: `saveConnection` preserves `createdAt`
+When editing an existing connection, look up the existing record to preserve its `createdAt`:
+```ts
+const existing = connData.id ? get().connections.find((c) => c.id === connData.id) : undefined
+const conn = { ...connData, id: connData.id || nanoid(), createdAt: existing?.createdAt ?? now, updatedAt: now }
+```
+
 ### Critical: `saveConnection` / `saveGroup` / `saveSshKey` spread order
 The generated `nanoid()` ID must come **after** the data spread so it is never overwritten by `undefined`:
 ```ts
 // CORRECT
-const conn = { ...connData, id: connData.id || nanoid(), createdAt: now, updatedAt: now }
+const conn = { ...connData, id: connData.id || nanoid(), createdAt: ..., updatedAt: now }
 // WRONG — id gets overwritten with undefined!
 const conn = { id: connData.id || nanoid(), ...connData }
 ```
+
+### Group deletion
+`deleteGroup` also ungrouped any connections belonging to the deleted group (sets `groupId = undefined` in both DB and Zustand). The Sidebar additionally uses a safety-net filter for orphaned connections.
 
 ---
 
@@ -149,6 +206,7 @@ const conn = { id: connData.id || nanoid(), ...connData }
 
 ```
 App
+├── MasterPasswordLock        (shown on startup if master password is set)
 ├── TitleBar                  (macOS hiddenInset / custom Windows titlebar)
 ├── Sidebar                   (resizable, 200–420 px, drag handle on right edge)
 │   ├── Groups (collapsible)
@@ -161,7 +219,7 @@ App
 │       └── TerminalTab × N   (all mounted, only active is visible)
 ├── ConnectionDialog          (add/edit — controlled by connectionDialogOpen + editingConnection)
 ├── QuickConnect              (⌘K / Ctrl+K palette)
-└── SettingsDialog
+└── SettingsDialog            (Appearance / Terminal / Connection / Logging / Security / About)
 ```
 
 `GroupDialog` is rendered inline inside `Sidebar` (not at the App level).
@@ -172,15 +230,15 @@ App
 
 All colors are **CSS custom properties as HSL values** (no `hsl()` wrapper in the variable). Tailwind consumes them via `hsl(var(--token))` in `tailwind.config.js`. Defined in `src/renderer/src/assets/globals.css`.
 
-**Themes**: `:root` defines dark defaults. `html.light` class overrides them for light mode. Applied by `applyTheme()` in the store which toggles `.dark` / `.light` on `document.documentElement`.
+**Color palette**: Near-black neutral dark backgrounds (80%), violet accent `#8B5CF6` (15%), glow effects (5%). Primary button color is violet; sidebar is slightly darker than the main background.
 
-**Accent color**: `applyAccentColor(hex)` converts hex → HSL and sets `--primary` and `--ring` (plus sidebar variants) as inline styles on `document.documentElement`, overriding the CSS defaults.
+**Themes**: `:root` defines dark defaults. `html.light` class overrides them for light mode. Applied by `applyTheme()` in the store.
 
-**Sidebar tokens**: separate `sidebar-*` CSS variable namespace (`--sidebar-background`, `--sidebar-foreground`, `--sidebar-accent`, `--sidebar-border`, `--sidebar-ring`) mapped to `bg-sidebar`, `text-sidebar-foreground`, etc. in Tailwind.
+**Accent color**: `applyAccentColor(hex)` converts hex → HSL and sets `--primary` and `--ring` (plus sidebar variants) as inline styles on `document.documentElement`. Default accent is `#8b5cf6` (violet).
 
-**Utility**: `src/renderer/src/lib/utils.ts` exports `cn(...classes)` = `twMerge(clsx(...))`. Use this for all conditional class merging.
+**Utility**: `src/renderer/src/lib/utils.ts` exports `cn(...classes)` = `twMerge(clsx(...))`.
 
-**xterm.js overrides**: `.xterm`, `.xterm-viewport`, `.xterm-screen` rules in `globals.css`. Terminal background is hardcoded `#0d0f14` in `TerminalTab`.
+**xterm.js**: terminal background `#0B0718`; selection highlight `#8b5cf640`. Toolbar uses `bg-background`.
 
 **Titlebar drag**: `.drag-region` / `.no-drag` CSS classes use `-webkit-app-region`.
 
@@ -201,6 +259,8 @@ To add a new `DeviceType`: write a `highlight<Vendor>(line)` function and add a 
 Shared model types live in **two places** — keep them in sync:
 - `src/types/shared.ts` — used by main process (`Connection`, `ConnectionGroup`, `SSHKey`, `SerialConfig`, `Protocol`, `AuthType`, `DeviceType`)
 - `src/renderer/src/types/index.ts` — renderer superset: adds `Session`, `IpcSshConnectPayload`, `IpcTelnetConnectPayload`, `TerminalDimensions`
+
+Image imports (PNG/JPG/SVG) are declared in `src/renderer/src/types/images.d.ts`.
 
 ---
 

@@ -12,7 +12,7 @@
 
 NetCopilot is an open-source desktop terminal application designed for network engineers and DevOps teams. It provides a fast, modern interface to connect to routers, switches, servers, and serial devices over **SSH**, **Telnet**, and **Serial** — with an AI assistant built in to help you analyze logs, troubleshoot issues, and suggest commands.
 
-Inspired by Termius, but open-source and AI-native.
+Inspired by Termius, but open-source, AI-native, and fully encrypted.
 
 ---
 
@@ -37,10 +37,26 @@ Inspired by Termius, but open-source and AI-native.
 | **Hot-Reload Settings** | Terminal appearance changes apply instantly to open sessions |
 | **Auto-Reconnect** | Reconnects automatically on disconnect with configurable delay |
 | **Auto-Lock** | Lock the session after a configurable idle period |
+| **Master Password** | Optional startup password — required every time the app opens |
 | **Import / Export** | Backup and restore connections as JSON (credentials excluded) |
-| **Secure Storage** | Passwords encrypted via OS keychain (`safeStorage`); SQLite database for all other data |
+| **Encrypted Database** | Full SQLite encryption via SQLCipher (AES-256) — key stored in OS keychain |
+| **Secure Credentials** | Passwords encrypted via OS keychain (`safeStorage`) |
 | **Resizable Sidebar** | Drag to resize the connection list |
 | **macOS Native** | Full `hiddenInset` titlebar with native traffic light buttons |
+
+---
+
+## Security
+
+NetCopilot uses a three-layer security model:
+
+| Layer | What it protects | Technology |
+|---|---|---|
+| **SQLCipher (AES-256)** | Entire database (IPs, usernames, settings) | `better-sqlite3-multiple-ciphers` |
+| **OS Keychain** | Passwords + DB encryption key | Electron `safeStorage` |
+| **Master Password** | App access (startup lock) | SHA-256 + timing-safe compare |
+
+The database key is randomly generated on first run, encrypted with the OS keychain, and stored in `netcopilot.key`. Even if someone copies both the `.db` and `.key` files, they cannot decrypt without access to the original OS keychain.
 
 ---
 
@@ -59,9 +75,9 @@ cd netcopilot
 npm install
 ```
 
-> **Note — native module:** `better-sqlite3` must be compiled for Electron's Node version. The `postinstall` script handles this automatically. If you see `ERR_DLOPEN_FAILED`, run:
+> **Note — native module rebuild**: `better-sqlite3-multiple-ciphers` must be compiled for Electron's Node version. The `postinstall` script handles this automatically. If you see `ERR_DLOPEN_FAILED`, run:
 > ```bash
-> npx @electron/rebuild -f -w better-sqlite3
+> npx @electron/rebuild -f -w better-sqlite3-multiple-ciphers
 > ```
 
 ### Run (Development Mode)
@@ -94,13 +110,15 @@ Output files are placed in the `dist/` folder.
 ```
 src/
 ├── main/                   # Electron Main Process (Node.js)
-│   ├── index.ts            # Window creation and IPC registration
-│   ├── ssh.ts              # SSH engine (ssh2)
-│   ├── telnet.ts           # Telnet engine (raw TCP + IAC negotiation)
+│   ├── index.ts            # Window creation, IPC registration, DevTools lock
+│   ├── ssh.ts              # SSH engine (ssh2) — session batching, teardown
+│   ├── telnet.ts           # Telnet engine (raw TCP + IAC/NAWS negotiation)
 │   ├── serial.ts           # Serial engine (serialport library)
 │   ├── db.ts               # SQLite schema, migrations, row↔domain mappers
-│   ├── store.ts            # IPC handlers for CRUD (better-sqlite3)
+│   ├── dbKey.ts            # SQLCipher key generation + OS keychain storage
+│   ├── store.ts            # IPC handlers for CRUD (better-sqlite3-multiple-ciphers)
 │   ├── credentials.ts      # Encrypted credential storage (safeStorage)
+│   ├── masterPassword.ts   # Master password set/verify/clear handlers
 │   ├── fileDialog.ts       # Import / Export file dialogs
 │   └── logger.ts           # Session file logging
 │
@@ -109,14 +127,15 @@ src/
 │
 └── renderer/               # UI (React 19 + TypeScript + Tailwind)
     └── src/
-        ├── App.tsx          # Root component, keyboard shortcuts, idle lock
-        ├── store/           # Zustand state (connections, sessions, settings)
+        ├── App.tsx              # Root — master password check, auto-lock, shortcuts
+        ├── store/               # Zustand state (connections, sessions, settings)
         ├── lib/
         │   ├── highlighter.ts   # Per-device ANSI syntax highlighter
         │   └── utils.ts         # cn() class merging utility
         ├── components/
         │   ├── TitleBar.tsx
         │   ├── WelcomeScreen.tsx
+        │   ├── MasterPasswordLock.tsx   # Startup password screen
         │   ├── sidebar/
         │   │   ├── Sidebar.tsx
         │   │   ├── ConnectionContextMenu.tsx
@@ -128,7 +147,7 @@ src/
         │   └── dialogs/
         │       ├── ConnectionDialog.tsx  # Add / Edit connection (4 tabs)
         │       ├── QuickConnect.tsx      # ⌘K palette
-        │       ├── SettingsDialog.tsx    # App settings
+        │       ├── SettingsDialog.tsx    # App settings + security panel
         │       ├── SSHKeyDialog.tsx      # SSH key management
         │       └── PasswordPrompt.tsx    # Runtime credential prompt
         └── types/
@@ -168,6 +187,10 @@ Set the **Enable Password** in the **Advanced** tab. After login, NetCopilot det
 
 Click the **Log** button in the terminal toolbar to start recording terminal output to a file. You can also enable **Auto-Log** in Settings to start logging automatically on every new connection.
 
+### Master Password
+
+Go to **Settings → Security → Master Password** and click **Set Password**. From the next launch, NetCopilot will show a lock screen before loading any data.
+
 ### Multiple Sessions
 
 Every connection opens a new **Tab** in the same window. All tabs stay mounted so switching between them is instant.
@@ -184,7 +207,7 @@ Every connection opens a new **Tab** in the same window. All tabs stay mounted s
 | [xterm.js](https://xtermjs.org) | Terminal emulator |
 | [ssh2](https://github.com/mscdex/ssh2) | SSH library |
 | [serialport](https://serialport.io) | Serial port access |
-| [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) | Local database |
+| [better-sqlite3-multiple-ciphers](https://github.com/m4heshd/better-sqlite3-multiple-ciphers) | Encrypted SQLite (SQLCipher AES-256) |
 | [Tailwind CSS](https://tailwindcss.com) | Styling |
 | [Zustand](https://zustand-demo.pmnd.rs) | State management |
 | [Lucide React](https://lucide.dev) | Icons |
