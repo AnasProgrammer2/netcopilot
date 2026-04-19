@@ -78,7 +78,13 @@ function migrateFromJson(db: Database.Database): void {
     .get() as { value: string } | undefined
   if (already) return
 
-  const jsonPath = path.join(app.getPath('userData'), 'config.json')
+  // Look in current userData first, then fall back to old app folders
+  const candidates = [
+    path.join(app.getPath('userData'), 'config.json'),
+    path.join(path.dirname(app.getPath('userData')), 'NetTerm', 'config.json'),
+    path.join(path.dirname(app.getPath('userData')), 'netterm', 'config.json'),
+  ]
+  const jsonPath = candidates.find((p) => existsSync(p)) ?? candidates[0]
   if (existsSync(jsonPath)) {
     try {
       const raw = readFileSync(jsonPath, 'utf-8')
@@ -131,8 +137,8 @@ function migrateFromJson(db: Database.Database): void {
         insertSetting.run({ key, value: JSON.stringify(value) })
       }
 
-      // Migrate credentials.json
-      const credPath = path.join(app.getPath('userData'), 'credentials.json')
+      // Migrate credentials.json — same folder as the config.json we found
+      const credPath = path.join(path.dirname(jsonPath), 'credentials.json')
       if (existsSync(credPath)) {
         try {
           const credRaw = readFileSync(credPath, 'utf-8')
