@@ -404,7 +404,16 @@ export function TerminalTab({ session }: Props): JSX.Element {
       else                          window.api.telnet.send(session.id, data)
     }
 
-    const writeData = (data: string) => {
+    // Batch incoming data to reduce per-character processing overhead
+    let pendingData = ''
+    let flushScheduled = false
+
+    const flushData = () => {
+      flushScheduled = false
+      if (!pendingData) return
+      const data = pendingData
+      pendingData = ''
+
       // Enable password state machine for Cisco devices
       if (enableStateRef.current === 'waiting-prompt') {
         const stripped = data.replace(/\x1b\[[0-9;]*[mGKHFABCDJSTPM]|\x1b\][^\x07]*\x07/g, '')
@@ -433,6 +442,14 @@ export function TerminalTab({ session }: Props): JSX.Element {
           logData = logData.split('\n').map(l => l ? `[${ts}] ${l}` : l).join('\n')
         }
         window.api.log.append(logPathRef.current, logData)
+      }
+    }
+
+    const writeData = (data: string) => {
+      pendingData += data
+      if (!flushScheduled) {
+        flushScheduled = true
+        requestAnimationFrame(flushData)
       }
     }
 
