@@ -264,7 +264,7 @@ export function ConnectionDialog(): JSX.Element {
                     <input
                       type="number"
                       value={form.port ?? 22}
-                      onChange={(e) => update('port', parseInt(e.target.value))}
+                      onChange={(e) => { const n = parseInt(e.target.value); if (Number.isFinite(n)) update('port', n) }}
                       className={inputClass}
                     />
                   </Field>

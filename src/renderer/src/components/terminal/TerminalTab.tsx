@@ -24,6 +24,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
   const connectingRef   = useRef(false)
   const mountedRef      = useRef(true)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const startupTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
   const savedCredsRef   = useRef<{ username: string; password: string } | null>(null)
   const enableStateRef  = useRef<'idle' | 'waiting-prompt' | 'sent-enable' | 'done'>('idle')
   const highlighterRef  = useRef<TerminalHighlighter>(
@@ -229,6 +230,10 @@ export function TerminalTab({ session }: Props): JSX.Element {
         clearTimeout(reconnectTimerRef.current)
         reconnectTimerRef.current = null
       }
+      if (startupTimerRef.current) {
+        clearTimeout(startupTimerRef.current)
+        startupTimerRef.current = null
+      }
       if (logPathRef.current) {
         window.api.log.stop(logPathRef.current)
         logPathRef.current = null
@@ -368,7 +373,8 @@ export function TerminalTab({ session }: Props): JSX.Element {
           // Execute startup commands after a short delay
           const cmds = (conn.startupCommands ?? []).filter(Boolean)
           if (cmds.length > 0) {
-            setTimeout(() => {
+            startupTimerRef.current = setTimeout(() => {
+              startupTimerRef.current = null
               if (!mountedRef.current) return
               for (const cmd of cmds) {
                 const data = cmd + '\r'

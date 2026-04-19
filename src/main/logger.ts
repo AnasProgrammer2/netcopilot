@@ -21,6 +21,8 @@ export function setupLogHandlers(ipcMain: IpcMain, getWindow: () => BrowserWindo
 
     if (result.canceled || !result.filePath) return null
 
+    const existing = openLogs.get(result.filePath)
+    if (existing) { existing.end(); openLogs.delete(result.filePath) }
     const stream = createWriteStream(result.filePath, { flags: 'a', encoding: 'utf8' })
     openLogs.set(result.filePath, stream)
     stream.write(`=== NetCopilot Log — ${sessionName} — ${new Date().toISOString()} ===\n`)
@@ -31,6 +33,8 @@ export function setupLogHandlers(ipcMain: IpcMain, getWindow: () => BrowserWindo
   ipcMain.handle('log:startAt', (_, filePath: string, sessionName: string) => {
     try {
       mkdirSync(path.dirname(filePath), { recursive: true })
+      const existing = openLogs.get(filePath)
+      if (existing) { existing.end(); openLogs.delete(filePath) }
       const stream = createWriteStream(filePath, { flags: 'a', encoding: 'utf8' })
       openLogs.set(filePath, stream)
       stream.write(`=== NetCopilot Log — ${sessionName} — ${new Date().toISOString()} ===\n`)

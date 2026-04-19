@@ -47,15 +47,16 @@ function createWindow(): void {
     if (input.type !== 'keyDown') return
     const mod = process.platform === 'darwin' ? input.meta : input.control
     if (!mod) return
-    const level = mainWindow!.webContents.getZoomLevel()
+    if (!mainWindow) return
+    const level = mainWindow.webContents.getZoomLevel()
     if (input.key === '=' || input.key === '+') {
-      mainWindow!.webContents.setZoomLevel(Math.min(level + 0.5, 5))
+      mainWindow.webContents.setZoomLevel(Math.min(level + 0.5, 5))
       event.preventDefault()
     } else if (input.key === '-') {
-      mainWindow!.webContents.setZoomLevel(Math.max(level - 0.5, -5))
+      mainWindow.webContents.setZoomLevel(Math.max(level - 0.5, -5))
       event.preventDefault()
     } else if (input.key === '0') {
-      mainWindow!.webContents.setZoomLevel(0)
+      mainWindow.webContents.setZoomLevel(0)
       event.preventDefault()
     }
   })
