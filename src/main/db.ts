@@ -4,6 +4,10 @@ import path from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { Connection, ConnectionGroup, SSHKey } from '../types/shared'
 
+function safeJsonParse<T>(raw: string, fallback: T): T {
+  try { return JSON.parse(raw) as T } catch { return fallback }
+}
+
 let _db: Database.Database | null = null
 
 export function getDb(): Database.Database {
@@ -166,14 +170,14 @@ export function rowToConnection(row: Row): Connection {
     authType:         row.auth_type as Connection['authType'],
     sshKeyId:         (row.ssh_key_id as string) || undefined,
     groupId:          (row.group_id  as string) || undefined,
-    tags:             JSON.parse((row.tags as string) || '[]'),
+    tags:             safeJsonParse((row.tags as string) || '[]', []),
     notes:            (row.notes as string) ?? '',
     deviceType:       row.device_type as Connection['deviceType'],
     color:            (row.color as string) || undefined,
     jumpHostId:       (row.jump_host_id as string) || undefined,
-    startupCommands:  row.startup_commands ? JSON.parse(row.startup_commands as string) : undefined,
+    startupCommands:  row.startup_commands ? safeJsonParse(row.startup_commands as string, undefined) : undefined,
     enablePassword:   (row.enable_password as string) || undefined,
-    serialConfig:     row.serial_config ? JSON.parse(row.serial_config as string) : undefined,
+    serialConfig:     row.serial_config ? safeJsonParse(row.serial_config as string, undefined) : undefined,
     autoReconnect:    Boolean(row.auto_reconnect),
     reconnectDelay:   row.reconnect_delay as number,
     createdAt:        row.created_at as number,

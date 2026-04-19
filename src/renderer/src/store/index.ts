@@ -121,10 +121,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   saveConnection: async (connData) => {
     const now = Date.now()
+    const existing = connData.id ? get().connections.find((c) => c.id === connData.id) : undefined
     const conn: Connection = {
       ...connData,
       id: connData.id || nanoid(),
-      createdAt: now,
+      createdAt: existing?.createdAt ?? now,
       updatedAt: now
     } as Connection
 
@@ -184,10 +185,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   saveSshKey: async (keyData) => {
+    const existing = keyData.id ? get().sshKeys.find((k) => k.id === keyData.id) : undefined
     const key: SSHKey = {
       ...keyData,
       id: keyData.id || nanoid(),
-      createdAt: Date.now()
+      createdAt: existing?.createdAt ?? Date.now()
     }
     const saved = await window.api.store.saveSshKey(key)
     set((state) => {

@@ -32,22 +32,18 @@ export default function App(): JSX.Element {
     const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'] as const
     events.forEach((e) => document.addEventListener(e, resetActivity, { passive: true }))
 
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
+      // Refresh setting periodically (cheap, runs every 15s)
+      const v = await window.api.store.getSetting('autoLockMinutes')
+      autoLockMinsRef.current = Number(v) || 0
       if (autoLockMinsRef.current <= 0) return
       const idleMin = (Date.now() - lastActivityRef.current) / 60000
       if (idleMin >= autoLockMinsRef.current) setLocked(true)
     }, 15000)
 
-    const unsub = useAppStore.subscribe(() => {
-      window.api.store.getSetting('autoLockMinutes').then((v) => {
-        autoLockMinsRef.current = Number(v) || 0
-      })
-    })
-
     return () => {
       events.forEach((e) => document.removeEventListener(e, resetActivity))
       clearInterval(interval)
-      unsub()
     }
   }, [])
 

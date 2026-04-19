@@ -121,7 +121,8 @@ export function setupStoreHandlers(ipcMain: IpcMain): void {
     const row = getDb()
       .prepare('SELECT value FROM settings WHERE key = ?')
       .get(key) as { value: string } | undefined
-    return row ? JSON.parse(row.value) : undefined
+    if (!row) return undefined
+    try { return JSON.parse(row.value) } catch { return row.value }
   })
 
   ipcMain.handle('store:set-setting', (_, key: string, value: unknown) => {
