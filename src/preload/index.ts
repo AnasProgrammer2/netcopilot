@@ -121,6 +121,36 @@ const api = {
     setMasterPassword: (password: string) => ipcRenderer.invoke('auth:setMasterPassword', password),
     verifyMasterPassword: (password: string) => ipcRenderer.invoke('auth:verifyMasterPassword', password),
     clearMasterPassword: (currentPassword: string) => ipcRenderer.invoke('auth:clearMasterPassword', currentPassword)
+  },
+
+  // AI Copilot
+  ai: {
+    chat:       (payload: unknown)                   => ipcRenderer.invoke('ai:chat', payload),
+    cancel:     ()                                   => ipcRenderer.send('ai:cancel'),
+    toolResult: (callId: string, output: string)     => ipcRenderer.invoke('ai:tool-result', callId, output),
+    setApiKey:      (key: string)                    => ipcRenderer.invoke('ai:set-api-key', key),
+    getApiKey:      ()                               => ipcRenderer.invoke('ai:get-api-key'),
+    resetBlacklist: ()                               => ipcRenderer.invoke('ai:reset-blacklist'),
+    onChunk:    (cb: (chunk: string) => void) => {
+      const handler = (_: unknown, chunk: string) => cb(chunk)
+      ipcRenderer.on('ai:chunk', handler)
+      return () => ipcRenderer.removeListener('ai:chunk', handler)
+    },
+    onDone: (cb: () => void) => {
+      const handler = () => cb()
+      ipcRenderer.on('ai:done', handler)
+      return () => ipcRenderer.removeListener('ai:done', handler)
+    },
+    onToolCall: (cb: (call: { id: string; command: string; reason: string }) => void) => {
+      const handler = (_: unknown, call: { id: string; command: string; reason: string }) => cb(call)
+      ipcRenderer.on('ai:tool-call', handler)
+      return () => ipcRenderer.removeListener('ai:tool-call', handler)
+    },
+    onError: (cb: (error: string) => void) => {
+      const handler = (_: unknown, error: string) => cb(error)
+      ipcRenderer.on('ai:error', handler)
+      return () => ipcRenderer.removeListener('ai:error', handler)
+    },
   }
 }
 

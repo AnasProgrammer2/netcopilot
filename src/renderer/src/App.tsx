@@ -100,10 +100,10 @@ export default function App(): JSX.Element {
     <div className="flex flex-col h-screen w-screen bg-background text-foreground select-none overflow-hidden">
       <TitleBar />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden min-h-0">
         <Sidebar />
 
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 flex flex-col overflow-hidden min-h-0">
           {sessions.length === 0 ? <WelcomeScreen /> : <TerminalArea />}
         </main>
       </div>

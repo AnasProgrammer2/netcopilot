@@ -11,6 +11,7 @@ import { PasswordPrompt } from '../dialogs/PasswordPrompt'
 import { TerminalHighlighter } from '../../lib/highlighter'
 import type { TerminalSettings, ConnectionSettings } from '../../store'
 import { cn } from '../../lib/utils'
+import { terminalRegistry } from '../../lib/terminalRegistry'
 
 interface Props {
   session: Session
@@ -158,6 +159,44 @@ export function TerminalTab({ session }: Props): JSX.Element {
     checkAutoLog()
   }, [session.id])
 
+  // ── Proactive AI watcher ──────────────────────────────────────────────────────
+  // Debounce terminal data; when output settles (1.5s of silence) and the AI
+  // panel is open and not already streaming, send context for analysis.
+  useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
+    let outputBuffer = ''
+
+    const proto = session.connection.protocol
+    const onData = (_sessionId: string, data: string) => {
+      if (_sessionId !== session.id) return
+      outputBuffer += data
+      if (debounceTimer) clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => {
+        const { aiPanelOpen, aiStreaming, activeSessionId } = useAppStore.getState()
+        const autoWatch = (window as unknown as Record<string, unknown>)['__aiAutoWatch']
+        if (!aiPanelOpen || aiStreaming || activeSessionId !== session.id || !autoWatch) {
+          outputBuffer = ''
+          return
+        }
+        const ctx = outputBuffer
+        outputBuffer = ''
+        // Trigger proactive analysis via the global bridge set by AiPanel
+        const proactive = (window as unknown as Record<string, unknown>)['__aiSendProactive']
+        if (typeof proactive === 'function') proactive(ctx)
+      }, 1500)
+    }
+
+    let off: (() => void) | undefined
+    if      (proto === 'ssh')    off = window.api.ssh.onData(onData)
+    else if (proto === 'telnet') off = window.api.telnet.onData(onData)
+    else if (proto === 'serial') off = window.api.serial.onData(onData)
+
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer)
+      off?.()
+    }
+  }, [session.id, session.connection.protocol])
+
   // ── 1. Init terminal ─────────────────────────────────────────────────────────
   useEffect(() => {
     mountedRef.current = true
@@ -205,6 +244,27 @@ export function TerminalTab({ session }: Props): JSX.Element {
     fitRef.current    = fitAddon
     searchRef.current = searchAddon
 
+    // Register this terminal instance in the global registry so AiPanel can access it
+    terminalRegistry.register(session.id, {
+      getContext: (lines = 120) => {
+        const buf   = term.buffer.active
+        const total = buf.length
+        const start = Math.max(0, total - lines)
+        const out: string[] = []
+        for (let i = start; i < total; i++) {
+          const line = buf.getLine(i)
+          if (line) out.push(line.translateToString(true))
+        }
+        return out.join('\n')
+      },
+      sendData: (data: string) => {
+        const proto = session.connection.protocol
+        if      (proto === 'ssh')    window.api.ssh.send(session.id, data)
+        else if (proto === 'serial') window.api.serial.send(session.id, data)
+        else                         window.api.telnet.send(session.id, data)
+      },
+    })
+
     // Intercept Ctrl/Cmd+F for search
     term.attachCustomKeyEventHandler((e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'f' && e.type === 'keydown') {
@@ -228,6 +288,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
 
     return () => {
       mountedRef.current = false
+      terminalRegistry.unregister(session.id)
       if (reconnectTimerRef.current) {
         clearTimeout(reconnectTimerRef.current)
         reconnectTimerRef.current = null
@@ -249,8 +310,12 @@ export function TerminalTab({ session }: Props): JSX.Element {
 
   // ── 2. Resize observer ────────────────────────────────────────────────────────
   useEffect(() => {
+    let rafId: number
     const obs = new ResizeObserver(() => {
-      if (fitRef.current && termRef.current) {
+      // Wait for the next frame so CSS layout is fully settled before measuring
+      cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        if (!fitRef.current || !termRef.current || !mountedRef.current) return
         try {
           fitRef.current.fit()
           const { cols, rows } = termRef.current
@@ -260,10 +325,13 @@ export function TerminalTab({ session }: Props): JSX.Element {
             window.api.telnet.resize(session.id, cols, rows)
           }
         } catch { /* ignore during unmount */ }
-      }
+      })
     })
     if (containerRef.current) obs.observe(containerRef.current)
-    return () => obs.disconnect()
+    return () => {
+      cancelAnimationFrame(rafId)
+      obs.disconnect()
+    }
   }, [session.id, session.connection.protocol])
 
   // ── 3. Connect + data listeners + auto reconnect ─────────────────────────────
@@ -516,7 +584,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
   }, [session.id, session.connection.protocol])
 
   return (
-    <div className="relative w-full h-full flex flex-col">
+    <div className="relative w-full h-full flex flex-col overflow-hidden">
       {/* Search bar */}
       {showSearch && (
         <div className="absolute top-2 right-2 z-20 flex items-center gap-1 bg-popover border border-border rounded-lg shadow-xl px-2 py-1.5">
@@ -611,7 +679,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
       {/* Terminal */}
       <div
         ref={containerRef}
-        className="flex-1 w-full bg-[#0B0718]"
+        className="flex-1 w-full min-h-0 overflow-hidden bg-[#0B0718]"
         style={{ fontVariantLigatures: 'none' }}
       />
 

@@ -1,6 +1,6 @@
 {
   "name": "netcopilot",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "NetCopilot – AI-powered SSH/Telnet terminal for network engineers",
   "main": "./out/main/index.js",
   "author": "NetCopilot",
@@ -20,6 +20,7 @@
     "build:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.90.0",
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^3.0.0",
     "@fontsource-variable/inter": "^5.2.8",
@@ -34,6 +35,8 @@
     "nanoid": "^5.1.9",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "serialport": "^13.0.0",
     "ssh2": "^1.16.0",
     "tailwind-merge": "^3.5.0",

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown } from 'lucide-react'
+import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown, Bot } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { Session } from '../../types'
 import { cn } from '../../lib/utils'
@@ -7,7 +7,8 @@ import { cn } from '../../lib/utils'
 export function TabBar(): JSX.Element {
   const {
     sessions, activeSessionId, splitSessionId,
-    setActiveSession, closeSession, setQuickConnectOpen, setSplitSession
+    setActiveSession, closeSession, setQuickConnectOpen, setSplitSession,
+    aiPanelOpen, setAiPanelOpen,
   } = useAppStore()
 
   const [splitMenuOpen, setSplitMenuOpen] = useState(false)
@@ -52,8 +53,23 @@ export function TabBar(): JSX.Element {
         <Plus className="w-3.5 h-3.5" />
       </button>
 
+      {/* AI Copilot toggle */}
+      <button
+        onClick={() => setAiPanelOpen(!aiPanelOpen)}
+        title={aiPanelOpen ? 'Close AI Copilot' : 'Open AI Copilot'}
+        className={cn(
+          'shrink-0 self-center flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors ml-auto',
+          aiPanelOpen
+            ? 'text-primary bg-primary/15 hover:bg-primary/25'
+            : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+        )}
+      >
+        <Bot className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">AI</span>
+      </button>
+
       {/* Split button */}
-      <div ref={splitMenuRef} className="relative shrink-0 self-center ml-auto mr-2">
+      <div ref={splitMenuRef} className="relative shrink-0 self-center mr-2">
         {splitSessionId ? (
           <button
             onClick={() => setSplitSession(null)}

@@ -112,6 +112,18 @@ declare global {
       verifyMasterPassword(password: string): Promise<boolean>
       clearMasterPassword(currentPassword: string): Promise<{ success: boolean; error?: string }>
     }
+    ai: {
+      chat(payload: unknown): Promise<void>
+      cancel(): void
+      toolResult(callId: string, output: string): Promise<void>
+      setApiKey(key: string): Promise<boolean>
+      getApiKey(): Promise<string | null>
+      resetBlacklist(): Promise<string[]>
+      onChunk(cb: (chunk: string) => void): () => void
+      onDone(cb: () => void): () => void
+      onToolCall(cb: (call: { id: string; command: string; reason: string }) => void): () => void
+      onError(cb: (error: string) => void): () => void
+    }
   }
 }
 }
