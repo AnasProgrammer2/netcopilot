@@ -532,8 +532,115 @@ function LoggingSection({ settings, update }: SectionProps) {
 
 // ─── Section: Security ────────────────────────────────────────────────────────
 function SecuritySection({ settings, update }: SectionProps) {
+  const [hasMaster, setHasMaster] = useState<boolean | null>(null)
+  const [mpMode, setMpMode] = useState<'idle' | 'set' | 'change' | 'remove'>('idle')
+  const [pw1, setPw1] = useState('')
+  const [pw2, setPw2] = useState('')
+  const [currentPw, setCurrentPw] = useState('')
+  const [mpError, setMpError] = useState('')
+  const [mpSuccess, setMpSuccess] = useState('')
+
+  useEffect(() => {
+    window.api.auth.hasMasterPassword().then(setHasMaster)
+  }, [])
+
+  const resetMpForm = () => { setPw1(''); setPw2(''); setCurrentPw(''); setMpError(''); setMpMode('idle') }
+
+  const handleSetPassword = async () => {
+    if (pw1.length < 4) return setMpError('At least 4 characters required')
+    if (pw1 !== pw2) return setMpError('Passwords do not match')
+    if (mpMode === 'change') {
+      const ok = await window.api.auth.verifyMasterPassword(currentPw)
+      if (!ok) return setMpError('Current password is incorrect')
+      await window.api.auth.clearMasterPassword(currentPw)
+    }
+    const res = await window.api.auth.setMasterPassword(pw1)
+    if (res.success) { setHasMaster(true); setMpSuccess('Master password set'); resetMpForm(); setTimeout(() => setMpSuccess(''), 3000) }
+    else setMpError(res.error ?? 'Failed')
+  }
+
+  const handleRemovePassword = async () => {
+    const res = await window.api.auth.clearMasterPassword(currentPw)
+    if (res.success) { setHasMaster(false); setMpSuccess('Master password removed'); resetMpForm(); setTimeout(() => setMpSuccess(''), 3000) }
+    else setMpError(res.error ?? 'Failed')
+  }
+
+  const inputCls = 'w-full px-3 py-2 rounded-md bg-background border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary'
+
   return (
     <>
+      <Group title="Master Password">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Startup password</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {hasMaster ? 'Required every time you open NetCopilot' : 'App opens without a password'}
+              </p>
+            </div>
+            <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', hasMaster ? 'bg-emerald-500/15 text-emerald-400' : 'bg-muted text-muted-foreground')}>
+              {hasMaster ? 'Active' : 'Off'}
+            </span>
+          </div>
+
+          {mpMode === 'idle' && (
+            <div className="flex gap-2">
+              {!hasMaster && (
+                <button onClick={() => setMpMode('set')} className="px-3 py-1.5 text-xs rounded-md bg-primary text-primary-foreground hover:opacity-90">
+                  Set Password
+                </button>
+              )}
+              {hasMaster && (
+                <>
+                  <button onClick={() => setMpMode('change')} className="px-3 py-1.5 text-xs rounded-md bg-secondary text-foreground border border-border hover:bg-accent">
+                    Change
+                  </button>
+                  <button onClick={() => setMpMode('remove')} className="px-3 py-1.5 text-xs rounded-md bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive/20">
+                    Remove
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {(mpMode === 'set' || mpMode === 'change') && (
+            <div className="space-y-2 border border-border rounded-lg p-3 bg-background/50">
+              {mpMode === 'change' && (
+                <input type="password" placeholder="Current password" value={currentPw}
+                  onChange={(e) => { setCurrentPw(e.target.value); setMpError('') }}
+                  className={inputCls} />
+              )}
+              <input type="password" placeholder="New password (min 4 chars)" value={pw1}
+                onChange={(e) => { setPw1(e.target.value); setMpError('') }}
+                className={inputCls} />
+              <input type="password" placeholder="Confirm new password" value={pw2}
+                onChange={(e) => { setPw2(e.target.value); setMpError('') }}
+                className={inputCls} />
+              {mpError && <p className="text-xs text-destructive">{mpError}</p>}
+              <div className="flex gap-2">
+                <button onClick={handleSetPassword} className="px-3 py-1.5 text-xs rounded-md bg-primary text-primary-foreground hover:opacity-90">Save</button>
+                <button onClick={resetMpForm} className="px-3 py-1.5 text-xs rounded-md bg-secondary text-foreground border border-border">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {mpMode === 'remove' && (
+            <div className="space-y-2 border border-destructive/20 rounded-lg p-3 bg-destructive/5">
+              <input type="password" placeholder="Current password to confirm" value={currentPw}
+                onChange={(e) => { setCurrentPw(e.target.value); setMpError('') }}
+                className={inputCls} />
+              {mpError && <p className="text-xs text-destructive">{mpError}</p>}
+              <div className="flex gap-2">
+                <button onClick={handleRemovePassword} className="px-3 py-1.5 text-xs rounded-md bg-destructive text-white hover:opacity-90">Remove</button>
+                <button onClick={resetMpForm} className="px-3 py-1.5 text-xs rounded-md bg-secondary text-foreground border border-border">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {mpSuccess && <p className="text-xs text-emerald-400">{mpSuccess}</p>}
+        </div>
+      </Group>
+
       <Group title="Passwords">
         <Toggle
           label="Save passwords to OS keychain"
@@ -557,6 +664,23 @@ function SecuritySection({ settings, update }: SectionProps) {
             onChange={(e) => update('autoLockMinutes', parseInt(e.target.value))}
             className="w-full accent-primary"
           />
+        </div>
+      </Group>
+
+      <Group title="Database">
+        <div className="flex items-center justify-between py-1">
+          <div>
+            <p className="text-sm font-medium text-foreground">Encrypted storage</p>
+            <p className="text-xs text-muted-foreground mt-0.5">All data is encrypted with SQLCipher (AES-256)</p>
+          </div>
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-500/15 text-emerald-400">Active ✓</span>
+        </div>
+        <div className="flex items-center justify-between py-1">
+          <div>
+            <p className="text-sm font-medium text-foreground">Credential encryption</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Passwords encrypted via OS Keychain (safeStorage)</p>
+          </div>
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-500/15 text-emerald-400">Active ✓</span>
         </div>
       </Group>
     </>
