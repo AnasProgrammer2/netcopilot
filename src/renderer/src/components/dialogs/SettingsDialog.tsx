@@ -584,8 +584,8 @@ function AboutSection() {
       <img
         src={appIcon}
         alt="NetCopilot"
-        className="w-24 h-24 rounded-2xl"
-        style={{ boxShadow: '0 0 32px hsl(258 90% 66% / 0.35)' }}
+        className="w-28 h-28"
+        style={{ filter: 'drop-shadow(0 0 18px hsl(258 90% 66% / 0.5))' }}
       />
 
       <div className="text-center">
