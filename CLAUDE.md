@@ -51,8 +51,8 @@ Output: `out/` (runtime JS), `dist/` (packaged distributable).
 ## Data Storage — SQLite (`better-sqlite3`)
 
 All persistent data lives in a single SQLite database:
-- **Mac**: `~/Library/Application Support/netterm/netterm.db`
-- **Windows**: `%APPDATA%\netterm\netterm.db`
+- **Mac**: `~/Library/Application Support/netcopilot/netcopilot.db`
+- **Windows**: `%APPDATA%\netcopilot\netcopilot.db`
 
 ### Schema
 

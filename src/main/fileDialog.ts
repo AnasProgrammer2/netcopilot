@@ -6,7 +6,7 @@ export function setupFileDialogHandlers(
   ipcMain: IpcMain,
   getWindow: () => BrowserWindow | null
 ): void {
-  ipcMain.handle('dialog:export', async (_, content: string, filename = 'netterm-connections.json') => {
+  ipcMain.handle('dialog:export', async (_, content: string, filename = 'netcopilot-connections.json') => {
     const win = getWindow()
     const result = await dialog.showSaveDialog(win!, {
       title: 'Export Connections',
@@ -42,6 +42,6 @@ export function setupFileDialogHandlers(
   })
 
   ipcMain.handle('dialog:getDefaultLogDir', () => {
-    return path.join(app.getPath('documents'), 'NetTerm Logs')
+    return path.join(app.getPath('documents'), 'NetCopilot Logs')
   })
 }

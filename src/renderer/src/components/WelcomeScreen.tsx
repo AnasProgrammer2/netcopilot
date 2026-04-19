@@ -18,7 +18,7 @@ export function WelcomeScreen(): JSX.Element {
           <Terminal className="w-7 h-7 text-primary" />
         </div>
         <div className="text-center space-y-1">
-          <h1 className="text-2xl font-semibold text-foreground tracking-tight">NetTerm</h1>
+          <h1 className="text-2xl font-semibold text-foreground tracking-tight">NetCopilot</h1>
           <p className="text-sm text-muted-foreground">
             SSH · Telnet · Serial Console
           </p>

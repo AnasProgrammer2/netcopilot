@@ -1,6 +1,6 @@
-# NetTerm
+# NetCopilot
 
-> A professional SSH, Telnet & Serial terminal client for network engineers — built with Electron
+> An AI-powered SSH, Telnet & Serial terminal client for network engineers — built with Electron
 
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue)
 ![Tech](https://img.shields.io/badge/Electron-React%2019-61DAFB)
@@ -8,11 +8,11 @@
 
 ---
 
-## What is NetTerm?
+## What is NetCopilot?
 
-NetTerm is an open-source desktop terminal application designed for network engineers and DevOps teams. It provides a fast, modern interface to connect to routers, switches, servers, and serial devices over **SSH**, **Telnet**, and **Serial** — all from one place.
+NetCopilot is an open-source desktop terminal application designed for network engineers and DevOps teams. It provides a fast, modern interface to connect to routers, switches, servers, and serial devices over **SSH**, **Telnet**, and **Serial** — with an AI assistant built in to help you analyze logs, troubleshoot issues, and suggest commands.
 
-Inspired by Termius, but open-source and built to be extended with AI capabilities.
+Inspired by Termius, but open-source and AI-native.
 
 ---
 
@@ -54,8 +54,8 @@ Inspired by Termius, but open-source and built to be extended with AI capabiliti
 ### Installation
 
 ```bash
-git clone https://github.com/AnasProgrammer2/netterm.git
-cd netterm
+git clone https://github.com/AnasProgrammer2/netcopilot.git
+cd netcopilot
 npm install
 ```
 
@@ -162,7 +162,7 @@ In the **Advanced** tab of any connection, add commands to run automatically aft
 
 ### Enable Password (Cisco)
 
-Set the **Enable Password** in the **Advanced** tab. After login, NetTerm detects the user-mode prompt (`>`) and automatically sends `enable` followed by the password to enter privileged mode.
+Set the **Enable Password** in the **Advanced** tab. After login, NetCopilot detects the user-mode prompt (`>`) and automatically sends `enable` followed by the password to enter privileged mode.
 
 ### Session Logging
 
@@ -203,4 +203,4 @@ Every connection opens a new **Tab** in the same window. All tabs stay mounted s
 
 ## License
 
-MIT © 2026 NetTerm
+MIT © 2026 NetCopilot

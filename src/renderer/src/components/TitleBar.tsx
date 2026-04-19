@@ -13,7 +13,7 @@ export function TitleBar(): JSX.Element {
       {/* Logo */}
       <div className="flex items-center gap-2 no-drag">
         <Terminal className="w-3.5 h-3.5 text-primary" />
-        <span className="text-sm font-semibold text-foreground tracking-tight">NetTerm</span>
+        <span className="text-sm font-semibold text-foreground tracking-tight">NetCopilot</span>
         <span className="hidden sm:inline text-[10px] text-muted-foreground/50 font-medium ml-1 tracking-wider uppercase">
           beta
         </span>
