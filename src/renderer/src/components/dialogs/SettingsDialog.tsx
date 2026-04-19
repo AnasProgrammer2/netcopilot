@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import appIcon from '../../assets/icon.png'
 import {
   X, Monitor, Terminal, Network, Lock, Info, FileText,
-  Sun, Moon, Laptop, Check, ChevronRight, FolderOpen
+  Sun, Moon, Laptop, Check, ChevronRight, FolderOpen,
+  Bot, Eye, EyeOff, ShieldCheck, Wrench, Zap
 } from 'lucide-react'
-import { useAppStore } from '../../store'
+import { useAppStore, AiPermission, AiApproval } from '../../store'
 import { cn } from '../../lib/utils'
 
 // ─── Settings data model ────────────────────────────────────────────────────
@@ -58,6 +59,8 @@ const DEFAULTS: AppSettings = {
   logTimestamp: false,
 }
 
+const inputCls = 'w-full px-3 py-2 rounded-md bg-background border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary'
+
 const ACCENT_COLORS = [
   { label: 'Violet',  value: '#8b5cf6' },
   { label: 'Blue',    value: '#3b82f6' },
@@ -76,7 +79,7 @@ const FONT_FAMILIES = [
   'monospace'
 ]
 
-type SettingsSection = 'appearance' | 'terminal' | 'connection' | 'logging' | 'security' | 'about'
+type SettingsSection = 'appearance' | 'terminal' | 'connection' | 'logging' | 'security' | 'ai' | 'about'
 
 const NAV: { id: SettingsSection; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'appearance', label: 'Appearance', icon: Monitor   },
@@ -84,6 +87,7 @@ const NAV: { id: SettingsSection; label: string; icon: React.ComponentType<{ cla
   { id: 'connection', label: 'Connection', icon: Network   },
   { id: 'logging',    label: 'Logging',    icon: FileText  },
   { id: 'security',   label: 'Security',   icon: Lock      },
+  { id: 'ai',         label: 'AI Copilot', icon: Bot       },
   { id: 'about',      label: 'About',      icon: Info      },
 ]
 
@@ -168,12 +172,13 @@ export function SettingsDialog(): JSX.Element {
             {section === 'connection' && <ConnectionSection settings={settings} update={update} />}
             {section === 'logging'    && <LoggingSection    settings={settings} update={update} />}
             {section === 'security'   && <SecuritySection   settings={settings} update={update} />}
+            {section === 'ai'         && <AiSection />}
             {section === 'about'      && <AboutSection />}
           </div>
         </div>
 
         {/* Footer */}
-        {section !== 'about' && (
+        {section !== 'about' && section !== 'ai' && (
           <div className="flex items-center justify-end gap-2 px-6 py-3 border-t border-border bg-sidebar/30 shrink-0">
             <button
               onClick={() => setSettingsOpen(false)}
@@ -565,8 +570,6 @@ function SecuritySection({ settings, update }: SectionProps) {
     else setMpError(res.error ?? 'Failed')
   }
 
-  const inputCls = 'w-full px-3 py-2 rounded-md bg-background border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary'
-
   return (
     <>
       <Group title="Master Password">
@@ -754,8 +757,6 @@ type SectionProps = {
   update: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void
 }
 
-const inputCls = 'w-full px-3 py-2 text-sm bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors'
-
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-3">
@@ -832,6 +833,299 @@ function LabeledInput({ label, type, value, onChange }: {
         onChange={(e) => onChange(e.target.value)}
         className={inputCls}
       />
+    </div>
+  )
+}
+
+// ─── AI Copilot Settings Section ─────────────────────────────────────────────
+function AiSection(): JSX.Element {
+  const { aiPermission, aiApproval, aiBlacklist, setAiPermission, setAiApproval, setAiBlacklist } = useAppStore()
+
+  const [apiKey, setApiKey]         = useState('')
+  const [showKey, setShowKey]       = useState(false)
+  const [keySaved, setKeySaved]     = useState(false)
+  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle')
+  const [testError, setTestError]   = useState('')
+  const [blacklistInput, setBlacklistInput] = useState(aiBlacklist.join(', '))
+
+  useEffect(() => {
+    window.api.ai.getApiKey().then((k) => { if (k) setApiKey(k) })
+  }, [])
+
+  // Sync blacklist textarea whenever the store value changes (e.g. after loadSettings completes)
+  useEffect(() => {
+    setBlacklistInput(aiBlacklist.join(', '))
+  }, [aiBlacklist])
+
+  const saveApiKey = async () => {
+    if (!apiKey.trim()) return
+    await window.api.ai.setApiKey(apiKey.trim())
+    // Also persist permission, approval, blacklist
+    await window.api.store.setSetting('ai.permission', aiPermission)
+    await window.api.store.setSetting('ai.approval',   aiApproval)
+    const list = blacklistInput.split(',').map(s => s.trim()).filter(Boolean)
+    await window.api.store.setSetting('ai.blacklist', list)
+    setAiBlacklist(list)
+    setKeySaved(true)
+    setTimeout(() => setKeySaved(false), 2500)
+  }
+
+  const testApiKey = async () => {
+    const key = apiKey.trim()
+    if (!key) { setTestStatus('fail'); setTestError('Enter an API key first'); return }
+    setTestStatus('testing')
+    setTestError('')
+    try {
+      // Send minimal chat to verify key — use a simple ping message
+      await window.api.ai.setApiKey(key) // save first so main process can use it
+      // Use a promise race with ai events
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Timeout — no response from API')), 15000)
+        const offDone  = window.api.ai.onDone(() => { clearTimeout(timeout); offDone(); offErr(); resolve() })
+        const offErr   = window.api.ai.onError((e) => { clearTimeout(timeout); offDone(); offErr(); reject(new Error(e)) })
+        window.api.ai.chat({
+          messages:        [{ role: 'user', content: 'Reply with exactly: ok' }],
+          terminalContext: '',
+          deviceType:      'generic',
+          host:            'test',
+          protocol:        'ssh',
+          permission:      'troubleshoot',
+          isProactive:     false,
+        })
+      })
+      setTestStatus('ok')
+    } catch (e: unknown) {
+      setTestStatus('fail')
+      setTestError(e instanceof Error ? e.message : String(e))
+    }
+    setTimeout(() => setTestStatus('idle'), 6000)
+  }
+
+  const saveOtherSettings = async () => {
+    await window.api.store.setSetting('ai.permission', aiPermission)
+    await window.api.store.setSetting('ai.approval',   aiApproval)
+    const list = blacklistInput.split(',').map(s => s.trim()).filter(Boolean)
+    await window.api.store.setSetting('ai.blacklist', list)
+    setAiBlacklist(list)
+    setKeySaved(true)
+    setTimeout(() => setKeySaved(false), 2500)
+  }
+
+  const permissionOptions: { id: AiPermission; label: string; desc: string; icon: JSX.Element }[] = [
+    {
+      id:   'troubleshoot',
+      label: 'Troubleshoot',
+      desc:  'Read-only commands only — show, ping, ls, ps, etc. Safe for monitoring.',
+      icon:  <ShieldCheck className="w-4 h-4 text-amber-400" />,
+    },
+    {
+      id:   'full-access',
+      label: 'Full Access',
+      desc:  'Any command including configuration changes. Use with caution.',
+      icon:  <Wrench className="w-4 h-4 text-red-400" />,
+    },
+  ]
+
+  const approvalOptions: { id: AiApproval; label: string; desc: string; icon: JSX.Element }[] = [
+    {
+      id:   'ask',
+      label: 'Ask before each command',
+      desc:  'AI shows the command and waits for your approval before running.',
+      icon:  <Bot className="w-4 h-4 text-primary" />,
+    },
+    {
+      id:   'auto',
+      label: 'Auto-approve all',
+      desc:  'AI executes commands immediately without asking. Fastest workflow.',
+      icon:  <Zap className="w-4 h-4 text-emerald-400" />,
+    },
+    {
+      id:   'blacklist',
+      label: 'Block specific patterns',
+      desc:  'Auto-approve everything except commands matching your blacklist.',
+      icon:  <Lock className="w-4 h-4 text-orange-400" />,
+    },
+  ]
+
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        icon={<Bot className="w-4 h-4" />}
+        title="AI Copilot"
+        description="Configure the AI assistant that lives in the terminal panel."
+      />
+
+      {/* API Key */}
+      <SettingsGroup label="Anthropic API Key">
+        <p className="text-xs text-muted-foreground mb-2">
+          Required to use the AI Copilot. Your key is stored encrypted in the OS keychain.{' '}
+          <a
+            href="https://console.anthropic.com/settings/keys"
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary hover:underline"
+            onClick={(e) => { e.preventDefault(); window.open('https://console.anthropic.com/settings/keys') }}
+          >
+            Get a key →
+          </a>
+        </p>
+        <div className="flex gap-2">
+          <div className="flex-1 relative">
+            <input
+              type={showKey ? 'text' : 'password'}
+              value={apiKey}
+              onChange={(e) => { setApiKey(e.target.value); setTestStatus('idle') }}
+              placeholder="sk-ant-..."
+              className={cn(inputCls, 'pr-9 font-mono text-xs')}
+            />
+            <button
+              onClick={() => setShowKey(v => !v)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+          <button
+            onClick={saveApiKey}
+            className="px-3 py-2 rounded-md bg-primary/20 text-primary hover:bg-primary/30 text-xs font-medium transition-colors whitespace-nowrap"
+          >
+            {keySaved ? '✓ Saved' : 'Save'}
+          </button>
+          <button
+            onClick={testApiKey}
+            disabled={testStatus === 'testing'}
+            className={cn(
+              'px-3 py-2 rounded-md text-xs font-medium transition-colors whitespace-nowrap',
+              testStatus === 'ok'   && 'bg-emerald-500/15 text-emerald-400',
+              testStatus === 'fail' && 'bg-red-500/15 text-red-400',
+              testStatus === 'testing' && 'bg-muted text-muted-foreground cursor-wait',
+              (testStatus === 'idle') && 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-accent',
+            )}
+          >
+            {testStatus === 'testing' ? 'Testing…' : testStatus === 'ok' ? '✓ Connected' : testStatus === 'fail' ? '✗ Failed' : 'Test'}
+          </button>
+        </div>
+
+        {/* Test error details */}
+        {testStatus === 'fail' && testError && (
+          <p className="text-xs text-red-400 mt-1.5 px-1 leading-relaxed">{testError}</p>
+        )}
+      </SettingsGroup>
+
+      {/* Permission Mode */}
+      <SettingsGroup label="Agent Mode">
+        <div className="space-y-2">
+          {permissionOptions.map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => setAiPermission(opt.id)}
+              className={cn(
+                'w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-colors',
+                aiPermission === opt.id
+                  ? 'border-primary/50 bg-primary/10'
+                  : 'border-border hover:border-border/80 hover:bg-accent/50'
+              )}
+            >
+              <div className="mt-0.5 shrink-0">{opt.icon}</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-foreground">{opt.label}</span>
+                  {aiPermission === opt.id && <Check className="w-3 h-3 text-primary" />}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{opt.desc}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </SettingsGroup>
+
+      {/* Approval Setting */}
+      <SettingsGroup label="Command Execution">
+        <div className="space-y-2">
+          {approvalOptions.map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => setAiApproval(opt.id)}
+              className={cn(
+                'w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-colors',
+                aiApproval === opt.id
+                  ? 'border-primary/50 bg-primary/10'
+                  : 'border-border hover:border-border/80 hover:bg-accent/50'
+              )}
+            >
+              <div className="mt-0.5 shrink-0">{opt.icon}</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-foreground">{opt.label}</span>
+                  {aiApproval === opt.id && <Check className="w-3 h-3 text-primary" />}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{opt.desc}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </SettingsGroup>
+
+      {/* Blacklist (only shown when blacklist mode is selected) */}
+      {/* Blacklist — always shown, not only in blacklist mode */}
+      <SettingsGroup label="Blocked Command Patterns">
+        <div className="flex items-start justify-between mb-2 gap-2">
+          <p className="text-xs text-muted-foreground leading-relaxed flex-1">
+            Commands matching any pattern below are <strong className="text-foreground">always blocked</strong>, regardless of mode or approval setting.
+          </p>
+          <button
+            onClick={async () => {
+              const defaults = await window.api.ai.resetBlacklist()
+              setBlacklistInput(defaults.join(', '))
+              setAiBlacklist(defaults)
+            }}
+            className="text-[11px] text-muted-foreground hover:text-primary transition-colors whitespace-nowrap shrink-0 mt-0.5"
+          >
+            Reset to defaults
+          </button>
+        </div>
+        <textarea
+          value={blacklistInput}
+          onChange={(e) => setBlacklistInput(e.target.value)}
+          rows={6}
+          placeholder="reload, shutdown, rm -rf, write erase, ..."
+          className={cn(inputCls, 'resize-y font-mono text-xs leading-relaxed')}
+        />
+        <p className="text-[10px] text-muted-foreground/50 mt-1">
+          {blacklistInput.split(',').filter(s => s.trim()).length} patterns · comma-separated · case-insensitive substring match
+        </p>
+      </SettingsGroup>
+
+      {/* Save button */}
+      <div className="flex justify-end">
+        <button
+          onClick={saveOtherSettings}
+          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition-colors"
+        >
+          {keySaved ? '✓ Settings Saved' : 'Save Settings'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function SettingsGroup({ label, children }: { label: string; children: React.ReactNode }): JSX.Element {
+  return (
+    <div className="space-y-2">
+      <h3 className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider">{label}</h3>
+      {children}
+    </div>
+  )
+}
+
+function SectionHeader({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }): JSX.Element {
+  return (
+    <div className="flex items-start gap-3 pb-2 border-b border-border">
+      <div className="p-2 rounded-lg bg-primary/10 text-primary mt-0.5">{icon}</div>
+      <div>
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+      </div>
     </div>
   )
 }

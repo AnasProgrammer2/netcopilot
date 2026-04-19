@@ -279,9 +279,28 @@ On import, group IDs are remapped with `nanoid()` to avoid collisions. Connectio
 
 ---
 
-## Roadmap (planned features not yet built)
+## AI Copilot (`src/main/ai.ts`)
 
-- AI Assistant (log analysis, command suggestions)
+Agentic loop powered by **Claude Sonnet 4.5** via `@anthropic-ai/sdk`.
+
+- `buildSystemPrompt()` — constructs system prompt from device type, host, protocol, permission mode, and terminal context snapshot
+- `runAiLoop()` — `while(true)` loop: streams text → processes `run_command` tool calls → waits for renderer result → continues until no more tool calls
+- `RUN_COMMAND_TOOL` — single tool definition; description varies by permission mode
+- `DEFAULT_AI_BLACKLIST` in `src/main/aiDefaults.ts` — hardcoded safe defaults seeded into DB on first run
+
+IPC handlers: `ai:chat`, `ai:cancel`, `ai:tool-result`, `ai:set-api-key`, `ai:get-api-key`, `ai:reset-blacklist`
+
+Renderer side:
+- `AiPanel.tsx` — chat UI, per-session state (permission, approval, blacklist, auto-watch), window bridge for stale-closure-safe values (`__sessionApproval`, `__sessionBlacklist`, `__aiAutoWatch`, `__aiSendProactive`)
+- `AiMessage.tsx` — Markdown rendering via `react-markdown` + `remark-gfm`
+- `AiCommandBlock.tsx` — command card with Run / Skip buttons
+- `terminalRegistry.ts` — global `Map<sessionId, TerminalHandle>` for AI to read context and send commands
+- Auto-watch watcher lives in `TerminalTab.tsx` — debounced 1.5s, fires only when panel is open and Watch is enabled
+
+---
+
+## Roadmap
+
 - SFTP Browser
 - Port Forwarding (local / remote / dynamic)
 - Snippets

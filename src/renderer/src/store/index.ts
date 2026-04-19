@@ -2,6 +2,28 @@ import { create } from 'zustand'
 import { Connection, ConnectionGroup, SSHKey, Session } from '../types'
 import { nanoid } from 'nanoid'
 
+// ── AI Copilot types ─────────────────────────────────────────────────────────
+
+export type AiPermission = 'troubleshoot' | 'full-access'
+export type AiApproval   = 'ask' | 'auto' | 'blacklist'
+
+
+export interface AiToolCall {
+  id:      string
+  command: string
+  reason:  string
+  status:  'pending' | 'approved' | 'blocked' | 'running' | 'done'
+  output?: string
+}
+
+export interface AiMessage {
+  id:        string
+  role:      'user' | 'assistant' | 'auto'  // auto = proactive watcher
+  content:   string
+  streaming?: boolean
+  toolCalls?: AiToolCall[]
+}
+
 export interface TerminalSettings {
   fontSize: number
   fontFamily: string
@@ -97,6 +119,25 @@ interface AppState {
 
   // Session logging (path stored per session so TabBar can show indicator)
   setSessionLogging: (sessionId: string, path: string | null) => void
+
+  // AI Copilot
+  aiPanelOpen:  boolean
+  aiPermission: AiPermission
+  aiApproval:   AiApproval
+  aiBlacklist:  string[]
+  aiMessages:   AiMessage[]
+  aiStreaming:  boolean
+
+  setAiPanelOpen:  (open: boolean) => void
+  setAiPermission: (p: AiPermission) => void
+  setAiApproval:   (a: AiApproval) => void
+  setAiBlacklist:  (list: string[]) => void
+  addAiMessage:    (msg: AiMessage) => void
+  appendAiChunk:   (chunk: string) => void
+  finalizeAiStream: () => void
+  updateAiToolCall: (msgId: string, callId: string, patch: Partial<AiToolCall>) => void
+  clearAiMessages: () => void
+  setAiStreaming:  (v: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -107,6 +148,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeSessionId: null,
   terminalSettings: { ...DEFAULT_TERMINAL_SETTINGS },
   connectionSettings: { ...DEFAULT_CONNECTION_SETTINGS },
+
+  // AI Copilot initial state
+  aiPanelOpen:  false,
+  aiPermission: 'troubleshoot',
+  aiApproval:   'ask',
+  aiBlacklist:  [],
+  aiMessages:   [],
+  aiStreaming:  false,
   sidebarWidth: 260,
   quickConnectOpen: false,
   connectionDialogOpen: false,
@@ -286,14 +335,21 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (v !== undefined && v !== null) cs[k] = v as never
     }
 
-    const sidebarWidth = (await window.api.store.getSetting('sidebarWidth') as number | null) ?? 260
-    const accentColor  = (await window.api.store.getSetting('accentColor')  as string | null) ?? '#8b5cf6'
-    const theme        = (await window.api.store.getSetting('theme')         as string | null) ?? 'dark'
+    const sidebarWidth  = (await window.api.store.getSetting('sidebarWidth')  as number | null) ?? 260
+    const accentColor   = (await window.api.store.getSetting('accentColor')   as string | null) ?? '#8b5cf6'
+    const theme         = (await window.api.store.getSetting('theme')          as string | null) ?? 'dark'
+    const aiPermission  = (await window.api.store.getSetting('ai.permission')  as AiPermission | null) ?? 'troubleshoot'
+    const aiApproval    = (await window.api.store.getSetting('ai.approval')    as AiApproval | null)   ?? 'ask'
+    const aiBlacklistRaw = await window.api.store.getSetting('ai.blacklist')
+    const aiBlacklist   = Array.isArray(aiBlacklistRaw) ? aiBlacklistRaw as string[] : []
 
     set({
       terminalSettings: { ...DEFAULT_TERMINAL_SETTINGS, ...ts },
       connectionSettings: { ...DEFAULT_CONNECTION_SETTINGS, ...cs },
-      sidebarWidth
+      sidebarWidth,
+      aiPermission,
+      aiApproval,
+      aiBlacklist,
     })
 
     applyAccentColor(accentColor)
@@ -377,6 +433,52 @@ export const useAppStore = create<AppState>((set, get) => ({
       return -1
     }
   },
+
+  // ── AI Copilot actions ─────────────────────────────────────────────────────
+  setAiPanelOpen:  (open) => set({ aiPanelOpen: open }),
+  setAiPermission: (p) => set({ aiPermission: p }),
+  setAiApproval:   (a) => set({ aiApproval: a }),
+  setAiBlacklist:  (list) => set({ aiBlacklist: list }),
+  setAiStreaming:  (v) => set({ aiStreaming: v }),
+  clearAiMessages: () => set({ aiMessages: [] }),
+
+  addAiMessage: (msg) =>
+    set((state) => ({ aiMessages: [...state.aiMessages, msg] })),
+
+  appendAiChunk: (chunk) =>
+    set((state) => {
+      const msgs = [...state.aiMessages]
+      const last = msgs[msgs.length - 1]
+      if (last && last.streaming) {
+        msgs[msgs.length - 1] = { ...last, content: last.content + chunk }
+        return { aiMessages: msgs }
+      }
+      // Start a new streaming assistant message
+      return {
+        aiMessages: [...msgs, { id: nanoid(), role: 'assistant', content: chunk, streaming: true }]
+      }
+    }),
+
+  finalizeAiStream: () =>
+    set((state) => ({
+      aiMessages: state.aiMessages.map((m) =>
+        m.streaming ? { ...m, streaming: false } : m
+      ),
+      aiStreaming: false,
+    })),
+
+  updateAiToolCall: (msgId, callId, patch) =>
+    set((state) => ({
+      aiMessages: state.aiMessages.map((m) => {
+        if (m.id !== msgId) return m
+        const existing = (m.toolCalls ?? []).find((t) => t.id === callId)
+        if (existing) {
+          return { ...m, toolCalls: m.toolCalls!.map((t) => t.id === callId ? { ...t, ...patch } : t) }
+        }
+        // New tool call — append it
+        return { ...m, toolCalls: [...(m.toolCalls ?? []), patch as AiToolCall] }
+      })
+    })),
 
   setSidebarWidth: (width) => set({ sidebarWidth: width }),
 

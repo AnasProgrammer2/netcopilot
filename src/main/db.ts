@@ -4,6 +4,7 @@ import path from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { Connection, ConnectionGroup, SSHKey } from '../types/shared'
 import { getDbKey } from './dbKey'
+import { DEFAULT_AI_BLACKLIST } from './aiDefaults'
 
 function safeJsonParse<T>(raw: string, fallback: T): T {
   try { return JSON.parse(raw) as T } catch { return fallback }
@@ -84,6 +85,18 @@ function initSchema(db: Database.Database): void {
       value TEXT NOT NULL
     );
   `)
+
+  // Seed default AI blacklist if missing or empty (handles both fresh installs and empty migrations)
+  const blRow = db
+    .prepare("SELECT value FROM settings WHERE key = 'ai.blacklist'")
+    .get() as { value: string } | undefined
+  const blValue: unknown = blRow ? (() => { try { return JSON.parse(blRow.value) } catch { return null } })() : null
+  const isEmpty = !blValue || (Array.isArray(blValue) && (blValue as string[]).length === 0)
+  if (isEmpty) {
+    db.prepare(
+      "INSERT INTO settings (key, value) VALUES ('ai.blacklist', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+    ).run(JSON.stringify(DEFAULT_AI_BLACKLIST))
+  }
 }
 
 // ── JSON → SQLite migration (runs only once) ─────────────────────────────────
