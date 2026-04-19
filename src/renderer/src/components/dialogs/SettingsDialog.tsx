@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import appIcon from '../../assets/icon.png'
 import {
   X, Monitor, Terminal, Network, Lock, Info, FileText,
   Sun, Moon, Laptop, Check, ChevronRight, FolderOpen
@@ -580,12 +581,24 @@ function AboutSection() {
 
   return (
     <div className="flex flex-col items-center gap-6 py-4">
-      <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-        <Terminal className="w-8 h-8 text-primary" />
+      <div className="relative">
+        <img
+          src={appIcon}
+          alt="NetCopilot"
+          className="w-24 h-24 rounded-2xl shadow-lg"
+          style={{ boxShadow: '0 0 30px hsl(258 90% 66% / 0.3)' }}
+          onError={(e) => {
+            e.currentTarget.style.display = 'none'
+            e.currentTarget.nextElementSibling?.removeAttribute('hidden')
+          }}
+        />
+        <div hidden className="w-24 h-24 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+          <Terminal className="w-10 h-10 text-primary" />
+        </div>
       </div>
 
       <div className="text-center">
-        <h3 className="text-lg font-semibold text-foreground tracking-tight">NetCopilot</h3>
+        <h3 className="text-xl font-semibold text-foreground tracking-tight">NetCopilot</h3>
         <p className="text-sm text-muted-foreground mt-1">
           SSH · Telnet · Serial Console Client
         </p>
