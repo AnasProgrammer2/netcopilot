@@ -3,7 +3,7 @@ import { X, Eye, EyeOff, Usb } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { Connection, Protocol, AuthType, DeviceType, SerialConfig } from '../../types'
 import { cn } from '../../lib/utils'
-import { nanoid } from 'nanoid'
+import type { ConnectionSettings } from '../../store'
 
 const PROTOCOLS: { value: Protocol; label: string; defaultPort: number }[] = [
   { value: 'ssh',    label: 'SSH',    defaultPort: 22 },
@@ -24,17 +24,29 @@ const DEFAULT_SERIAL: SerialConfig = {
   xoff: false
 }
 
-const DEVICE_TYPES: { value: DeviceType; label: string }[] = [
-  { value: 'linux',       label: 'Linux / Unix' },
-  { value: 'cisco-ios',   label: 'Cisco IOS' },
-  { value: 'cisco-iosxe', label: 'Cisco IOS-XE' },
-  { value: 'cisco-nxos',  label: 'Cisco NX-OS' },
-  { value: 'junos',       label: 'Juniper JunOS' },
-  { value: 'arista-eos',  label: 'Arista EOS' },
-  { value: 'panos',       label: 'Palo Alto PAN-OS' },
-  { value: 'nokia-sros',  label: 'Nokia SR-OS' },
-  { value: 'windows',     label: 'Windows' },
-  { value: 'generic',     label: 'Generic' }
+const DEVICE_TYPES: { value: DeviceType; label: string; group: string }[] = [
+  // Servers
+  { value: 'linux',       label: 'Linux / Unix',       group: 'Servers' },
+  { value: 'windows',     label: 'Windows Server',     group: 'Servers' },
+  // Cisco
+  { value: 'cisco-ios',   label: 'Cisco IOS',          group: 'Cisco' },
+  { value: 'cisco-iosxe', label: 'Cisco IOS-XE',       group: 'Cisco' },
+  { value: 'cisco-nxos',  label: 'Cisco NX-OS',        group: 'Cisco' },
+  { value: 'cisco-asa',   label: 'Cisco ASA',          group: 'Cisco' },
+  // Other Vendors
+  { value: 'junos',       label: 'Juniper JunOS',      group: 'Routers & Switches' },
+  { value: 'arista-eos',  label: 'Arista EOS',         group: 'Routers & Switches' },
+  { value: 'nokia-sros',  label: 'Nokia SR-OS',        group: 'Routers & Switches' },
+  { value: 'huawei-vrp',  label: 'Huawei VRP',         group: 'Routers & Switches' },
+  { value: 'mikrotik',    label: 'MikroTik RouterOS',  group: 'Routers & Switches' },
+  { value: 'hp-procurve', label: 'HP / Aruba ProCurve',group: 'Routers & Switches' },
+  // Firewalls
+  { value: 'panos',       label: 'Palo Alto PAN-OS',   group: 'Firewalls' },
+  { value: 'fortios',     label: 'Fortinet FortiOS',   group: 'Firewalls' },
+  // Load Balancers
+  { value: 'f5-tmos',     label: 'F5 BIG-IP TMOS',    group: 'Load Balancers' },
+  // Generic
+  { value: 'generic',     label: 'Generic',            group: 'Other' }
 ]
 
 const COLORS = [
@@ -42,34 +54,38 @@ const COLORS = [
   '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316'
 ]
 
-function emptyForm(): Partial<Connection> {
+function emptyForm(cs: ConnectionSettings): Partial<Connection> {
   return {
     name: '',
     host: '',
-    port: 22,
+    port: cs.sshDefaultPort,
     protocol: 'ssh',
     username: '',
     authType: 'password',
     tags: [],
     notes: '',
     deviceType: 'linux',
-    color: COLORS[0]
+    color: COLORS[0],
+    autoReconnect: cs.autoReconnect,
+    reconnectDelay: cs.reconnectDelay
   }
 }
 
 export function ConnectionDialog(): JSX.Element {
-  const { connectionDialogOpen, editingConnection, setConnectionDialogOpen, saveConnection, sshKeys } = useAppStore()
-  const [form, setForm] = useState<Partial<Connection>>(emptyForm())
+  const { connectionDialogOpen, editingConnection, setConnectionDialogOpen, saveConnection, sshKeys, groups, connectionSettings } = useAppStore()
+  const [form, setForm] = useState<Partial<Connection>>(emptyForm(connectionSettings))
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [tab, setTab] = useState<'general' | 'auth' | 'advanced'>('general')
+  const [tab, setTab] = useState<string>('general')
+  const [tagInput, setTagInput] = useState('')
 
   useEffect(() => {
     if (connectionDialogOpen) {
-      setForm(editingConnection ? { ...editingConnection } : emptyForm())
+      setForm(editingConnection ? { ...editingConnection } : emptyForm(connectionSettings))
       setPassword('')
       setTab('general')
+      setTagInput('')
     }
   }, [connectionDialogOpen, editingConnection])
 
@@ -79,7 +95,9 @@ export function ConnectionDialog(): JSX.Element {
     setForm((prev) => {
       const next = { ...prev, [key]: value }
       if (key === 'protocol') {
-        next.port = PROTOCOLS.find((p) => p.value === value)?.defaultPort ?? prev.port
+        if (value === 'ssh') next.port = connectionSettings.sshDefaultPort
+        else if (value === 'telnet') next.port = connectionSettings.telnetDefaultPort
+        else next.port = 0
       }
       return next
     })
@@ -108,11 +126,16 @@ export function ConnectionDialog(): JSX.Element {
         deviceType: form.deviceType ?? 'generic',
         color: form.color,
         startupCommands: form.startupCommands,
-        serialConfig: isSerial ? (form.serialConfig ?? DEFAULT_SERIAL) : undefined
+        serialConfig: isSerial ? (form.serialConfig ?? DEFAULT_SERIAL) : undefined,
+        autoReconnect: form.autoReconnect ?? true,
+        reconnectDelay: form.reconnectDelay ?? 10
       } as Omit<Connection, 'id' | 'createdAt' | 'updatedAt'> & { id?: string })
 
       if (password && (form.authType === 'password' || form.authType === 'key+password')) {
-        await window.api.credentials.save(`${conn.id}:password`, password)
+        const savePasswords = await window.api.store.getSetting('savePasswords')
+        if (savePasswords !== false) {
+          await window.api.credentials.save(`${conn.id}:password`, password)
+        }
       }
 
       setConnectionDialogOpen(false)
@@ -173,14 +196,28 @@ export function ConnectionDialog(): JSX.Element {
         <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
           {tab === 'general' && (
             <>
-              <Field label="Name" required>
-                <input
-                  value={form.name ?? ''}
-                  onChange={(e) => update('name', e.target.value)}
-                  placeholder="My Router"
-                  className={inputClass}
-                />
-              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Name" required>
+                  <input
+                    value={form.name ?? ''}
+                    onChange={(e) => update('name', e.target.value)}
+                    placeholder="My Router"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="Group">
+                  <select
+                    value={form.groupId ?? ''}
+                    onChange={(e) => update('groupId', e.target.value || undefined)}
+                    className={inputClass}
+                  >
+                    <option value="">— No Group —</option>
+                    {groups.map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Protocol">
@@ -200,8 +237,12 @@ export function ConnectionDialog(): JSX.Element {
                     onChange={(e) => update('deviceType', e.target.value as DeviceType)}
                     className={inputClass}
                   >
-                    {DEVICE_TYPES.map((d) => (
-                      <option key={d.value} value={d.value}>{d.label}</option>
+                    {Array.from(new Set(DEVICE_TYPES.map((d) => d.group))).map((group) => (
+                      <optgroup key={group} label={group}>
+                        {DEVICE_TYPES.filter((d) => d.group === group).map((d) => (
+                          <option key={d.value} value={d.value}>{d.label}</option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </Field>
@@ -250,6 +291,44 @@ export function ConnectionDialog(): JSX.Element {
                       }}
                     />
                   ))}
+                </div>
+              </Field>
+
+              <Field label="Tags">
+                <div className="flex flex-wrap gap-1.5 px-2 py-1.5 min-h-[38px] bg-background border border-border rounded-md focus-within:ring-1 focus-within:ring-ring">
+                  {(form.tags ?? []).map((tag, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-primary/15 text-primary rounded-full"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => update('tags', (form.tags ?? []).filter((_, j) => j !== i))}
+                        className="hover:text-destructive leading-none"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </span>
+                  ))}
+                  <input
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+                        e.preventDefault()
+                        const newTag = tagInput.trim().replace(/,+$/, '')
+                        if (newTag && !(form.tags ?? []).includes(newTag)) {
+                          update('tags', [...(form.tags ?? []), newTag])
+                        }
+                        setTagInput('')
+                      } else if (e.key === 'Backspace' && !tagInput && (form.tags ?? []).length > 0) {
+                        update('tags', (form.tags ?? []).slice(0, -1))
+                      }
+                    }}
+                    placeholder={(form.tags ?? []).length ? '' : 'Add tags... (Enter or comma)'}
+                    className="flex-1 min-w-[120px] bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                  />
                 </div>
               </Field>
 
@@ -367,6 +446,36 @@ export function ConnectionDialog(): JSX.Element {
                   className={cn(inputClass, 'resize-none font-mono text-xs')}
                 />
               </Field>
+
+              {/* Auto Reconnect */}
+              <div className="space-y-3 pt-1 border-t border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Auto Reconnect
+                </p>
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.autoReconnect ?? false}
+                    onChange={(e) => update('autoReconnect', e.target.checked)}
+                    className="w-4 h-4 rounded accent-primary"
+                  />
+                  <span className="text-sm text-foreground">
+                    Reconnect automatically on disconnect
+                  </span>
+                </label>
+                {form.autoReconnect && (
+                  <Field label="Reconnect delay (seconds)">
+                    <input
+                      type="number"
+                      min={3}
+                      max={120}
+                      value={form.reconnectDelay ?? 10}
+                      onChange={(e) => update('reconnectDelay', parseInt(e.target.value) || 10)}
+                      className={inputClass}
+                    />
+                  </Field>
+                )}
+              </div>
             </>
           )}
         </div>

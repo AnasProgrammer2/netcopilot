@@ -5,10 +5,16 @@ export type DeviceType =
   | 'cisco-ios'
   | 'cisco-iosxe'
   | 'cisco-nxos'
+  | 'cisco-asa'
   | 'junos'
   | 'arista-eos'
   | 'panos'
   | 'nokia-sros'
+  | 'huawei-vrp'
+  | 'mikrotik'
+  | 'fortios'
+  | 'hp-procurve'
+  | 'f5-tmos'
   | 'windows'
   | 'generic'
 
@@ -55,6 +61,8 @@ export interface Connection {
   startupCommands?: string[]
   enablePassword?: string
   serialConfig?: SerialConfig
+  autoReconnect?: boolean
+  reconnectDelay?: number
   createdAt: number
   updatedAt: number
   lastConnectedAt?: number

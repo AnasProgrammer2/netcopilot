@@ -134,4 +134,13 @@ export function setupTelnetHandlers(
     }
     return true
   })
+
+  ipcMain.handle('telnet:resize', (_, sessionId: string, cols: number, rows: number) => {
+    const session = activeSessions.get(sessionId)
+    if (session) {
+      session.socket.write(buildNawsOption(cols, rows))
+      return true
+    }
+    return false
+  })
 }

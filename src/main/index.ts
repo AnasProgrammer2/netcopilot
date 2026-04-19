@@ -6,6 +6,8 @@ import { setupSshHandlers } from './ssh'
 import { setupTelnetHandlers } from './telnet'
 import { setupCredentialHandlers } from './credentials'
 import { setupSerialHandlers } from './serial'
+import { setupFileDialogHandlers } from './fileDialog'
+import { setupLogHandlers } from './logger'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -30,6 +32,24 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
+  })
+
+  // Zoom in/out/reset via Cmd+= / Cmd+- / Cmd+0
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return
+    const mod = process.platform === 'darwin' ? input.meta : input.control
+    if (!mod) return
+    const level = mainWindow!.webContents.getZoomLevel()
+    if (input.key === '=' || input.key === '+') {
+      mainWindow!.webContents.setZoomLevel(Math.min(level + 0.5, 5))
+      event.preventDefault()
+    } else if (input.key === '-') {
+      mainWindow!.webContents.setZoomLevel(Math.max(level - 0.5, -5))
+      event.preventDefault()
+    } else if (input.key === '0') {
+      mainWindow!.webContents.setZoomLevel(0)
+      event.preventDefault()
+    }
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -58,6 +78,8 @@ app.whenReady().then(() => {
   setupTelnetHandlers(ipcMain, () => mainWindow)
   setupCredentialHandlers(ipcMain)
   setupSerialHandlers(ipcMain, () => mainWindow)
+  setupFileDialogHandlers(ipcMain, () => mainWindow)
+  setupLogHandlers(ipcMain, () => mainWindow)
 
   createWindow()
 

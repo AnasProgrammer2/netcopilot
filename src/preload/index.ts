@@ -47,6 +47,8 @@ const api = {
   telnet: {
     connect: (payload: unknown) => ipcRenderer.invoke('telnet:connect', payload),
     send: (sessionId: string, data: string) => ipcRenderer.send('telnet:send', sessionId, data),
+    resize: (sessionId: string, cols: number, rows: number) =>
+      ipcRenderer.invoke('telnet:resize', sessionId, cols, rows),
     disconnect: (sessionId: string) => ipcRenderer.invoke('telnet:disconnect', sessionId),
     onData: (cb: (sessionId: string, data: string) => void) => {
       const handler = (_: unknown, sessionId: string, data: string) => cb(sessionId, data)
@@ -58,6 +60,26 @@ const api = {
       ipcRenderer.on('telnet:closed', handler)
       return () => ipcRenderer.removeListener('telnet:closed', handler)
     }
+  },
+
+  // Session Logging
+  log: {
+    start:   (sessionName: string): Promise<string | null> => ipcRenderer.invoke('log:start', sessionName),
+    startAt: (filePath: string, sessionName: string): Promise<string | null> => ipcRenderer.invoke('log:startAt', filePath, sessionName),
+    append:  (filePath: string, data: string): Promise<boolean> => ipcRenderer.invoke('log:append', filePath, data),
+    stop:    (filePath: string): Promise<boolean> => ipcRenderer.invoke('log:stop', filePath)
+  },
+
+  // File / folder dialogs
+  file: {
+    export: (content: string, filename?: string) =>
+      ipcRenderer.invoke('dialog:export', content, filename),
+    import: (): Promise<string | null> =>
+      ipcRenderer.invoke('dialog:import'),
+    selectFolder: (): Promise<string | null> =>
+      ipcRenderer.invoke('dialog:selectFolder'),
+    getDefaultLogDir: (): Promise<string> =>
+      ipcRenderer.invoke('dialog:getDefaultLogDir')
   },
 
   // App info

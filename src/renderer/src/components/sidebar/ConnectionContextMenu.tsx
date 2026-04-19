@@ -7,9 +7,10 @@ interface Props {
   onConnect: () => void
   onEdit: () => void
   onDelete: () => void
+  onDuplicate: () => void
 }
 
-export function ConnectionContextMenu({ position, onClose, onConnect, onEdit, onDelete }: Props): JSX.Element {
+export function ConnectionContextMenu({ position, onClose, onConnect, onEdit, onDelete, onDuplicate }: Props): JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -52,7 +53,7 @@ export function ConnectionContextMenu({ position, onClose, onConnect, onEdit, on
       style={style}
     >
       <Item icon={Play} label="Connect" onClick={onConnect} />
-      <Item icon={Copy} label="Duplicate" onClick={() => {}} />
+      <Item icon={Copy} label="Duplicate" onClick={onDuplicate} />
       <div className="my-1 border-t border-border" />
       <Item icon={Pencil} label="Edit" onClick={onEdit} />
       <Item icon={Trash2} label="Delete" onClick={onDelete} danger />
