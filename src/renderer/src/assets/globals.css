@@ -54,7 +54,14 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  /* Monospace only where needed */
+  code, kbd, samp, pre, .font-mono {
+    font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
   }
   ::-webkit-scrollbar {
     width: 4px;
@@ -101,6 +108,14 @@ html.light {
 .glow-primary-sm {
   box-shadow: 0 0 10px hsl(258 90% 66% / 0.25);
 }
+
+/* Shake animation for master password lock */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+.animate-shake { animation: shake 0.4s ease-in-out; }
 
 /* xterm.js overrides */
 .xterm {

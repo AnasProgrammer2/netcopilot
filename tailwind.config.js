@@ -54,8 +54,18 @@ module.exports = {
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)'
       },
+      letterSpacing: {
+        tighter: '-0.03em',
+        tight: '-0.02em',
+        normal: '-0.01em',
+        wide: '0.01em',
+      },
+      fontSize: {
+        'xxs': ['10px', { lineHeight: '14px', letterSpacing: '0.02em' }],
+      },
       fontFamily: {
-        mono: ['JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', 'monospace']
+        sans: ['Inter Variable', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'Cascadia Code', 'Consolas', 'monospace']
       }
     }
   },
