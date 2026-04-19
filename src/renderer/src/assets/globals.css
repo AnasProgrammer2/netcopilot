@@ -8,26 +8,26 @@
   :root {
     /* ── 80% dark base ─────────────────────────────── */
     --background: 254 51% 8%;    /* #0F0A1F */
-    --foreground: 255 40% 91%;   /* #E2DCFA */
+    --foreground: 255 15% 95%;   /* #F1EFF9 — near-white, easy on eyes */
 
     --card: 257 52% 12%;         /* #160E30 */
-    --card-foreground: 255 40% 91%;
+    --card-foreground: 255 15% 95%;
 
     --popover: 257 52% 12%;
-    --popover-foreground: 255 40% 91%;
+    --popover-foreground: 255 15% 95%;
 
     /* ── 15% purple accent ─────────────────────────── */
     --primary: 258 90% 66%;      /* #8B5CF6 */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 257 47% 16%;    /* #1D1240 */
-    --secondary-foreground: 255 30% 82%;
+    --secondary-foreground: 255 15% 88%;
 
     --muted: 257 47% 16%;
-    --muted-foreground: 258 22% 52%; /* #7A6BA3 */
+    --muted-foreground: 258 18% 62%; /* #8E82AE — readable grey-purple */
 
     --accent: 257 45% 19%;       /* #231649 */
-    --accent-foreground: 255 40% 91%;
+    --accent-foreground: 255 15% 95%;
 
     --destructive: 0 62% 48%;
     --destructive-foreground: 0 0% 100%;
@@ -40,11 +40,11 @@
 
     /* ── Sidebar — deeper than background ──────────── */
     --sidebar-background: 254 53% 6%;   /* #09061A */
-    --sidebar-foreground: 255 28% 75%;  /* #B3ABCE */
+    --sidebar-foreground: 255 18% 84%;  /* #CEC9E2 — clear and readable */
     --sidebar-primary: 258 90% 66%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 257 50% 11%;      /* #11092B */
-    --sidebar-accent-foreground: 255 40% 91%;
+    --sidebar-accent-foreground: 255 15% 95%;
     --sidebar-border: 257 44% 15%;      /* #1A1039 */
     --sidebar-ring: 258 90% 66%;
   }
