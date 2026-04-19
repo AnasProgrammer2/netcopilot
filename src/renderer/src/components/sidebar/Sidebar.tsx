@@ -67,7 +67,8 @@ export function Sidebar(): JSX.Element {
       c.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()))
   )
 
-  const ungrouped = filtered.filter((c) => !c.groupId)
+  const groupIds = new Set(groups.map((g) => g.id))
+  const ungrouped = filtered.filter((c) => !c.groupId || !groupIds.has(c.groupId))
   const getGroupConnections = (groupId: string) => filtered.filter((c) => c.groupId === groupId)
 
   return (

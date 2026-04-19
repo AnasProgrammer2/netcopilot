@@ -174,8 +174,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   deleteGroup: async (id) => {
     await window.api.store.deleteGroup(id)
+    // Ungroup any connections that belonged to this group so they remain visible
+    const orphans = get().connections.filter((c) => c.groupId === id)
+    for (const conn of orphans) {
+      await window.api.store.saveConnection({ ...conn, groupId: undefined })
+    }
     set((state) => ({
-      groups: state.groups.filter((g) => g.id !== id)
+      groups: state.groups.filter((g) => g.id !== id),
+      connections: state.connections.map((c) =>
+        c.groupId === id ? { ...c, groupId: undefined } : c
+      )
     }))
   },
 
