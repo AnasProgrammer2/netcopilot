@@ -581,21 +581,12 @@ function AboutSection() {
 
   return (
     <div className="flex flex-col items-center gap-6 py-4">
-      <div className="relative">
-        <img
-          src={appIcon}
-          alt="NetCopilot"
-          className="w-24 h-24 rounded-2xl shadow-lg"
-          style={{ boxShadow: '0 0 30px hsl(258 90% 66% / 0.3)' }}
-          onError={(e) => {
-            e.currentTarget.style.display = 'none'
-            e.currentTarget.nextElementSibling?.removeAttribute('hidden')
-          }}
-        />
-        <div hidden className="w-24 h-24 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-          <Terminal className="w-10 h-10 text-primary" />
-        </div>
-      </div>
+      <img
+        src={appIcon}
+        alt="NetCopilot"
+        className="w-24 h-24 rounded-2xl"
+        style={{ boxShadow: '0 0 32px hsl(258 90% 66% / 0.35)' }}
+      />
 
       <div className="text-center">
         <h3 className="text-xl font-semibold text-foreground tracking-tight">NetCopilot</h3>
