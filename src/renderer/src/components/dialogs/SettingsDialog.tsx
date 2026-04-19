@@ -715,7 +715,7 @@ function AboutSection() {
       <div className="text-center">
         <h3 className="text-xl font-semibold text-foreground tracking-tight">NetCopilot</h3>
         <p className="text-sm text-muted-foreground mt-1">
-          SSH · Telnet · Serial Console Client
+          Your AI-Native Network Copilot
         </p>
       </div>
 
