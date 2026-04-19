@@ -32,15 +32,18 @@ function stripTelnetCommands(data: Buffer): Buffer {
   let i = 0
   while (i < data.length) {
     if (data[i] === IAC) {
+      // L1 fix: always guard i+1 before reading it
       if (i + 1 >= data.length) break
       const cmd = data[i + 1]
       if (cmd === SB) {
-        while (i < data.length && !(data[i] === IAC && data[i + 1] === SE)) i++
+        // Skip subnegotiation: find IAC SE, guarding bounds on both bytes
         i += 2
+        while (i + 1 < data.length && !(data[i] === IAC && data[i + 1] === SE)) i++
+        i += 2 // skip IAC SE
       } else if (cmd === WILL || cmd === WONT || cmd === DO || cmd === DONT) {
         i += 3
       } else if (cmd === IAC) {
-        result.push(255)
+        result.push(255) // escaped IAC → literal 0xFF
         i += 2
       } else {
         i += 2
@@ -74,6 +77,15 @@ export function setupTelnetHandlers(
         const cols = payload.cols || 220
         const rows = payload.rows || 50
 
+        // H3 fix: settled flag prevents double-resolve/reject after connect
+        let settled = false
+        const settle = (result: { success: boolean; error?: string }) => {
+          if (settled) return
+          settled = true
+          if (result.success) resolve(result)
+          else reject(result)
+        }
+
         socket.setTimeout(15000)
 
         socket.on('connect', () => {
@@ -81,11 +93,11 @@ export function setupTelnetHandlers(
           activeSessions.set(payload.sessionId, { socket })
 
           socket.write(Buffer.from([IAC, WILL, SUPPRESS_GO_AHEAD]))
-          socket.write(Buffer.from([IAC, DO, SUPPRESS_GO_AHEAD]))
+          socket.write(Buffer.from([IAC, DO,   SUPPRESS_GO_AHEAD]))
           socket.write(Buffer.from([IAC, WILL, ECHO]))
           socket.write(buildNawsOption(cols, rows))
 
-          resolve({ success: true })
+          settle({ success: true })
         })
 
         socket.on('data', (data: Buffer) => {
@@ -106,12 +118,18 @@ export function setupTelnetHandlers(
 
         socket.on('error', (err) => {
           activeSessions.delete(payload.sessionId)
-          reject({ success: false, error: err.message })
+          if (!settled) {
+            // Pre-connect error: reject the promise
+            settle({ success: false, error: err.message })
+          } else {
+            // Post-connect error: notify renderer via IPC (promise already resolved)
+            getWindow()?.webContents.send('telnet:closed', payload.sessionId)
+          }
         })
 
         socket.on('timeout', () => {
           socket.destroy()
-          reject({ success: false, error: 'Connection timed out' })
+          settle({ success: false, error: 'Connection timed out' })
         })
 
         socket.connect(payload.port, payload.host)

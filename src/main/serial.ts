@@ -81,6 +81,9 @@ export function setupSerialHandlers(
 
           port.on('error', (portErr) => {
             getWindow()?.webContents.send('serial:error', payload.sessionId, portErr.message)
+            // Clean up stale session — port may never emit 'close' after an error
+            activeSessions.delete(payload.sessionId)
+            if (port.isOpen) port.close()
           })
 
           resolve({ success: true })

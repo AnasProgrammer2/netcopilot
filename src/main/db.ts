@@ -21,12 +21,15 @@ export function getDb(): Database.Database {
       // Existing plain DB — open without key, then rekey to encrypt in-place
       const plainDb = new Database(dbPath)
       const key = getDbKey() // generates + saves key file
+      if (!/^[0-9a-f]+$/i.test(key)) throw new Error('DB key contains invalid characters')
       plainDb.pragma(`rekey = '${key}'`)
       plainDb.close()
     }
 
     _db = new Database(dbPath)
-    _db.pragma(`key = '${getDbKey()}'`)
+    const dbKey = getDbKey()
+    if (!/^[0-9a-f]+$/i.test(dbKey)) throw new Error('DB key contains invalid characters')
+    _db.pragma(`key = '${dbKey}'`)
     _db.pragma('journal_mode = WAL')
     _db.pragma('foreign_keys = ON')
     initSchema(_db)
@@ -108,69 +111,77 @@ function migrateFromJson(db: Database.Database): void {
         settings?: Record<string, unknown>
       }
 
-      const insertGroup = db.prepare(`
-        INSERT OR IGNORE INTO connection_groups (id, name, color, parent_id)
-        VALUES (@id, @name, @color, @parent_id)
-      `)
-      for (const g of data.groups ?? []) {
-        if (!g.id) continue
-        insertGroup.run({ id: g.id, name: g.name, color: g.color ?? null, parent_id: g.parentId ?? null })
-      }
+      // Wrap all inserts in a single transaction so a crash mid-migration
+      // rolls back everything and migrated_v1 stays unset → retry on next launch
+      const migrate = db.transaction(() => {
+        const insertGroup = db.prepare(`
+          INSERT OR IGNORE INTO connection_groups (id, name, color, parent_id)
+          VALUES (@id, @name, @color, @parent_id)
+        `)
+        for (const g of data.groups ?? []) {
+          if (!g.id) continue
+          insertGroup.run({ id: g.id, name: g.name, color: g.color ?? null, parent_id: g.parentId ?? null })
+        }
 
-      const insertConn = db.prepare(`
-        INSERT OR IGNORE INTO connections
-        (id, name, host, port, protocol, username, auth_type, ssh_key_id, group_id,
-         tags, notes, device_type, color, jump_host_id, startup_commands,
-         enable_password, serial_config, auto_reconnect, reconnect_delay,
-         created_at, updated_at, last_connected_at)
-        VALUES
-        (@id, @name, @host, @port, @protocol, @username, @auth_type, @ssh_key_id, @group_id,
-         @tags, @notes, @device_type, @color, @jump_host_id, @startup_commands,
-         @enable_password, @serial_config, @auto_reconnect, @reconnect_delay,
-         @created_at, @updated_at, @last_connected_at)
-      `)
-      for (const c of data.connections ?? []) {
-        if (!c.id) continue
-        insertConn.run(connToRow(c))
-      }
+        const insertConn = db.prepare(`
+          INSERT OR IGNORE INTO connections
+          (id, name, host, port, protocol, username, auth_type, ssh_key_id, group_id,
+           tags, notes, device_type, color, jump_host_id, startup_commands,
+           enable_password, serial_config, auto_reconnect, reconnect_delay,
+           created_at, updated_at, last_connected_at)
+          VALUES
+          (@id, @name, @host, @port, @protocol, @username, @auth_type, @ssh_key_id, @group_id,
+           @tags, @notes, @device_type, @color, @jump_host_id, @startup_commands,
+           @enable_password, @serial_config, @auto_reconnect, @reconnect_delay,
+           @created_at, @updated_at, @last_connected_at)
+        `)
+        for (const c of data.connections ?? []) {
+          if (!c.id) continue
+          insertConn.run(connToRow(c))
+        }
 
-      const insertKey = db.prepare(`
-        INSERT OR IGNORE INTO ssh_keys (id, name, public_key, created_at)
-        VALUES (@id, @name, @public_key, @created_at)
-      `)
-      for (const k of data.sshKeys ?? []) {
-        if (!k.id) continue
-        insertKey.run({ id: k.id, name: k.name, public_key: k.publicKey, created_at: k.createdAt })
-      }
+        const insertKey = db.prepare(`
+          INSERT OR IGNORE INTO ssh_keys (id, name, public_key, created_at)
+          VALUES (@id, @name, @public_key, @created_at)
+        `)
+        for (const k of data.sshKeys ?? []) {
+          if (!k.id) continue
+          insertKey.run({ id: k.id, name: k.name, public_key: k.publicKey, created_at: k.createdAt })
+        }
 
-      const insertSetting = db.prepare(`
-        INSERT OR REPLACE INTO settings (key, value) VALUES (@key, @value)
-      `)
-      for (const [key, value] of Object.entries(data.settings ?? {})) {
-        insertSetting.run({ key, value: JSON.stringify(value) })
-      }
+        const insertSetting = db.prepare(`
+          INSERT OR REPLACE INTO settings (key, value) VALUES (@key, @value)
+        `)
+        for (const [key, value] of Object.entries(data.settings ?? {})) {
+          insertSetting.run({ key, value: JSON.stringify(value) })
+        }
 
-      // Migrate credentials.json — same folder as the config.json we found
-      const credPath = path.join(path.dirname(jsonPath), 'credentials.json')
-      if (existsSync(credPath)) {
-        try {
-          const credRaw = readFileSync(credPath, 'utf-8')
-          const credData = JSON.parse(credRaw) as { credentials?: Record<string, string> }
-          const insertCred = db.prepare(
-            "INSERT OR IGNORE INTO settings (key, value) VALUES (@key, @value)"
-          )
-          for (const [k, v] of Object.entries(credData.credentials ?? {})) {
-            insertCred.run({ key: `cred:${k}`, value: JSON.stringify(v) })
-          }
-        } catch {/* ignore */}
-      }
+        // Migrate credentials.json — same folder as the config.json we found
+        const credPath = path.join(path.dirname(jsonPath), 'credentials.json')
+        if (existsSync(credPath)) {
+          try {
+            const credRaw = readFileSync(credPath, 'utf-8')
+            const credData = JSON.parse(credRaw) as { credentials?: Record<string, string> }
+            const insertCred = db.prepare(
+              "INSERT OR IGNORE INTO settings (key, value) VALUES (@key, @value)"
+            )
+            for (const [k, v] of Object.entries(credData.credentials ?? {})) {
+              insertCred.run({ key: `cred:${k}`, value: JSON.stringify(v) })
+            }
+          } catch {/* ignore credential migration errors */}
+        }
+      })
 
+      migrate()
       console.log('[db] Migrated data from config.json to SQLite')
     } catch (e) {
       console.error('[db] Migration from JSON failed:', e)
+      // Do NOT set migrated_v1 on failure — allow retry on next launch
+      return
     }
   }
 
+  // Mark migration complete only after a successful (or skipped) migration
   db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('migrated_v1', 'true')").run()
 }
 
