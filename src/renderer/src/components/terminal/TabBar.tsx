@@ -92,7 +92,7 @@ export function TabBar(): JSX.Element {
                 >
                   <span
                     className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{ backgroundColor: s.connection.color || '#3b82f6' }}
+                    style={{ backgroundColor: s.connection.color || '#8b5cf6' }}
                   />
                   <span className="truncate">{s.connection.name}</span>
                 </button>

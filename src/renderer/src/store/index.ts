@@ -277,7 +277,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     const sidebarWidth = (await window.api.store.getSetting('sidebarWidth') as number | null) ?? 260
-    const accentColor  = (await window.api.store.getSetting('accentColor')  as string | null) ?? '#3b82f6'
+    const accentColor  = (await window.api.store.getSetting('accentColor')  as string | null) ?? '#8b5cf6'
     const theme        = (await window.api.store.getSetting('theme')         as string | null) ?? 'dark'
 
     set({

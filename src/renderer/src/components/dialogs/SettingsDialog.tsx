@@ -34,7 +34,7 @@ interface AppSettings {
 
 const DEFAULTS: AppSettings = {
   theme: 'dark',
-  accentColor: '#3b82f6',
+  accentColor: '#8b5cf6',
   sidebarWidth: 260,
   fontSize: 13,
   fontFamily: 'JetBrains Mono',
@@ -58,12 +58,12 @@ const DEFAULTS: AppSettings = {
 }
 
 const ACCENT_COLORS = [
-  { label: 'Blue',    value: '#3b82f6' },
-  { label: 'Emerald', value: '#10b981' },
   { label: 'Violet',  value: '#8b5cf6' },
+  { label: 'Blue',    value: '#3b82f6' },
+  { label: 'Cyan',    value: '#06b6d4' },
+  { label: 'Emerald', value: '#10b981' },
   { label: 'Rose',    value: '#f43f5e' },
   { label: 'Amber',   value: '#f59e0b' },
-  { label: 'Cyan',    value: '#06b6d4' },
   { label: 'Orange',  value: '#f97316' },
 ]
 
