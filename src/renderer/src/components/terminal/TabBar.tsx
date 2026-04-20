@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown, Sparkles } from 'lucide-react'
+import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown, Sparkles, RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
+import { terminalRegistry } from '../../lib/terminalRegistry'
 import { useAppStore } from '../../store'
 import { Session } from '../../types'
 import { cn } from '../../lib/utils'
@@ -39,6 +41,16 @@ export function TabBar(): JSX.Element {
           onActivate={() => setActiveSession(session.id)}
           onClose={() => {
             if (session.id === splitSessionId) setSplitSession(null)
+            // Generate session summary from ARIA messages before closing
+            const { aiMessages } = useAppStore.getState()
+            const cmds = aiMessages.filter(m => m.toolCalls?.length).flatMap(m => m.toolCalls ?? []).filter(t => t.status === 'done')
+            if (cmds.length > 0) {
+              const names = [...new Set(cmds.map(t => t.command.split(' ').slice(0, 3).join(' ')))].slice(0, 3)
+              toast.info(`Session closed — ${session.connection.name}`, {
+                description: `ARIA ran ${cmds.length} command${cmds.length > 1 ? 's' : ''}: ${names.join(', ')}${cmds.length > 3 ? '…' : ''}`,
+                duration: 5000,
+              })
+            }
             closeSession(session.id)
           }}
         />
@@ -158,6 +170,17 @@ function Tab({ session, isActive, isSplit, onActivate, onClose }: TabProps): JSX
       <span className="text-xs font-medium truncate flex-1 leading-none">
         {session.connection.name}
       </span>
+
+      {/* Reconnect button — only when disconnected or error */}
+      {(session.status === 'disconnected' || session.status === 'error') && (
+        <button
+          onClick={(e) => { e.stopPropagation(); terminalRegistry.get(session.id)?.reconnect() }}
+          title="Reconnect"
+          className="shrink-0 p-0.5 rounded text-amber-400 hover:text-amber-300 hover:bg-amber-400/10 transition-all"
+        >
+          <RefreshCw className="w-3 h-3" />
+        </button>
+      )}
 
       {isSplit && !isActive && (
         <span className="text-[9px] font-semibold text-primary/70 uppercase tracking-wider shrink-0">split</span>

@@ -31,11 +31,10 @@ const QUICK_COMMANDS: Record<DeviceType | 'default', string[]> = {
 }
 
 interface Props {
-  activeSession: Session | null
-  /** getter for the last N lines from the active xterm buffer */
+  activeSession:   Session | null
+  splitSession?:   Session | null
   getTerminalContext: () => string
-  /** send a command string to the active terminal */
-  sendToTerminal: (cmd: string) => void
+  sendToTerminal:  (cmd: string) => void
 }
 
 /** Format token count compactly: 1234 → "1.2k", 123 → "123" */
@@ -44,7 +43,7 @@ function formatTokens(n: number): string {
   return String(n)
 }
 
-export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: Props): JSX.Element {
+export function AiPanel({ activeSession, splitSession, getTerminalContext, sendToTerminal }: Props): JSX.Element {
   const {
     aiMessages, aiStreaming, aiAgentActive, aiPermission, aiApproval, aiBlacklist, aiTokens,
     addAiMessage, appendAiChunk, finalizeAiStream, updateAiToolCall, clearAiMessages,
@@ -350,6 +349,12 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
             </div>
           )
         })()}
+        {/* Split View indicator */}
+        {splitSession && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary/70 font-medium shrink-0">
+            ⇄ {splitSession.connection.name}
+          </span>
+        )}
         {!activeSession && <span className="flex-1" />}
 
         {/* Token counter next to clear button */}

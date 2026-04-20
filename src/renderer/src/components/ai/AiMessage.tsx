@@ -2,6 +2,8 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { User, Eye, Copy, Check, Sparkles } from 'lucide-react'
 import { useState } from 'react'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { cn } from '../../lib/utils'
 import { AiMessage as AiMessageType, AiToolCall } from '../../store'
 import { AiCommandBlock } from './AiCommandBlock'
@@ -204,10 +206,22 @@ function MarkdownContent({ content }: { content: string }): JSX.Element {
 
 // ── Code block with copy button ───────────────────────────────────────────────
 
+// Map common aliases to Prism language identifiers
+const LANG_MAP: Record<string, string> = {
+  'ios': 'cisco_ios', 'cisco': 'cisco_ios', 'cisco-ios': 'cisco_ios',
+  'nxos': 'cisco_ios', 'iosxe': 'cisco_ios',
+  'sh': 'bash', 'shell': 'bash', 'zsh': 'bash',
+  'py': 'python', 'js': 'javascript', 'ts': 'typescript',
+  'yml': 'yaml', 'conf': 'nginx', 'cfg': 'nginx',
+  'txt': 'none',
+}
+
 function CodeBlock({ code, className }: { code: string; className?: string }): JSX.Element {
   const [copied, setCopied] = useState(false)
 
-  const language = className?.replace('language-', '') ?? ''
+  const rawLang = className?.replace('language-', '') ?? ''
+  const language = LANG_MAP[rawLang] ?? rawLang
+  const hasHighlight = language && language !== 'none' && language !== ''
 
   const copy = () => {
     navigator.clipboard.writeText(code)
@@ -220,7 +234,7 @@ function CodeBlock({ code, className }: { code: string; className?: string }): J
       {/* Header bar */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-black/30 border-b border-white/10">
         <span className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-wider">
-          {language || 'code'}
+          {rawLang || 'code'}
         </span>
         <button
           onClick={copy}
@@ -233,9 +247,25 @@ function CodeBlock({ code, className }: { code: string; className?: string }): J
         </button>
       </div>
       {/* Code content */}
-      <pre className="px-3 py-2.5 overflow-x-auto text-[12px] leading-relaxed font-mono text-foreground/85 whitespace-pre">
-        <code>{code}</code>
-      </pre>
+      {hasHighlight ? (
+        <SyntaxHighlighter
+          language={language}
+          style={vscDarkPlus}
+          customStyle={{
+            margin: 0, padding: '10px 12px',
+            fontSize: '12px', lineHeight: '1.6',
+            background: 'transparent',
+            overflowX: 'auto',
+          }}
+          codeTagProps={{ style: { fontFamily: 'inherit' } }}
+        >
+          {code}
+        </SyntaxHighlighter>
+      ) : (
+        <pre className="px-3 py-2.5 overflow-x-auto text-[12px] leading-relaxed font-mono text-foreground/85 whitespace-pre">
+          <code>{code}</code>
+        </pre>
+      )}
     </div>
   )
 }
