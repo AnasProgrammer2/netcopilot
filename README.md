@@ -1,217 +1,131 @@
 # NetCopilot
 
-> **Your AI-Native Network Copilot**
+**Your AI-Native Network Copilot**
 
----
-
-## What is NetCopilot?
-
-NetCopilot is a professional desktop terminal application built for network engineers and infrastructure teams. It combines a powerful multi-protocol terminal client with ARIA — a real embedded AI agent — all in one fast, secure, and modern interface.
-
-Engineers spend most of their time in SSH or Telnet sessions, running commands and analyzing output. NetCopilot makes that window **intelligent**. ARIA understands your device, reads terminal output, executes commands in sequence, and delivers complete diagnoses — without you ever leaving your workspace.
-
----
-
-## Core Capabilities
-
-### Multi-Protocol Connectivity
-
-NetCopilot supports the three essential protocols in a network engineer's daily work:
-
-- **SSH** — Full support for password, SSH key, key+passphrase, and Cisco Enable Password authentication
-- **Telnet** — Complete NAWS negotiation and automatic terminal resize
-- **Serial Console** — Direct device access via RS-232 or USB-to-Serial with full port configuration (baud rate, parity, data bits, stop bits, flow control)
-
-Multiple sessions run simultaneously, each in its own tab. A **Split View** mode displays two sessions side by side with independent terminals.
-
----
-
-### Connection Management
-
-- Organized connection library with **groups**, colors, tags, and notes
-- **Quick Connect** (⌘K) — type `user@host:port` for an instant session without saving
-- Startup commands that run automatically after connecting (e.g. `terminal length 0` on Cisco devices)
-- Configurable auto-reconnect on session drop — globally or per connection
-- Full import/export of connections as JSON for backup or team sharing
-- SSH key manager — store and reuse named keys across connections
-
----
-
-### Home Screen — Connection Dashboard
-
-A Termius-style dashboard as your home screen:
-
-- Visual grid of all saved connections with device-type colored icons
-- Group cards with connection count and live session indicator
-- Real-time "live sessions" pill showing how many devices are currently connected
-- Device type color system: Cisco → blue, Linux → green, Firewall → orange, Junos/Arista → purple, Serial → amber
-- One-click connect, double-click to reconnect
-
----
-
-### Terminal Experience
-
-- **Automatic syntax support** for 15+ device types: Cisco IOS / IOS-XE / NX-OS / ASA, Juniper JunOS, Arista EOS, Palo Alto PAN-OS, FortiOS, Huawei VRP, MikroTik RouterOS, Nokia SR-OS, F5 BIG-IP, HP ProCurve, Linux, Windows Server
-- In-terminal **search** with regex and case-sensitivity support (⌘F)
-- **Session logging** to file — manual start or auto-log on every connection
-- Log options: strip ANSI codes, add timestamps, configurable log directory
-- Customizable **font family, font size, line height, cursor style, scrollback buffer**
-- **Session reconnect button** — appears automatically when connection drops
-
----
-
-### Session Summary
-
-When you close a tab, ARIA automatically delivers a **session summary** — a brief recap of what commands were executed during the session, giving you a quick audit trail of AI activity.
+NetCopilot is a professional desktop terminal built for network engineers. It combines SSH, Telnet, and Serial console access with **ARIA** — an embedded AI agent that understands your infrastructure, executes commands autonomously, and delivers real diagnostic intelligence without ever leaving your terminal.
 
 ---
 
 ## ARIA — The AI Agent
 
-### A Real Agent, Not a Chatbot
+ARIA is the core of NetCopilot. It is not a chatbot. It is a **real agentic system** built specifically for network and infrastructure engineers.
 
-ARIA (the AI in NetCopilot) operates as a **true agentic loop**, not a simple Q&A assistant:
+### How ARIA Works
 
-1. You describe a problem or assign a task
-2. ARIA generates an **investigation plan** before taking any action
-3. It executes the required commands in sequence, one after another
-4. It analyzes all output collectively and delivers a complete, structured diagnosis
-5. Every step is visible — you can follow exactly what ARIA is doing and why
+When you describe a problem, ARIA does not just answer — it acts:
 
-**Example:** You say *"There's a BGP flapping issue"* — ARIA creates a plan, runs `show ip bgp summary` → `show ip bgp neighbors` → `show ip route bgp` → `show logging`, then gives you a precise diagnosis with recommendations.
+1. **Plans** — generates a structured investigation plan before touching anything
+2. **Executes** — runs the commands it needs, one after another, automatically
+3. **Analyzes** — reads all output collectively, not per-command
+4. **Delivers** — gives you a complete, structured diagnosis with actionable recommendations
 
----
+```
+You: "There's a BGP flapping issue on this router"
+
+ARIA:
+  Plan → [Check BGP summary] [Check neighbor state] [Check route table] [Check logs]
+  ↓ show ip bgp summary          ✓
+  ↓ show ip bgp neighbors        ✓
+  ↓ show ip route bgp            ✓
+  ↓ show logging | include BGP   ✓
+
+  Analysis: Neighbor 10.0.0.1 is flapping due to hold-timer expiry.
+  MTU mismatch detected on Gi0/0/1. Recommended fix: ...
+```
 
 ### L4 Planning Mode
 
-For complex problems, ARIA first generates a visual **investigation plan card** showing:
+For complex problems, ARIA generates a **visual investigation plan card** showing:
 
 - The objective of the investigation
-- Each diagnostic step with status (pending / active / completed)
-- Live progress tracking as commands execute
+- Each diagnostic step with live status — pending / active / completed
+- Real-time progress as commands execute
 
-This gives you full transparency into the agent's reasoning process before any command runs.
-
----
+You see exactly what ARIA is doing and why, before any command runs.
 
 ### Multi-Session Intelligence
 
-ARIA is aware of **all open sessions simultaneously**:
+ARIA is aware of **all open terminal sessions simultaneously**:
 
-- In split view, ARIA knows which device is which — name, IP, device type
-- Uses `target_session` routing to send commands to the correct device automatically
+- In split view, ARIA knows which device is which — name, IP, device type, protocol
+- Routes commands to the correct device automatically using `target_session`
 - Can compare two devices, identify config differences, and run commands on each in sequence
-- Command blocks display a device badge (→ SW1-Core) so you always know where each command ran
-- Context from both sessions is included in ARIA's analysis
-
----
+- Command blocks display a device badge so you always know where each command ran (→ SW1-Core)
+- Terminal context from both sessions is included in every analysis
 
 ### Context-Aware from the Start
 
-Every conversation includes full context: device type, hostname/IP, protocol, current permission mode, and all open sessions. ARIA's commands and recommendations are device-specific from the first message.
-
----
+Every ARIA conversation includes full session context: device type, hostname, IP, protocol, and all open sessions. ARIA's commands and recommendations are device-specific from the first message — no configuration needed.
 
 ### Permission Modes
 
-| Mode | What ARIA can do |
+| Mode | What ARIA Can Do |
 |---|---|
-| **Troubleshoot (Scan)** | Read-only — diagnostic commands only (`show`, `display`, `ping`, `traceroute`, `ls`, `df`, etc.). No configuration changes |
-| **Full Access** | Full permissions including configuration changes, with warnings before destructive operations |
+| **Troubleshoot** | Read-only diagnostics only — `show`, `display`, `ping`, `traceroute`, `ls`, `df`, etc. No config changes |
+| **Full Access** | Any command including configuration and remediation actions |
 
-Mode is configurable globally in Settings, and can be overridden **per conversation** directly in the chat toolbar.
-
----
+Mode is set globally in Settings and can be overridden **per conversation** from the chat toolbar.
 
 ### Command Execution Control
 
 | Option | Behavior |
 |---|---|
 | **Ask** | ARIA shows every command and waits for your approval before running |
-| **Auto** | ARIA executes all commands immediately without interruption |
-| **Block (Blacklist)** | Auto-approves everything except commands matching your blocked patterns |
-
-Command approval is configurable globally and overridable per conversation.
-
----
+| **Auto** | ARIA executes all commands immediately and uninterrupted |
+| **Block** | Auto-approves everything except patterns on your custom blacklist |
 
 ### Auto Watch
 
-When enabled, ARIA silently monitors your terminal output in the background. If it detects errors, anomalies, warnings, or misconfigurations, it alerts you proactively — without interrupting your workflow. Configurable per conversation with smart deduplication to avoid repeated alerts.
-
----
-
-### Quick Suggestions
-
-A dynamic suggestions bar above the input area shows **context-aware command suggestions** based on your device type and session state. Suggestions change as the conversation progresses — showing the most relevant diagnostic starting points for your current device.
-
----
+When enabled, ARIA silently monitors your terminal output in real time. If it detects errors, misconfigurations, anomalies, or warnings, it alerts you immediately — without interrupting your work. Smart deduplication prevents repeated alerts for the same output.
 
 ### Built-in Safety
 
-NetCopilot ships with a default blacklist of dangerous network commands including `reload`, `shutdown`, `rm -rf`, `format`, `write erase`, `delete flash`, and others. The blacklist is:
+NetCopilot ships with a default blacklist of dangerous commands: `reload`, `shutdown`, `rm -rf`, `format`, `write erase`, `delete flash`, and others. The blacklist is:
 
 - Stored persistently in the encrypted database
 - Customizable per conversation from the chat toolbar
-- Resettable to defaults with one click
-- Always enforced regardless of permission mode or approval setting
+- Resettable to defaults in one click
+- Always enforced — regardless of permission mode or approval setting
 
----
+### ARIA Interface
 
-### ARIA UI Features
-
-- **Markdown rendering** — ARIA responses display formatted text, tables, and code blocks properly
-- **Syntax highlighting** — Config and code blocks use VS Code Dark+ theme coloring
-- **Thinking indicator** — Animated pulse shows when ARIA is processing
-- **Sticky command bar** — Pending approval prompts stay pinned at the bottom of the chat
-- **Token counter** — Shows total input/output tokens used in the current conversation
-- **RTL/LTR detection** — Chat messages automatically adapt text direction based on language
-- **Export conversation** — Download the full ARIA conversation as a Markdown file
-- **Connection health indicator** — Colored dot in ARIA header shows live connection status
-- **Session isolation** — Each connection tab has its own independent ARIA conversation
-
----
+| Feature | Description |
+|---|---|
+| **Markdown rendering** | Responses display formatted text, tables, and code blocks |
+| **Syntax highlighting** | Config and code blocks use VS Code Dark+ theme |
+| **Thinking indicator** | Animated pulse while ARIA is processing |
+| **Sticky command bar** | Pending approval prompts stay pinned at the bottom |
+| **Token counter** | Shows total tokens used in the current conversation |
+| **RTL / LTR detection** | Messages adapt text direction based on language automatically |
+| **Export conversation** | Download full ARIA session as a Markdown file |
+| **Connection health** | Live colored indicator in ARIA header shows session status |
+| **Session isolation** | Each tab has its own independent ARIA conversation |
+| **Session summary** | When closing a tab, ARIA delivers a recap of all commands it ran |
+| **Quick suggestions** | Device-aware command suggestions update dynamically as context changes |
 
 ### ARIA Persona
 
-ARIA is not a generic AI. It is built as a **specialized network infrastructure expert** with:
+ARIA is built as a **specialized infrastructure expert**, not a general-purpose AI:
 
-- Deep knowledge of Cisco, Juniper, Arista, Palo Alto, FortiGate, MikroTik, Huawei, and more
-- Virtual expertise equivalent to CCNA, CCNP, CCIE, JNCIE, and DevOps certifications
-- Strict operational scope — ARIA answers only network/infrastructure questions; it will not answer off-topic queries
-- Responds in the same language the engineer writes in (Arabic, English, or other)
-
----
-
-## Security
-
-NetCopilot is built on a three-layer security model:
-
-| Layer | What it protects | Technology |
-|---|---|---|
-| **Encrypted Database** | All connections, settings, and configuration data | SQLCipher (AES-256) |
-| **OS Keychain** | Passwords, SSH keys, API keys, and the database encryption key | Electron safeStorage |
-| **Master Password** | App-level lock on startup | scrypt + timing-safe comparison |
-
-Credentials are never stored in plaintext. The database key is generated on first launch, encrypted via the OS keychain, and stored separately. Even if someone obtains the database file, it cannot be decrypted without access to the original machine's keychain.
-
-The AI API key (Anthropic) is stored in the OS keychain — never in the database or any config file.
+- Deep expertise in Cisco, Juniper, Arista, Palo Alto, FortiGate, MikroTik, Huawei, and more
+- Knowledge equivalent to CCNA, CCNP, CCIE, JNCIE, and DevOps certifications
+- Strict operational scope — ARIA only handles network and infrastructure topics
+- Responds in the same language the engineer writes in (English, Arabic, or other)
+- API key stored in the OS keychain — never on disk or in any config file
 
 ---
 
-## Who Is It For?
+## Terminal & Connectivity
 
-NetCopilot is built for:
+### Supported Protocols
 
-- **Network engineers** working daily with Cisco, Juniper, Arista, Palo Alto, and similar devices
-- **DevOps and server teams** managing Linux and Windows infrastructure remotely
-- **NOC teams** that need fast, reliable diagnostics and a clean, modern interface
-- **Security teams** performing network audits and configuration reviews
-- Anyone who spends significant time in SSH sessions and wants an intelligent assistant in the same window
+| Protocol | Details |
+|---|---|
+| **SSH** | Password, SSH key, key+passphrase, Cisco Enable Password |
+| **Telnet** | Full NAWS negotiation, automatic terminal resize |
+| **Serial Console** | RS-232 / USB-to-Serial, configurable baud rate, parity, data bits, stop bits, flow control |
 
----
-
-## Supported Device Types
+### Supported Device Types
 
 | Category | Devices |
 |---|---|
@@ -219,16 +133,59 @@ NetCopilot is built for:
 | Routing & Switching | Juniper JunOS, Arista EOS, Nokia SR-OS, Huawei VRP, MikroTik RouterOS, HP/Aruba ProCurve |
 | Firewalls | Palo Alto PAN-OS, Fortinet FortiOS |
 | Load Balancers | F5 BIG-IP TMOS |
-| Servers | Linux/Unix, Windows Server |
-| Console | Serial (RS-232, USB-to-Serial) |
+| Servers | Linux / Unix, Windows Server |
+| Generic | Any SSH/Telnet/Serial device |
+
+### Terminal Features
+
+- In-terminal search with regex and case-sensitivity (⌘F)
+- Configurable font family, size, line height, cursor style, and scrollback buffer
+- Session logging — manual or auto-log on connect, with ANSI stripping and optional timestamps
+- Split view — two sessions side by side with independent terminals
+- Auto-reconnect on session drop — global default or per-connection override
+- Session reconnect button appears automatically when a connection drops
+
+### Connection Management
+
+- Organized library with groups, colors, tags, and notes
+- **Quick Connect** (⌘K) — type `user@host:port` for an instant session without saving
+- Startup commands that run automatically after connecting
+- SSH key manager — store and reuse named keys across connections
+- Full import / export of connections as JSON
+
+### Home Screen Dashboard
+
+- Visual grid of saved connections with device-type color coding
+- Group cards with connection count and live session indicator
+- Real-time live sessions pill showing active device count
+- Device color system: Cisco → blue, Linux → green, Firewalls → orange, Junos/Arista → purple, Serial → amber
 
 ---
 
-## Vision
+## Security
 
-NetCopilot's goal is to be the unified workstation for network engineers: professional connectivity, specialized AI, and strong security — all in one clean, fast application.
+| Layer | Protects | Technology |
+|---|---|---|
+| **Encrypted Database** | All connections, settings, and configuration | SQLCipher (AES-256) |
+| **OS Keychain** | Passwords, SSH keys, API keys, and the DB encryption key | Electron safeStorage |
+| **Master Password** | App-level lock on startup | scrypt + timing-safe comparison |
 
-**On the roadmap:**
+Credentials are never stored in plaintext. The database encryption key is generated on first launch, stored in the OS keychain, and never written to disk directly.
+
+---
+
+## Who Is It For?
+
+- **Network engineers** working daily with Cisco, Juniper, Arista, Palo Alto, and similar platforms
+- **DevOps and infrastructure teams** managing Linux and Windows servers remotely
+- **NOC teams** that need fast diagnostics and a clean, modern interface
+- **Security teams** performing network audits and configuration reviews
+- Anyone who spends serious time in SSH sessions and wants real AI assistance in the same window
+
+---
+
+## Roadmap
+
 - SFTP browser for visual file transfer
 - Port forwarding — local, remote, and dynamic tunneling
 - Command snippets library for frequently used operations
