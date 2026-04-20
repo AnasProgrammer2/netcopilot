@@ -119,6 +119,7 @@ declare global {
       setApiKey(key: string): Promise<boolean>
       getApiKey(): Promise<string | null>
       resetBlacklist(): Promise<string[]>
+      exportMarkdown(payload: { host: string; messages: Array<{ role: string; content: string; toolCalls?: Array<{ command: string; output?: string }> }> }): Promise<{ success: boolean; filePath?: string }>
       onChunk(cb: (chunk: string) => void): () => void
       onDone(cb: (usage?: { inputTokens: number; outputTokens: number }) => void): () => void
       onToolCall(cb: (call: { id: string; command: string; reason: string }) => void): () => void

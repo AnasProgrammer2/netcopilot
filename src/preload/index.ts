@@ -130,7 +130,8 @@ const api = {
     toolResult: (callId: string, output: string)     => ipcRenderer.invoke('ai:tool-result', callId, output),
     setApiKey:      (key: string)                    => ipcRenderer.invoke('ai:set-api-key', key),
     getApiKey:      ()                               => ipcRenderer.invoke('ai:get-api-key'),
-    resetBlacklist: ()                               => ipcRenderer.invoke('ai:reset-blacklist'),
+    resetBlacklist:  ()                               => ipcRenderer.invoke('ai:reset-blacklist'),
+    exportMarkdown:  (payload: unknown)               => ipcRenderer.invoke('ai:export-markdown', payload),
     onChunk:    (cb: (chunk: string) => void) => {
       const handler = (_: unknown, chunk: string) => cb(chunk)
       ipcRenderer.on('ai:chunk', handler)

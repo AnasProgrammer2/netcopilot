@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { nanoid } from 'nanoid'
-import { X, Send, Sparkles, Trash2, Square, ShieldCheck, Wrench, AlertCircle, ChevronDown, Check, Eye, EyeOff, ShieldAlert, RotateCcw } from 'lucide-react'
+import { X, Send, Sparkles, Trash2, Square, ShieldCheck, Wrench, AlertCircle, ChevronDown, Check, Eye, EyeOff, ShieldAlert, RotateCcw, Download } from 'lucide-react'
 import { useAppStore, AiMessage as AiMessageType, AiPermission, AiApproval } from '../../store'
 import { cn } from '../../lib/utils'
 import { AiMessage } from './AiMessage'
@@ -312,6 +312,22 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
           >
             {formatTokens(aiTokens.input + aiTokens.output)}
           </span>
+        )}
+        {aiMessages.length > 0 && (
+          <button
+            onClick={async () => {
+              const msgs = aiMessages.map(m => ({
+                role:      m.role,
+                content:   m.content,
+                toolCalls: m.toolCalls?.map(tc => ({ command: tc.command, output: tc.output })),
+              }))
+              await window.api.ai.exportMarkdown({ host: activeSession?.connection.host ?? 'unknown', messages: msgs })
+            }}
+            title="Export conversation as Markdown"
+            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+          </button>
         )}
         <button
           onClick={() => clearAiMessages()}

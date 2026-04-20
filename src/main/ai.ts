@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { IpcMain, BrowserWindow } from 'electron'
+import { IpcMain, BrowserWindow, dialog } from 'electron'
+import { writeFile } from 'fs/promises'
 import { getDb } from './db'
 import { DEFAULT_AI_BLACKLIST } from './aiDefaults'
 
@@ -178,6 +179,65 @@ ${payload.terminalContext || '(no output yet)'}
 </terminal_context>`
 }
 
+// ── Smart context trimming ────────────────────────────────────────────────────
+// Estimates token count (rough: 1 token ≈ 4 chars) and trims old messages
+// when the conversation exceeds the safe threshold, keeping a summary placeholder.
+
+function estimateTokens(messages: Anthropic.MessageParam[]): number {
+  return messages.reduce((sum, m) => {
+    const text = typeof m.content === 'string'
+      ? m.content
+      : m.content.map(b => ('text' in b ? b.text : JSON.stringify(b))).join('')
+    return sum + Math.ceil(text.length / 4)
+  }, 0)
+}
+
+async function trimContext(
+  client: Anthropic,
+  messages: Anthropic.MessageParam[]
+): Promise<Anthropic.MessageParam[]> {
+  const TOKEN_LIMIT = 40_000   // trim when exceeding ~40k tokens
+  const KEEP_RECENT = 12       // always keep the last N messages intact
+
+  if (estimateTokens(messages) <= TOKEN_LIMIT) return messages
+  if (messages.length <= KEEP_RECENT) return messages
+
+  const old    = messages.slice(0, messages.length - KEEP_RECENT)
+  const recent = messages.slice(messages.length - KEEP_RECENT)
+
+  // Build plain text of old messages for summarization
+  const transcript = old.map(m => {
+    const role = m.role === 'user' ? 'User' : 'ARIA'
+    const text = typeof m.content === 'string'
+      ? m.content
+      : m.content.map(b => ('text' in b ? b.text : '[tool call/result]')).join(' ')
+    return `${role}: ${text}`
+  }).join('\n')
+
+  try {
+    const summary = await client.messages.create({
+      model:      'claude-haiku-4-5',
+      max_tokens: 512,
+      messages: [{
+        role:    'user',
+        content: `Summarize this network troubleshooting conversation in 3-5 bullet points. Focus on: what was investigated, commands run, findings, and any fixes applied. Be concise.\n\n${transcript}`,
+      }],
+    })
+
+    const summaryText = summary.content[0].type === 'text' ? summary.content[0].text : '(summary unavailable)'
+
+    const summaryMsg: Anthropic.MessageParam = {
+      role:    'user',
+      content: `[CONVERSATION SUMMARY — earlier context trimmed for token efficiency]\n${summaryText}`,
+    }
+
+    return [summaryMsg, ...recent]
+  } catch {
+    // If summarization fails, just keep recent messages
+    return recent
+  }
+}
+
 // ── Core agentic loop ────────────────────────────────────────────────────────
 
 async function runAiLoop(
@@ -187,7 +247,7 @@ async function runAiLoop(
 ): Promise<void> {
   const client = new Anthropic({ apiKey })
   const systemPrompt = buildSystemPrompt(payload)
-  const messages: Anthropic.MessageParam[] = [...payload.messages]
+  let messages: Anthropic.MessageParam[] = await trimContext(client, [...payload.messages])
 
   _abortController = new AbortController()
 
@@ -269,12 +329,12 @@ async function runAiLoop(
           reason:  input.reason,
         })
 
-        // Wait for tool result from renderer (up to 120s for manual approval)
+        // Wait for tool result from renderer (up to 300s for manual approval / long commands)
         const output = await new Promise<string>((resolve) => {
           const timer = setTimeout(() => {
             _pendingToolResolve = null
             resolve('(no response — command was not approved or timed out)')
-          }, 120000)
+          }, 300000)
           _pendingToolResolve = (out: string) => {
             clearTimeout(timer)
             resolve(out)
@@ -338,6 +398,55 @@ export function setupAiHandlers(
       _pendingToolResolve(output)
       _pendingToolResolve = null
     }
+  })
+
+  // Export conversation as Markdown
+  ipcMain.handle('ai:export-markdown', async (_, payload: {
+    host: string
+    messages: Array<{ role: string; content: string; toolCalls?: Array<{ command: string; output?: string }> }>
+  }) => {
+    const win = getWindow()
+    if (!win) return { success: false }
+
+    const { filePath } = await dialog.showSaveDialog(win, {
+      title:       'Export ARIA Conversation',
+      defaultPath: `ARIA-${payload.host}-${new Date().toISOString().slice(0, 10)}.md`,
+      filters:     [{ name: 'Markdown', extensions: ['md'] }],
+    })
+    if (!filePath) return { success: false }
+
+    const lines: string[] = [
+      `# ARIA — Session Report`,
+      `**Host:** ${payload.host}  `,
+      `**Date:** ${new Date().toLocaleString()}`,
+      '',
+      '---',
+      '',
+    ]
+
+    for (const msg of payload.messages) {
+      if (msg.role === 'user') {
+        lines.push(`### 👤 Engineer`)
+        lines.push(msg.content || '')
+        lines.push('')
+      } else if (msg.role === 'assistant' && msg.content) {
+        lines.push(`### ✦ ARIA`)
+        lines.push(msg.content)
+        if (msg.toolCalls?.length) {
+          for (const tc of msg.toolCalls) {
+            lines.push(`\n**Command:** \`${tc.command}\``)
+            if (tc.output) lines.push(`\`\`\`\n${tc.output}\n\`\`\``)
+          }
+        }
+        lines.push('')
+      } else if (msg.role === 'auto') {
+        lines.push(`> 👁 **Auto Watch:** ${msg.content}`)
+        lines.push('')
+      }
+    }
+
+    await writeFile(filePath, lines.join('\n'), 'utf-8')
+    return { success: true, filePath }
   })
 
   // Reset blacklist to built-in defaults (saves to DB and returns the list)
