@@ -195,4 +195,32 @@ Credentials are never stored in plaintext. The database encryption key is genera
 
 ---
 
-*NetCopilot — Where engineering meets intelligence.*
+## Contributing
+
+Contributions are welcome! Please open an issue first to discuss what you'd like to change.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## License
+
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+
+This means:
+- ✅ Free to use, modify, and distribute
+- ✅ Commercial use allowed
+- ⚠️ Any modification or service built on top of this code **must also be open-sourced** under AGPL-3.0
+- ⚠️ Network use counts as distribution — SaaS products built on this must share their source
+
+The author retains the right to offer commercial licenses for organizations that cannot comply with AGPL terms.
+
+See the [LICENSE](./LICENSE) file for full details.
+
+---
+
+*AI Network — Where engineering meets intelligence.*

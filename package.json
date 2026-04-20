@@ -7,7 +7,7 @@
     "name": "NetCopilot",
     "email": "support@netcopilot.app"
   },
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
