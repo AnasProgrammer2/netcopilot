@@ -78,6 +78,15 @@ export interface Session {
   loggingPath?: string | null
 }
 
+export interface JumpHostConfig {
+  host: string
+  port: number
+  username: string
+  password?: string
+  privateKey?: string
+  passphrase?: string
+}
+
 export interface IpcSshConnectPayload {
   sessionId: string
   host: string
@@ -86,6 +95,7 @@ export interface IpcSshConnectPayload {
   password?: string
   privateKey?: string
   passphrase?: string
+  jumpHost?: JumpHostConfig
 }
 
 export interface IpcTelnetConnectPayload {
