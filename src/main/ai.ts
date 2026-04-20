@@ -22,7 +22,31 @@ interface ChatPayload {
 let _abortController: AbortController | null = null
 let _pendingToolResolve: ((output: string) => void) | null = null
 
-// ── Tool definition ──────────────────────────────────────────────────────────
+// ── Tool definitions ─────────────────────────────────────────────────────────
+
+const CREATE_PLAN_TOOL: Anthropic.Tool = {
+  name: 'create_plan',
+  description:
+    'Call this tool FIRST — before any run_command calls — when the user request is complex, ' +
+    'ambiguous, or requires more than two diagnostic steps. ' +
+    'Use it to outline exactly what you intend to investigate and why, so the engineer can follow along. ' +
+    'Do NOT use it for simple one-command requests.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      objective: {
+        type: 'string',
+        description: 'One sentence: what problem are we solving or what are we trying to achieve?',
+      },
+      steps: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Ordered list of investigation/action steps (what commands, what we check, in what order)',
+      },
+    },
+    required: ['objective', 'steps'],
+  },
+}
 
 const RUN_COMMAND_TOOL: Anthropic.Tool = {
   name: 'run_command',
@@ -116,6 +140,13 @@ Do NOT elaborate, do NOT apologize, do NOT suggest alternatives.
 ═══════════════════════════════════════════════════
 OPERATIONAL RULES
 ═══════════════════════════════════════════════════
+0. PLANNING (create_plan tool):
+   - For ANY request requiring 3+ commands OR involving a complex/multi-layer issue: call create_plan FIRST
+   - The plan must list the exact diagnostic steps in order before execution begins
+   - Simple requests (single command, direct question) → skip the plan, go straight to run_command
+   - Examples that REQUIRE a plan: "BGP is down", "router is slow", "check server health", "diagnose this issue"
+   - Examples that do NOT need a plan: "show version", "what's the IP?", "check interface status"
+
 1. AUTO-WATCH (messages tagged [AUTO]):
    - 1-3 sentences maximum — no exceptions
    - Only flag: errors, anomalies, misconfigurations, security issues, performance problems
@@ -172,7 +203,7 @@ async function runAiLoop(
           model:      'claude-sonnet-4-5',
           max_tokens: 8096,
           system:     systemPrompt,
-          tools:      [RUN_COMMAND_TOOL],
+          tools:      [CREATE_PLAN_TOOL, RUN_COMMAND_TOOL],
           messages,
         },
         { signal: _abortController.signal }
@@ -214,9 +245,24 @@ async function runAiLoop(
       for (const toolBlock of toolBlocks) {
         if (_abortController.signal.aborted) break
 
+        // ── create_plan: send to renderer, auto-acknowledge ───────────────────
+        if (toolBlock.name === 'create_plan') {
+          const planInput = toolBlock.input as { objective: string; steps: string[] }
+          getWindow()?.webContents.send('ai:plan', {
+            objective: planInput.objective,
+            steps:     planInput.steps,
+          })
+          toolResults.push({
+            type:        'tool_result',
+            tool_use_id: toolBlock.id,
+            content:     'Plan acknowledged. Proceed with execution.',
+          })
+          continue
+        }
+
+        // ── run_command: send to renderer, wait for execution result ──────────
         const input = toolBlock.input as { command: string; reason: string }
 
-        // Notify renderer — it will execute and return result
         getWindow()?.webContents.send('ai:tool-call', {
           id:      toolBlock.id,
           command: input.command,

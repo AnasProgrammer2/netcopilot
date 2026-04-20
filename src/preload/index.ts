@@ -151,6 +151,11 @@ const api = {
       ipcRenderer.on('ai:error', handler)
       return () => ipcRenderer.removeListener('ai:error', handler)
     },
+    onPlan: (cb: (plan: { objective: string; steps: string[] }) => void) => {
+      const handler = (_: unknown, plan: { objective: string; steps: string[] }) => cb(plan)
+      ipcRenderer.on('ai:plan', handler)
+      return () => ipcRenderer.removeListener('ai:plan', handler)
+    },
   }
 }
 
