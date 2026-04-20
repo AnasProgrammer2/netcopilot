@@ -59,6 +59,9 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
   const [sessionBlacklist,  setSessionBlacklist]  = useState<string[]>(aiBlacklist)
   const [autoWatch,         setAutoWatch]          = useState(true)
   const prevMessageCount = useRef(0)
+
+  // Sequential command queue — prevents race condition when auto-executing multiple commands
+  const commandQueueRef = useRef<Promise<void>>(Promise.resolve())
   useEffect(() => {
     if (aiMessages.length === 0 && prevMessageCount.current > 0) {
       setSessionPermission(aiPermission)
@@ -174,7 +177,13 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       }
 
       if (currentApproval === 'auto' || currentApproval === 'blacklist') {
-        await executeCommand(targetMsg.id, id, command, targetSession)
+        // Chain to queue so multiple auto-commands execute sequentially, not in parallel
+        const msgId = targetMsg.id
+        commandQueueRef.current = commandQueueRef.current.then(async () => {
+          await executeCommand(msgId, id, command, targetSession)
+          // Small gap between commands so terminal settles before next one
+          await new Promise(r => setTimeout(r, 600))
+        })
         return
       }
 
@@ -409,7 +418,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
           </button>
         )}
         <button
-          onClick={() => clearAiMessages()}
+          onClick={() => { clearAiMessages(); commandQueueRef.current = Promise.resolve() }}
           title="Clear conversation"
           className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
         >
