@@ -419,7 +419,7 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
               </div>
 
               {/* Toolbar row */}
-              <div className="flex items-center gap-1.5 px-2 pb-2">
+              <div className="flex items-center gap-1 px-2 pb-2 overflow-hidden">
                 {/* Permission selector */}
                 <ModeSelector
                   value={sessionPermission}
@@ -573,12 +573,12 @@ function ModeSelector({ value, onChange }: { value: AiPermission; onChange: (v: 
       onChange={onChange}
       options={[
         {
-          id: 'troubleshoot', label: 'Troubleshoot', short: 'Troubleshoot',
+          id: 'troubleshoot', label: 'Troubleshoot', short: 'Scan',
           icon: <ShieldCheck className="w-3 h-3" />,
           dimColor: 'text-amber-500/70', activeColor: 'text-amber-400',
         },
         {
-          id: 'full-access', label: 'Full Access', short: 'Full Access',
+          id: 'full-access', label: 'Full Access', short: 'Full',
           icon: <Wrench className="w-3 h-3" />,
           dimColor: 'text-red-500/70', activeColor: 'text-red-400',
         },
@@ -603,7 +603,7 @@ function ApprovalSelector({ value, onChange }: { value: AiApproval; onChange: (v
           dimColor: 'text-emerald-500/60', activeColor: 'text-emerald-400',
         },
         {
-          id: 'blacklist', label: 'Block patterns',   short: 'Blacklist',
+          id: 'blacklist', label: 'Block patterns',   short: 'Block',
           dimColor: 'text-orange-500/60', activeColor: 'text-orange-400',
         },
       ]}
