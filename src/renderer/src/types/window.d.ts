@@ -96,6 +96,12 @@ declare global {
         send(sessionId: string, data: string): void
         resize(sessionId: string, cols: number, rows: number): Promise<boolean>
         disconnect(sessionId: string): Promise<boolean>
+        forwardStart(payload: {
+          forwardId: string; sessionId: string; type: 'local' | 'dynamic'
+          localPort: number; remoteHost: string; remotePort: number
+        }): Promise<{ success: boolean; error?: string }>
+        forwardStop(forwardId: string): Promise<boolean>
+        forwardStopSession(sessionId: string): Promise<boolean>
         onData(cb: (sessionId: string, data: string) => void): () => void
         onClosed(cb: (sessionId: string) => void): () => void
       }

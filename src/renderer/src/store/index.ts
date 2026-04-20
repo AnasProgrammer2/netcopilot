@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Connection, ConnectionGroup, SSHKey, Session } from '../types'
+import { Connection, ConnectionGroup, SSHKey, Session, PortForwardRule } from '../types'
 import { nanoid } from 'nanoid'
 
 // ── AI Copilot types ─────────────────────────────────────────────────────────
@@ -124,6 +124,14 @@ interface AppState {
   splitSessionId: string | null
   setSplitSession: (id: string | null) => void
 
+  // Port Forwarding
+  portForwardRules:    PortForwardRule[]
+  activeForwardIds:    Set<string>
+  savePortForwardRule: (rule: Omit<PortForwardRule, 'id'> & { id?: string }) => void
+  deletePortForwardRule: (id: string) => void
+  startForward:        (ruleId: string, sessionId: string) => Promise<boolean>
+  stopForward:         (ruleId: string) => Promise<void>
+
   // Session logging (path stored per session so TabBar can show indicator)
   setSessionLogging: (sessionId: string, path: string | null) => void
 
@@ -177,7 +185,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   connectionDialogOpen: false,
   editingConnection: null,
   settingsOpen: false,
-  splitSessionId: null,
+  splitSessionId:    null,
+  portForwardRules:  [],
+  activeForwardIds:  new Set<string>(),
 
   loadConnections: async () => {
     const connections = await window.api.store.getConnections()
@@ -552,6 +562,56 @@ export const useAppStore = create<AppState>((set, get) => ({
         s.id === sessionId ? { ...s, loggingPath: path } : s
       )
     })),
+
+  // ── Port Forwarding ──────────────────────────────────────────────────────────
+
+  savePortForwardRule: (rule) => {
+    const { nanoid } = require('nanoid')
+    set((state) => {
+      const id    = rule.id ?? nanoid()
+      const full  = { ...rule, id } as PortForwardRule
+      const exist = state.portForwardRules.findIndex(r => r.id === id)
+      return {
+        portForwardRules: exist >= 0
+          ? state.portForwardRules.map(r => r.id === id ? full : r)
+          : [...state.portForwardRules, full]
+      }
+    })
+  },
+
+  deletePortForwardRule: (id) => {
+    set((state) => ({
+      portForwardRules: state.portForwardRules.filter(r => r.id !== id),
+      activeForwardIds: new Set([...state.activeForwardIds].filter(x => x !== id)),
+    }))
+    window.api.ssh.forwardStop(id).catch(() => {})
+  },
+
+  startForward: async (ruleId, sessionId) => {
+    const rule = get().portForwardRules.find(r => r.id === ruleId)
+    if (!rule) return false
+    const res = await window.api.ssh.forwardStart({
+      forwardId:  ruleId,
+      sessionId,
+      type:       rule.type,
+      localPort:  rule.localPort,
+      remoteHost: rule.remoteHost,
+      remotePort: rule.remotePort,
+    })
+    if (res.success) {
+      set((state) => ({ activeForwardIds: new Set([...state.activeForwardIds, ruleId]) }))
+    }
+    return res.success
+  },
+
+  stopForward: async (ruleId) => {
+    await window.api.ssh.forwardStop(ruleId).catch(() => {})
+    set((state) => {
+      const next = new Set(state.activeForwardIds)
+      next.delete(ruleId)
+      return { activeForwardIds: next }
+    })
+  },
 }))
 
 // ── Apply accent color as CSS variable ──────────────────────────────────────

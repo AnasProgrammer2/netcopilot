@@ -1,20 +1,22 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown, Sparkles, RefreshCw } from 'lucide-react'
+import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown, Sparkles, RefreshCw, Globe } from 'lucide-react'
 import { toast } from 'sonner'
 import { terminalRegistry } from '../../lib/terminalRegistry'
 import { useAppStore } from '../../store'
 import { Session } from '../../types'
 import { cn } from '../../lib/utils'
+import { PortForwardDialog } from '../dialogs/PortForwardDialog'
 
 export function TabBar(): JSX.Element {
   const {
     sessions, activeSessionId, splitSessionId,
     setActiveSession, closeSession, setQuickConnectOpen, setSplitSession,
-    aiPanelOpen, setAiPanelOpen,
+    aiPanelOpen, setAiPanelOpen, activeForwardIds,
   } = useAppStore()
 
-  const [splitMenuOpen, setSplitMenuOpen] = useState(false)
+  const [splitMenuOpen,   setSplitMenuOpen]   = useState(false)
+  const [forwardOpen,     setForwardOpen]     = useState(false)
   const splitMenuRef  = useRef<HTMLDivElement>(null)
   const splitBtnRef   = useRef<HTMLButtonElement>(null)
   const [splitMenuPos, setSplitMenuPos] = useState({ top: 0, left: 0 })
@@ -89,6 +91,32 @@ export function TabBar(): JSX.Element {
         <Sparkles className="w-3.5 h-3.5" />
         <span className="hidden sm:inline">ARIA AI</span>
       </button>
+
+      {/* Port Forwarding button */}
+      {sessions.length > 0 && (
+        <>
+          <button
+            onClick={() => setForwardOpen(true)}
+            title="Port Forwarding (SSH tunnels)"
+            className={cn(
+              'shrink-0 self-center flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors',
+              activeForwardIds.size > 0
+                ? 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+            )}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            {activeForwardIds.size > 0 && (
+              <span className="text-[10px] font-bold">{activeForwardIds.size}</span>
+            )}
+          </button>
+          <PortForwardDialog
+            open={forwardOpen}
+            onClose={() => setForwardOpen(false)}
+            sessionId={activeSessionId}
+          />
+        </>
+      )}
 
       {/* Split button */}
       <div className="relative shrink-0 self-center mr-2">

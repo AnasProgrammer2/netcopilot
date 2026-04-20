@@ -1,5 +1,6 @@
 import { IpcMain, BrowserWindow } from 'electron'
 import { Client, ClientChannel, ConnectConfig } from 'ssh2'
+import * as net from 'net'
 
 interface ActiveSession {
   client:     Client
@@ -22,7 +23,13 @@ function teardownSession(sessionId: string): void {
   activeSessions.delete(sessionId)
 }
 
-const activeSessions = new Map<string, ActiveSession>()
+const activeSessions   = new Map<string, ActiveSession>()
+
+interface ForwardServer {
+  server:    net.Server
+  sessionId: string
+}
+const activeForwards = new Map<string, ForwardServer>() // key = forwardId
 
 export function setupSshHandlers(
   ipcMain: IpcMain,
@@ -212,5 +219,83 @@ export function setupSshHandlers(
     }
     activeSessions.clear()
     return true
+  })
+
+  // ── Port Forwarding ───────────────────────────────────────────────────────────
+
+  ipcMain.handle('ssh:forward-start', (_, payload: {
+    forwardId: string
+    sessionId: string
+    type:       'local' | 'dynamic'
+    localPort:  number
+    remoteHost: string
+    remotePort: number
+  }) => {
+    return new Promise<{ success: boolean; error?: string }>((resolve) => {
+      const session = activeSessions.get(payload.sessionId)
+      if (!session) return resolve({ success: false, error: 'Session not connected' })
+
+      if (activeForwards.has(payload.forwardId)) {
+        return resolve({ success: false, error: 'Forward already active' })
+      }
+
+      const server = net.createServer((sock) => {
+        sock.on('error', () => sock.destroy())
+
+        if (payload.type === 'dynamic') {
+          // Basic SOCKS4/5 not implemented — treat dynamic as error for now
+          sock.destroy()
+          return
+        }
+
+        // Local forward
+        session.client.forwardOut(
+          sock.remoteAddress ?? '127.0.0.1', sock.remotePort ?? 0,
+          payload.remoteHost, payload.remotePort,
+          (err, stream) => {
+            if (err) { sock.destroy(); return }
+            sock.pipe(stream)
+            stream.pipe(sock)
+            stream.on('close', () => sock.destroy())
+            sock.on('close', () => stream.destroy())
+          }
+        )
+      })
+
+      server.listen(payload.localPort, '127.0.0.1', () => {
+        activeForwards.set(payload.forwardId, { server, sessionId: payload.sessionId })
+        resolve({ success: true })
+      })
+
+      server.on('error', (err: NodeJS.ErrnoException) => {
+        resolve({ success: false, error: err.message })
+      })
+    })
+  })
+
+  ipcMain.handle('ssh:forward-stop', (_, forwardId: string) => {
+    const fwd = activeForwards.get(forwardId)
+    if (!fwd) return false
+    fwd.server.close()
+    activeForwards.delete(forwardId)
+    return true
+  })
+
+  ipcMain.handle('ssh:forward-stop-session', (_, sessionId: string) => {
+    for (const [id, fwd] of activeForwards) {
+      if (fwd.sessionId === sessionId) {
+        fwd.server.close()
+        activeForwards.delete(id)
+      }
+    }
+    return true
+  })
+
+  ipcMain.handle('ssh:forward-list', (_, sessionId: string) => {
+    const result: string[] = []
+    for (const [id, fwd] of activeForwards) {
+      if (fwd.sessionId === sessionId) result.push(id)
+    }
+    return result
   })
 }
