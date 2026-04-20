@@ -160,11 +160,16 @@ export function TerminalTab({ session }: Props): JSX.Element {
   }, [session.id])
 
   // ── Proactive AI watcher ──────────────────────────────────────────────────────
-  // Debounce terminal data; when output settles (1.5s of silence) and the AI
+  // Debounce terminal data; when output settles (4s of silence) and the AI
   // panel is open and not already streaming, send context for analysis.
+  // Skips ANSI-only noise (escape sequences, cursor moves, redraws).
   useEffect(() => {
     let debounceTimer: ReturnType<typeof setTimeout> | null = null
     let outputBuffer = ''
+    let lastAnalyzed = ''
+
+    // Strip ANSI escape codes to get plain text
+    const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b[()][AB012]/g, '').trim()
 
     const proto = session.connection.protocol
     const onData = (_sessionId: string, data: string) => {
@@ -178,12 +183,20 @@ export function TerminalTab({ session }: Props): JSX.Element {
           outputBuffer = ''
           return
         }
-        const ctx = outputBuffer
+        const plain = stripAnsi(outputBuffer)
         outputBuffer = ''
+
+        // Skip if content is too short (< 20 chars) — likely just a prompt redraw
+        if (plain.length < 20) return
+
+        // Skip if the content is the same as what we already analyzed
+        if (plain === lastAnalyzed) return
+        lastAnalyzed = plain
+
         // Trigger proactive analysis via the global bridge set by AiPanel
         const proactive = (window as unknown as Record<string, unknown>)['__aiSendProactive']
-        if (typeof proactive === 'function') proactive(ctx)
-      }, 1500)
+        if (typeof proactive === 'function') proactive(plain)
+      }, 4000)
     }
 
     let off: (() => void) | undefined
