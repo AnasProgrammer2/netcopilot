@@ -3,8 +3,9 @@
  * TerminalTab registers its instance; AiPanel reads context from it.
  */
 export interface TerminalHandle {
-  getContext: (lines?: number) => string
-  sendData:   (data: string) => void
+  getContext:     (lines?: number) => string
+  sendData:       (data: string) => void
+  scrollToBottom: () => void
 }
 
 const registry = new Map<string, TerminalHandle>()

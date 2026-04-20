@@ -3,6 +3,7 @@ import { useAppStore } from '../../store'
 import { TabBar } from './TabBar'
 import { TerminalTab } from './TerminalTab'
 import { AiPanel } from '../ai/AiPanel'
+import { HomeScreen } from '../home/HomeScreen'
 import { terminalRegistry } from '../../lib/terminalRegistry'
 
 const AI_PANEL_DEFAULT_WIDTH = 340
@@ -53,7 +54,15 @@ export function TerminalArea(): JSX.Element {
       <TabBar />
 
       <div className="flex flex-1 overflow-hidden min-h-0">
+        {/* Home screen — shown when no sessions */}
+        {sessions.length === 0 && (
+          <div className="flex-1 overflow-hidden">
+            <HomeScreen />
+          </div>
+        )}
+
         {/* Terminal pane */}
+        {sessions.length > 0 && (
         <div className="flex-1 relative overflow-hidden flex flex-col min-w-0 min-h-0">
           <div className="flex-1 relative overflow-hidden flex min-h-0">
             {sessions.map((session) => {
@@ -87,6 +96,7 @@ export function TerminalArea(): JSX.Element {
             })}
           </div>
         </div>
+        )}
 
         {/* AI panel */}
         {aiPanelOpen && (

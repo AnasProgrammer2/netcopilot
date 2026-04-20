@@ -14,12 +14,21 @@ interface Props {
   onBlockCommand:   (msgId: string, callId: string) => void
 }
 
+/** Returns 'rtl' if the text starts with Arabic/Hebrew chars, else 'ltr' */
+function detectDir(text: string): 'rtl' | 'ltr' {
+  const rtlPattern = /[\u0600-\u06FF\u0750-\u077F\u0590-\u05FF]/
+  const firstWord  = text.trimStart().slice(0, 60)
+  return rtlPattern.test(firstWord) ? 'rtl' : 'ltr'
+}
+
 export function AiMessage({ message, approval, blacklist, onApproveCommand, onBlockCommand }: Props): JSX.Element {
   const isUser      = message.role === 'user'
   const isProactive = message.role === 'auto'
+  const dir         = detectDir(message.content)
+  const isRtl       = dir === 'rtl'
 
   return (
-    <div className={cn('flex gap-2.5 px-3 py-2 group', isUser && 'flex-row-reverse')}>
+    <div className={cn('flex gap-2.5 px-3 py-2 group', (isUser || isRtl) && !isProactive ? 'flex-row-reverse' : '')}>
       {/* Avatar */}
       <div className={cn(
         'w-6 h-6 rounded-full shrink-0 flex items-center justify-center mt-1',
@@ -33,14 +42,17 @@ export function AiMessage({ message, approval, blacklist, onApproveCommand, onBl
       </div>
 
       {/* Bubble */}
-      <div className={cn(
-        'flex-1 min-w-0 rounded-xl px-3 py-2.5 text-sm leading-relaxed relative',
-        isUser
-          ? 'bg-primary/15 text-foreground ml-10'
-          : isProactive
-            ? 'bg-muted/30 text-muted-foreground text-xs italic'
-            : 'bg-card/60 text-foreground'
-      )}>
+      <div
+        dir={dir}
+        className={cn(
+          'flex-1 min-w-0 rounded-xl px-3 py-2.5 text-sm leading-relaxed relative',
+          isUser
+            ? 'bg-primary/15 text-foreground ml-10'
+            : isProactive
+              ? 'bg-muted/30 text-muted-foreground text-xs italic'
+              : 'bg-card/60 text-foreground'
+        )}
+      >
         {isProactive && (
           <span className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider block mb-1">
             Auto Watch
@@ -49,7 +61,7 @@ export function AiMessage({ message, approval, blacklist, onApproveCommand, onBl
 
         {/* Markdown content */}
         {message.content && (
-          <div className={cn('prose-ai', isUser && 'text-right')}>
+          <div className="prose-ai">
             {isUser || isProactive ? (
               <span className="whitespace-pre-wrap break-words">
                 {message.content}
@@ -63,18 +75,22 @@ export function AiMessage({ message, approval, blacklist, onApproveCommand, onBl
           </div>
         )}
 
-        {/* Tool calls */}
-        {(message.toolCalls ?? []).map((call: AiToolCall) => (
-          <AiCommandBlock
-            key={call.id}
-            msgId={message.id}
-            call={call}
-            approval={approval}
-            blacklist={blacklist}
-            onApprove={(callId) => onApproveCommand(message.id, callId)}
-            onBlock={(callId)   => onBlockCommand(message.id, callId)}
-          />
-        ))}
+        {/* Tool calls — always ltr */}
+        {(message.toolCalls ?? []).length > 0 && (
+          <div dir="ltr">
+            {(message.toolCalls ?? []).map((call: AiToolCall) => (
+              <AiCommandBlock
+                key={call.id}
+                msgId={message.id}
+                call={call}
+                approval={approval}
+                blacklist={blacklist}
+                onApprove={(callId) => onApproveCommand(message.id, callId)}
+                onBlock={(callId)   => onBlockCommand(message.id, callId)}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

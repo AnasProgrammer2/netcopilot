@@ -32,9 +32,14 @@ export function setupCredentialHandlers(ipcMain: IpcMain): void {
       const encoded: string = JSON.parse(row.value)
       const buf = Buffer.from(encoded, 'base64')
       if (safeStorage.isEncryptionAvailable()) {
-        return safeStorage.decryptString(buf)
+        try {
+          return safeStorage.decryptString(buf)
+        } catch {
+          // Stored without encryption (fallback) — return as plain text
+          return buf.toString('utf-8')
+        }
       }
-      return buf.toString()
+      return buf.toString('utf-8')
     } catch {
       return null
     }

@@ -5,6 +5,7 @@ import { useAppStore, AiMessage as AiMessageType, AiPermission, AiApproval } fro
 import { cn } from '../../lib/utils'
 import { AiMessage } from './AiMessage'
 import { Session } from '../../types'
+import { terminalRegistry } from '../../lib/terminalRegistry'
 
 interface Props {
   activeSession: Session | null
@@ -14,11 +15,17 @@ interface Props {
   sendToTerminal: (cmd: string) => void
 }
 
+/** Format token count compactly: 1234 → "1.2k", 123 → "123" */
+function formatTokens(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
+  return String(n)
+}
+
 export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: Props): JSX.Element {
   const {
-    aiMessages, aiStreaming, aiPermission, aiApproval, aiBlacklist,
+    aiMessages, aiStreaming, aiPermission, aiApproval, aiBlacklist, aiTokens,
     addAiMessage, appendAiChunk, finalizeAiStream, updateAiToolCall, clearAiMessages,
-    setAiStreaming, setAiPanelOpen,
+    setAiStreaming, setAiAgentActive, setAiPanelOpen,
   } = useAppStore()
 
   // Per-session overrides — start from global settings, can be changed mid-chat
@@ -81,13 +88,15 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
       appendAiChunk(chunk)
     })
 
-    const offDone = window.api.ai.onDone(() => {
-      finalizeAiStream()
+    const offDone = window.api.ai.onDone((usage) => {
+      useAppStore.getState().finalizeAiStream(usage)
+      useAppStore.getState().setAiAgentActive(false)
     })
 
     const offError = window.api.ai.onError((err) => {
-      finalizeAiStream()
-      addAiMessage({
+      useAppStore.getState().finalizeAiStream()
+      useAppStore.getState().setAiAgentActive(false)
+      useAppStore.getState().addAiMessage({
         id: nanoid(),
         role: 'assistant',
         content: `⚠️ ${err}`,
@@ -163,6 +172,12 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
         offData = null
         const out = output.trim() || '(no output)'
         updateAiToolCall(msgId, callId, { status: 'done', output: out })
+
+        // Scroll terminal to prompt after command finishes
+        if (activeSession) {
+          terminalRegistry.get(activeSession.id)?.scrollToBottom()
+        }
+
         await window.api.ai.toolResult(callId, out)
         resolve()
       }
@@ -214,6 +229,7 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
     }
 
     setAiStreaming(true)
+    setAiAgentActive(true)
 
     const ctx  = proactiveContext ?? getTerminalContext()
     const conn = activeSession?.connection
@@ -273,6 +289,16 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border shrink-0">
         <Bot className="w-4 h-4 text-primary shrink-0" />
         <span className="text-sm font-semibold text-foreground flex-1">AI Copilot</span>
+
+        {/* Token counter next to clear button */}
+        {(aiTokens.input > 0 || aiTokens.output > 0) && (
+          <span
+            title={`Input: ${aiTokens.input.toLocaleString()} · Output: ${aiTokens.output.toLocaleString()}`}
+            className="text-[10px] font-mono text-muted-foreground/50 select-none cursor-default"
+          >
+            {formatTokens(aiTokens.input + aiTokens.output)}
+          </span>
+        )}
         <button
           onClick={() => clearAiMessages()}
           title="Clear conversation"
@@ -322,6 +348,7 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
                 onBlockCommand={handleBlockCommand}
               />
             ))}
+
             <div ref={bottomRef} />
           </div>
 

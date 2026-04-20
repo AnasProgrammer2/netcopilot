@@ -94,13 +94,13 @@ export function PasswordPrompt({ host, username: initialUsername, onSubmit, onCa
           </div>
 
           {/* Remember */}
-          <label className="flex items-center gap-2 cursor-pointer group">
-            <div
-              onClick={() => setSave(!save)}
-              className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                save ? 'bg-primary border-primary' : 'border-border group-hover:border-primary/50'
-              }`}
-            >
+          <label
+            className="flex items-center gap-2 cursor-pointer group select-none"
+            onClick={() => setSave(v => !v)}
+          >
+            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${
+              save ? 'bg-primary border-primary' : 'border-border group-hover:border-primary/50'
+            }`}>
               {save && <Save className="w-2.5 h-2.5 text-white" />}
             </div>
             <span className="text-xs text-muted-foreground group-hover:text-foreground">

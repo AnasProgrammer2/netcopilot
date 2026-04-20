@@ -124,20 +124,23 @@ interface AppState {
   aiPanelOpen:  boolean
   aiPermission: AiPermission
   aiApproval:   AiApproval
-  aiBlacklist:  string[]
-  aiMessages:   AiMessage[]
-  aiStreaming:  boolean
+  aiBlacklist:    string[]
+  aiMessages:     AiMessage[]
+  aiStreaming:    boolean
+  aiAgentActive:  boolean   // true throughout the full agentic loop (including tool execution pauses)
+  aiTokens:       { input: number; output: number }
 
-  setAiPanelOpen:  (open: boolean) => void
-  setAiPermission: (p: AiPermission) => void
-  setAiApproval:   (a: AiApproval) => void
-  setAiBlacklist:  (list: string[]) => void
-  addAiMessage:    (msg: AiMessage) => void
-  appendAiChunk:   (chunk: string) => void
-  finalizeAiStream: () => void
-  updateAiToolCall: (msgId: string, callId: string, patch: Partial<AiToolCall>) => void
-  clearAiMessages: () => void
-  setAiStreaming:  (v: boolean) => void
+  setAiPanelOpen:    (open: boolean) => void
+  setAiPermission:   (p: AiPermission) => void
+  setAiApproval:     (a: AiApproval) => void
+  setAiBlacklist:    (list: string[]) => void
+  addAiMessage:      (msg: AiMessage) => void
+  appendAiChunk:     (chunk: string) => void
+  finalizeAiStream:  (usage?: { inputTokens: number; outputTokens: number }) => void
+  updateAiToolCall:  (msgId: string, callId: string, patch: Partial<AiToolCall>) => void
+  clearAiMessages:   () => void
+  setAiStreaming:    (v: boolean) => void
+  setAiAgentActive:  (v: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -154,8 +157,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   aiPermission: 'troubleshoot',
   aiApproval:   'ask',
   aiBlacklist:  [],
-  aiMessages:   [],
-  aiStreaming:  false,
+  aiMessages:    [],
+  aiStreaming:   false,
+  aiAgentActive: false,
+  aiTokens:      { input: 0, output: 0 },
   sidebarWidth: 260,
   quickConnectOpen: false,
   connectionDialogOpen: false,
@@ -278,7 +283,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     set((state) => ({
       sessions: [...state.sessions, session],
-      activeSessionId: sessionId
+      activeSessionId: sessionId,
+      // New connection → fresh AI conversation
+      aiMessages:    [],
+      aiTokens:      { input: 0, output: 0 },
+      aiAgentActive: false,
+      aiStreaming:   false,
     }))
     return sessionId
   },
@@ -287,10 +297,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => {
       const sessions = state.sessions.filter((s) => s.id !== sessionId)
       let activeSessionId = state.activeSessionId
+      let clearAi = false
       if (activeSessionId === sessionId) {
         activeSessionId = sessions.length > 0 ? sessions[sessions.length - 1].id : null
+        clearAi = true
       }
-      return { sessions, activeSessionId }
+      return {
+        sessions,
+        activeSessionId,
+        // Switching active session → clear AI conversation
+        ...(clearAi ? { aiMessages: [], aiTokens: { input: 0, output: 0 }, aiAgentActive: false, aiStreaming: false } : {}),
+      }
     })
   },
 
@@ -305,7 +322,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setActiveSession: (sessionId) => {
-    set({ activeSessionId: sessionId })
+    set((state) => ({
+      activeSessionId: sessionId,
+      // Switching tabs → clear AI conversation for the new session context
+      ...(state.activeSessionId !== sessionId ? {
+        aiMessages:    [],
+        aiTokens:      { input: 0, output: 0 },
+        aiAgentActive: false,
+        aiStreaming:   false,
+      } : {}),
+    }))
   },
 
   updateLastConnected: (connectionId) => {
@@ -439,8 +465,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAiPermission: (p) => set({ aiPermission: p }),
   setAiApproval:   (a) => set({ aiApproval: a }),
   setAiBlacklist:  (list) => set({ aiBlacklist: list }),
-  setAiStreaming:  (v) => set({ aiStreaming: v }),
-  clearAiMessages: () => set({ aiMessages: [] }),
+  setAiStreaming:   (v) => set({ aiStreaming: v }),
+  setAiAgentActive: (v) => set({ aiAgentActive: v }),
+  clearAiMessages: () => set({ aiMessages: [], aiTokens: { input: 0, output: 0 }, aiAgentActive: false }),
 
   addAiMessage: (msg) =>
     set((state) => ({ aiMessages: [...state.aiMessages, msg] })),
@@ -459,12 +486,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }),
 
-  finalizeAiStream: () =>
+  finalizeAiStream: (usage) =>
     set((state) => ({
       aiMessages: state.aiMessages.map((m) =>
         m.streaming ? { ...m, streaming: false } : m
       ),
       aiStreaming: false,
+      aiTokens: usage
+        ? {
+            input:  state.aiTokens.input  + usage.inputTokens,
+            output: state.aiTokens.output + usage.outputTokens,
+          }
+        : state.aiTokens,
     })),
 
   updateAiToolCall: (msgId, callId, patch) =>

@@ -1,3 +1,6 @@
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -99,6 +102,14 @@ html.light {
   --sidebar-accent: 220 14% 88%;
   --sidebar-accent-foreground: 222 20% 10%;
   --sidebar-border: 220 14% 82%;
+}
+
+/* ── Base font ─────────────────────────────────────── */
+body {
+  font-family: 'Geist Variable', 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-feature-settings: 'rlig' 1, 'calt' 1, 'ss01' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* ── 5% glow — sparingly on key elements ──────────── */

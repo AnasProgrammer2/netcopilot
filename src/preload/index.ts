@@ -136,8 +136,8 @@ const api = {
       ipcRenderer.on('ai:chunk', handler)
       return () => ipcRenderer.removeListener('ai:chunk', handler)
     },
-    onDone: (cb: () => void) => {
-      const handler = () => cb()
+    onDone: (cb: (usage?: { inputTokens: number; outputTokens: number }) => void) => {
+      const handler = (_: unknown, usage?: { inputTokens: number; outputTokens: number }) => cb(usage)
       ipcRenderer.on('ai:done', handler)
       return () => ipcRenderer.removeListener('ai:done', handler)
     },

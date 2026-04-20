@@ -120,7 +120,7 @@ declare global {
       getApiKey(): Promise<string | null>
       resetBlacklist(): Promise<string[]>
       onChunk(cb: (chunk: string) => void): () => void
-      onDone(cb: () => void): () => void
+      onDone(cb: (usage?: { inputTokens: number; outputTokens: number }) => void): () => void
       onToolCall(cb: (call: { id: string; command: string; reason: string }) => void): () => void
       onError(cb: (error: string) => void): () => void
     }
