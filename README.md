@@ -1,11 +1,12 @@
-# NetCopilot
-<center><img width="600" alt="NetCopilot — AI-Native Network Terminal" src="https://github.com/user-attachments/assets/1c8ef1f9-525b-489c-a8f3-9ce75d878abd" /> </center>
+# NetCopilot — AI Network Agent
 
+<center><img width="600" alt="NetCopilot — AI Network Agent" src="https://github.com/user-attachments/assets/1c8ef1f9-525b-489c-a8f3-9ce75d878abd" /></center>
 
+**The first AI agent built for network engineers.**
 
-**Your AI-Native Network Copilot**
+NetCopilot is not just a terminal — it is an **AI agent** that connects to your network devices, understands your infrastructure, and acts autonomously to diagnose, troubleshoot, and fix problems.
 
-NetCopilot is a professional desktop terminal built for network engineers. It combines SSH, Telnet, and Serial console access with **ARIA** — an embedded AI agent that understands your infrastructure, executes commands autonomously, and delivers real diagnostic intelligence without ever leaving your terminal.
+At its core is **ARIA**: a real agentic system that plans investigations, executes commands, reads output, and delivers structured recommendations — all without leaving your terminal. You describe the problem; ARIA handles the rest.
 
 ---
 
