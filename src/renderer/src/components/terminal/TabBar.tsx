@@ -1,5 +1,24 @@
 import { useState, useRef, useEffect } from 'react'
-import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown, Bot } from 'lucide-react'
+import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown } from 'lucide-react'
+
+function AriaIcon({ className }: { className?: string }): JSX.Element {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
+      {/* Outer ring */}
+      <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1" strokeDasharray="2.5 1.5" />
+      {/* Center dot */}
+      <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+      {/* Network spokes */}
+      <line x1="8" y1="6.5" x2="8" y2="2.5"   stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+      <line x1="9.3" y1="9.3" x2="12.2" y2="12.2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+      <line x1="6.7" y1="9.3" x2="3.8" y2="12.2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+      {/* Node dots */}
+      <circle cx="8"    cy="2.5"  r="1" fill="currentColor" />
+      <circle cx="12.2" cy="12.2" r="1" fill="currentColor" />
+      <circle cx="3.8"  cy="12.2" r="1" fill="currentColor" />
+    </svg>
+  )
+}
 import { useAppStore } from '../../store'
 import { Session } from '../../types'
 import { cn } from '../../lib/utils'
@@ -64,8 +83,8 @@ export function TabBar(): JSX.Element {
             : 'text-muted-foreground hover:text-foreground hover:bg-accent'
         )}
       >
-        <Bot className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">AI</span>
+        <AriaIcon className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">ARIA</span>
       </button>
 
       {/* Split button */}
