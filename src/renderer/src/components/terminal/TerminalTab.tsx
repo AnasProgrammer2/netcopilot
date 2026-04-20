@@ -172,9 +172,9 @@ export function TerminalTab({ session }: Props): JSX.Element {
       outputBuffer += data
       if (debounceTimer) clearTimeout(debounceTimer)
       debounceTimer = setTimeout(() => {
-        const { aiPanelOpen, aiStreaming, activeSessionId } = useAppStore.getState()
+        const { aiPanelOpen, aiStreaming, aiAgentActive, activeSessionId } = useAppStore.getState()
         const autoWatch = (window as unknown as Record<string, unknown>)['__aiAutoWatch']
-        if (!aiPanelOpen || aiStreaming || activeSessionId !== session.id || !autoWatch) {
+        if (!aiPanelOpen || aiStreaming || aiAgentActive || activeSessionId !== session.id || !autoWatch) {
           outputBuffer = ''
           return
         }
@@ -262,6 +262,9 @@ export function TerminalTab({ session }: Props): JSX.Element {
         if      (proto === 'ssh')    window.api.ssh.send(session.id, data)
         else if (proto === 'serial') window.api.serial.send(session.id, data)
         else                         window.api.telnet.send(session.id, data)
+      },
+      scrollToBottom: () => {
+        term.scrollToBottom()
       },
     })
 
@@ -373,6 +376,10 @@ export function TerminalTab({ session }: Props): JSX.Element {
           if (!isReconnect || !savedCredsRef.current) {
             if (conn.authType === 'password' || conn.authType === 'key+password') {
               password = await window.api.credentials.get(`${conn.id}:password`)
+              // Load saved username if not stored on the connection
+              if (!username) {
+                username = (await window.api.credentials.get(`${conn.id}:username`)) || ''
+              }
             }
             if ((conn.authType === 'key' || conn.authType === 'key+password') && conn.sshKeyId) {
               privateKey = await window.api.credentials.get(`${conn.sshKeyId}:privateKey`)
@@ -389,12 +396,13 @@ export function TerminalTab({ session }: Props): JSX.Element {
               if (!username) username = result.username
               password = result.password
               if (result.save) {
-                const savePasswords = await window.api.store.getSetting('savePasswords')
-                if (savePasswords !== false) {
-                  await window.api.credentials.save(`${conn.id}:password`, password)
-                  if (!conn.username) {
-                    window.api.store.saveConnection({ ...conn, username, updatedAt: Date.now() })
-                  }
+                await window.api.credentials.save(`${conn.id}:password`, password)
+                // Save username as credential too (handles connections without stored username)
+                if (username) {
+                  await window.api.credentials.save(`${conn.id}:username`, username)
+                }
+                if (!conn.username && username) {
+                  window.api.store.saveConnection({ ...conn, username, updatedAt: Date.now() })
                 }
               }
             }

@@ -3,11 +3,11 @@ import { Lock } from 'lucide-react'
 import { useAppStore } from './store'
 import { Sidebar } from './components/sidebar/Sidebar'
 import { TerminalArea } from './components/terminal/TerminalArea'
+import { HomeScreen } from './components/home/HomeScreen'
 import { ConnectionDialog } from './components/dialogs/ConnectionDialog'
 import { QuickConnect } from './components/dialogs/QuickConnect'
 import { SettingsDialog } from './components/dialogs/SettingsDialog'
 import { TitleBar } from './components/TitleBar'
-import { WelcomeScreen } from './components/WelcomeScreen'
 import { MasterPasswordLock } from './components/MasterPasswordLock'
 
 export default function App(): JSX.Element {
@@ -104,7 +104,7 @@ export default function App(): JSX.Element {
         <Sidebar />
 
         <main className="flex-1 flex flex-col overflow-hidden min-h-0">
-          {sessions.length === 0 ? <WelcomeScreen /> : <TerminalArea />}
+          {sessions.length === 0 ? <HomeScreen /> : <TerminalArea />}
         </main>
       </div>
 
