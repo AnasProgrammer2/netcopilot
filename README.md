@@ -172,6 +172,8 @@ NetCopilot ships with a default blacklist of dangerous commands: `reload`, `shut
 | **Session isolation** | Each tab has its own independent ARIA conversation |
 | **Session summary** | When closing a tab, ARIA delivers a recap of all commands it ran |
 | **Quick suggestions** | Device-aware command suggestions update dynamically as context changes |
+| **Model selector** | Choose between Claude Sonnet, Opus, or Haiku from Settings → ARIA |
+| **Sequential execution** | Auto mode runs multiple commands one by one — no race conditions |
 
 ### ARIA Persona
 
@@ -232,6 +234,24 @@ Working with ARIA is like having a senior engineer with all of these certificati
 - Auto-reconnect on session drop — global default or per-connection override
 - Session reconnect button appears automatically when a connection drops
 
+### Port Forwarding (SSH Tunnels)
+
+Create local port forwarding rules per connection — forward any local port to a remote service through the SSH tunnel:
+
+- Add, edit, and delete rules per connection
+- Start / stop each tunnel independently while connected
+- Live status badge in the tab bar shows number of active tunnels
+- Example: `localhost:5432 → db.internal:5432` through your SSH server
+
+### Jump Host / Bastion Server
+
+Connect to devices that are not directly reachable from your machine:
+
+- Select any saved SSH connection as a jump host in the connection's Advanced tab
+- The app automatically establishes a tunnel through the bastion to the target device
+- Credentials for both the jump host and the target are resolved independently from the keychain
+- Fully transparent — ARIA and terminal work exactly the same as a direct connection
+
 ### Connection Management
 
 - Organized library with groups, colors, tags, and notes
@@ -239,6 +259,19 @@ Working with ARIA is like having a senior engineer with all of these certificati
 - Startup commands that run automatically after connecting
 - SSH key manager — store and reuse named keys across connections
 - Full import / export of connections as JSON
+
+### Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `⌘K` / `Ctrl+K` | Quick Connect |
+| `⌘T` / `Ctrl+T` | New tab |
+| `⌘W` / `Ctrl+W` | Close active tab |
+| `⌘,` | Settings |
+| `⌘D` / `Ctrl+D` | Toggle Split View |
+| `⌘⇧A` | Toggle ARIA panel |
+| `⌘1–9` | Switch to tab N |
+| `⌘F` | Search in terminal |
 
 ### Home Screen Dashboard
 
