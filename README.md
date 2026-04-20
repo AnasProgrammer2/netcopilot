@@ -1,5 +1,5 @@
 # NetCopilot
-<img width="600" alt="NetCopilot — AI-Native Network Terminal" src="https://github.com/user-attachments/assets/1c8ef1f9-525b-489c-a8f3-9ce75d878abd" />
+<center<<img width="600" alt="NetCopilot — AI-Native Network Terminal" src="https://github.com/user-attachments/assets/1c8ef1f9-525b-489c-a8f3-9ce75d878abd" /></center>
 
 
 
