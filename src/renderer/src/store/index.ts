@@ -16,12 +16,18 @@ export interface AiToolCall {
   output?: string
 }
 
+export interface AiPlan {
+  objective: string
+  steps:     string[]
+}
+
 export interface AiMessage {
   id:        string
-  role:      'user' | 'assistant' | 'auto'  // auto = proactive watcher
+  role:      'user' | 'assistant' | 'auto' | 'plan'  // plan = investigation plan card
   content:   string
   streaming?: boolean
   toolCalls?: AiToolCall[]
+  plan?:     AiPlan
 }
 
 export interface TerminalSettings {
@@ -135,6 +141,7 @@ interface AppState {
   setAiApproval:     (a: AiApproval) => void
   setAiBlacklist:    (list: string[]) => void
   addAiMessage:      (msg: AiMessage) => void
+  addAiPlan:         (plan: AiPlan) => void
   appendAiChunk:     (chunk: string) => void
   finalizeAiStream:  (usage?: { inputTokens: number; outputTokens: number }) => void
   updateAiToolCall:  (msgId: string, callId: string, patch: Partial<AiToolCall>) => void
@@ -471,6 +478,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   addAiMessage: (msg) =>
     set((state) => ({ aiMessages: [...state.aiMessages, msg] })),
+
+  addAiPlan: (plan) =>
+    set((state) => ({
+      aiMessages: [
+        ...state.aiMessages,
+        { id: nanoid(), role: 'plan' as const, content: '', plan },
+      ],
+    })),
 
   appendAiChunk: (chunk) =>
     set((state) => {

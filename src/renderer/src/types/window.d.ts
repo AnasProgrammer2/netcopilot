@@ -123,6 +123,7 @@ declare global {
       onDone(cb: (usage?: { inputTokens: number; outputTokens: number }) => void): () => void
       onToolCall(cb: (call: { id: string; command: string; reason: string }) => void): () => void
       onError(cb: (error: string) => void): () => void
+      onPlan(cb: (plan: { objective: string; steps: string[] }) => void): () => void
     }
   }
 }

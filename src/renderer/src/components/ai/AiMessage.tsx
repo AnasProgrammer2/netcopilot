@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { cn } from '../../lib/utils'
 import { AiMessage as AiMessageType, AiToolCall } from '../../store'
 import { AiCommandBlock } from './AiCommandBlock'
+import { AiPlanBlock } from './AiPlanBlock'
 
 interface Props {
   message:          AiMessageType
@@ -24,8 +25,18 @@ function detectDir(text: string): 'rtl' | 'ltr' {
 export function AiMessage({ message, approval, blacklist, onApproveCommand, onBlockCommand }: Props): JSX.Element {
   const isUser      = message.role === 'user'
   const isProactive = message.role === 'auto'
+  const isPlan      = message.role === 'plan'
   const dir         = detectDir(message.content)
   const isRtl       = dir === 'rtl'
+
+  // Plan messages render as a standalone card (no avatar bubble)
+  if (isPlan && message.plan) {
+    return (
+      <div className="px-3 py-1">
+        <AiPlanBlock plan={message.plan} msgId={message.id} />
+      </div>
+    )
+  }
 
   return (
     <div className={cn('flex gap-2.5 px-3 py-2 group', (isUser || isRtl) && !isProactive ? 'flex-row-reverse' : '')}>

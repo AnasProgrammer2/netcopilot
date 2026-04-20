@@ -402,7 +402,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
                   await window.api.credentials.save(`${conn.id}:username`, username)
                 }
                 if (!conn.username && username) {
-                  window.api.store.saveConnection({ ...conn, username, updatedAt: Date.now() })
+                  await window.api.store.saveConnection({ ...conn, username, updatedAt: Date.now() })
                 }
               }
             }

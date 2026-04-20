@@ -23,7 +23,7 @@ function formatTokens(n: number): string {
 
 export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: Props): JSX.Element {
   const {
-    aiMessages, aiStreaming, aiPermission, aiApproval, aiBlacklist, aiTokens,
+    aiMessages, aiStreaming, aiAgentActive, aiPermission, aiApproval, aiBlacklist, aiTokens,
     addAiMessage, appendAiChunk, finalizeAiStream, updateAiToolCall, clearAiMessages,
     setAiStreaming, setAiAgentActive, setAiPanelOpen,
   } = useAppStore()
@@ -103,20 +103,31 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
       })
     })
 
+    const offPlan = window.api.ai.onPlan(({ objective, steps }) => {
+      // Finalize any streaming text before showing the plan card
+      useAppStore.getState().finalizeAiStream()
+      useAppStore.getState().addAiPlan({ objective, steps })
+    })
+
     const offToolCall = window.api.ai.onToolCall(async ({ id, command, reason }) => {
       // First finalize any streaming message (Claude is done generating text for this turn)
       finalizeAiStream()
 
-      // Find the last assistant message to attach the tool call to
-      const msgs    = useAppStore.getState().aiMessages
-      const lastMsg = [...msgs].reverse().find((m) => m.role === 'assistant')
+      const msgs = useAppStore.getState().aiMessages
 
-      // If there's no assistant message yet (Claude went straight to tool use), create one
-      if (!lastMsg) {
+      // Find index of the last plan card and last assistant message
+      const lastPlanIdx      = [...msgs].map((m, i) => ({ m, i })).reverse().find(({ m }) => m.role === 'plan')?.i ?? -1
+      const lastAssistantIdx = [...msgs].map((m, i) => ({ m, i })).reverse().find(({ m }) => m.role === 'assistant')?.i ?? -1
+
+      // If no assistant message exists, or the last one is BEFORE the plan card,
+      // create a fresh assistant message so tool calls land AFTER the plan
+      if (lastAssistantIdx < 0 || lastAssistantIdx < lastPlanIdx) {
         addAiMessage({ id: nanoid(), role: 'assistant', content: '' })
       }
 
-      const targetMsg = lastMsg ?? useAppStore.getState().aiMessages.find((m) => m.role === 'assistant')
+      const freshMsgs = useAppStore.getState().aiMessages
+      const lastMsg   = [...freshMsgs].reverse().find((m) => m.role === 'assistant')
+      const targetMsg = lastMsg
       if (!targetMsg) return
 
       const toolCall = { id, command, reason, status: 'pending' as const }
@@ -150,6 +161,7 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
       offChunk()
       offDone()
       offError()
+      offPlan()
       offToolCall()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -212,13 +224,14 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
   /** Always reads fresh store state to avoid stale-closure issues with async state updates */
   const buildMessages = () => {
     return useAppStore.getState().aiMessages
-      .filter((m) => m.role !== 'auto')
+      .filter((m) => m.role !== 'auto' && m.role !== 'plan')  // plan cards are UI-only, never sent to Claude
       .map((m) => ({
         role:    m.role === 'user' ? 'user' : 'assistant',
         content: m.content + (m.toolCalls?.length
           ? '\n' + m.toolCalls.map((t) => `[ran: ${t.command}] → ${t.output ?? ''}`).join('\n')
           : ''),
       }))
+      .filter((m) => m.content.trim())  // drop empty assistant shells (created as tool call anchors)
   }
 
   const sendMessage = useCallback(async (text: string, isProactive = false, proactiveContext?: string) => {
@@ -349,8 +362,29 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
               />
             ))}
 
+            {/* Thinking indicator — shown when agent is active but not streaming text */}
+            {aiAgentActive && !aiStreaming && (
+              <div className="flex items-center gap-2.5 px-3 py-2">
+                <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                  <Bot className="w-3 h-3 text-primary" />
+                </div>
+                <div className="flex items-center gap-1 px-3 py-2 rounded-xl bg-card/60">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              </div>
+            )}
+
             <div ref={bottomRef} />
           </div>
+
+          <PendingCommandBar
+            show={sessionApproval === 'ask'}
+            messages={aiMessages}
+            onApprove={handleApproveCommand}
+            onBlock={handleBlockCommand}
+          />
 
           {/* Input box */}
           <div className="border-t border-border px-3 pt-2 pb-2 shrink-0">
@@ -706,4 +740,53 @@ function collectTerminalOutput(cb: (data: string) => void): () => void {
 function stripAnsi(str: string): string {
   // eslint-disable-next-line no-control-regex
   return str.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
+}
+
+// ── Pending command sticky bar ────────────────────────────────────────────────
+
+interface PendingCommandBarProps {
+  show:      boolean
+  messages:  AiMessageType[]
+  onApprove: (msgId: string, callId: string) => void
+  onBlock:   (msgId: string, callId: string) => void
+}
+
+function PendingCommandBar({ show, messages, onApprove, onBlock }: PendingCommandBarProps): JSX.Element | null {
+  if (!show) return null
+
+  const pendingCall = messages.flatMap(m => m.toolCalls ?? []).find(t => t.status === 'pending')
+  const pendingMsg  = pendingCall ? messages.find(m => m.toolCalls?.some(t => t.id === pendingCall.id)) : null
+
+  if (!pendingCall || !pendingMsg) return null
+
+  return (
+    <div className="border-t border-primary/20 bg-primary/5 px-3 py-2.5 shrink-0">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+        <span className="text-[10px] font-semibold text-primary/70 uppercase tracking-wider">
+          Action Required
+        </span>
+      </div>
+      <code className="block w-full text-xs font-mono bg-black/20 rounded px-2 py-1.5 text-foreground/90 break-all mb-1">
+        {pendingCall.command}
+      </code>
+      {pendingCall.reason && (
+        <p className="text-[11px] text-muted-foreground mb-2">{pendingCall.reason}</p>
+      )}
+      <div className="flex gap-2">
+        <button
+          onClick={() => onApprove(pendingMsg.id, pendingCall.id)}
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary/90 transition-colors"
+        >
+          <span>▶</span> Run
+        </button>
+        <button
+          onClick={() => onBlock(pendingMsg.id, pendingCall.id)}
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive/15 text-destructive text-xs font-medium hover:bg-destructive/25 transition-colors"
+        >
+          <span>✕</span> Skip
+        </button>
+      </div>
+    </div>
+  )
 }
