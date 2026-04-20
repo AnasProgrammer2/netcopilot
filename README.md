@@ -1,4 +1,6 @@
 # NetCopilot
+![Uploading ChatGPT Image Apr 20, 2026, 04_38_47 PM.png…]()
+
 
 **Your AI-Native Network Copilot**
 
