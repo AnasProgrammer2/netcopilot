@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { nanoid } from 'nanoid'
 import { X, Send, Sparkles, Trash2, Square, ShieldCheck, Wrench, AlertCircle, ChevronDown, Check, Eye, EyeOff, ShieldAlert, RotateCcw } from 'lucide-react'
 import { useAppStore, AiMessage as AiMessageType, AiPermission, AiApproval } from '../../store'
@@ -419,7 +420,7 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
               </div>
 
               {/* Toolbar row */}
-              <div className="flex items-center gap-1 px-2 pb-2 overflow-hidden">
+              <div className="flex items-center gap-1 px-2 pb-2">
                 {/* Permission selector */}
                 <ModeSelector
                   value={sessionPermission}
@@ -509,23 +510,72 @@ function PillSelect<T extends string>({
   align?: 'left' | 'right'
 }): JSX.Element {
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 })
+  const btnRef = useRef<HTMLButtonElement>(null)
   const current = options.find(o => o.id === value)!
 
-  // Close on outside click
+  const openMenu = () => {
+    if (!btnRef.current) return
+    const r = btnRef.current.getBoundingClientRect()
+    setMenuPos({
+      top:  r.top - 8,          // will be shifted up by transform
+      left: align === 'right' ? r.right : r.left,
+    })
+    setOpen(true)
+  }
+
+  // Close on outside click / scroll
   useEffect(() => {
     if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    const close = () => setOpen(false)
+    document.addEventListener('mousedown', close)
+    window.addEventListener('scroll', close, true)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      window.removeEventListener('scroll', close, true)
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
+  const menu = open && createPortal(
+    <div
+      onMouseDown={e => e.stopPropagation()}
+      style={{
+        position: 'fixed',
+        top:      menuPos.top,
+        left:     menuPos.left,
+        transform: align === 'right' ? 'translate(-100%, -100%)' : 'translateY(-100%)',
+        zIndex:   9999,
+      }}
+      className="bg-popover border border-border/80 rounded-lg shadow-2xl min-w-[148px] py-1 overflow-hidden"
+    >
+      {options.map((opt) => {
+        const isActive = value === opt.id
+        return (
+          <button
+            key={opt.id}
+            onClick={() => { onChange(opt.id); setOpen(false) }}
+            className={cn(
+              'w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors text-left',
+              isActive
+                ? `${opt.activeColor} bg-muted/60`
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+            )}
+          >
+            {opt.icon && <span className="shrink-0">{opt.icon}</span>}
+            <span className="flex-1">{opt.label}</span>
+            {isActive && <Check className="w-3 h-3 shrink-0 opacity-80" />}
+          </button>
+        )
+      })}
+    </div>,
+    document.body
+  )
+
   return (
-    <div ref={ref} className="relative">
+    <div className="relative">
       <button
-        onClick={() => setOpen(v => !v)}
+        ref={btnRef}
+        onClick={openMenu}
         className={cn(
           'flex items-center gap-1 h-6 px-2 rounded-md text-[11px] font-medium transition-all',
           'border',
@@ -538,30 +588,7 @@ function PillSelect<T extends string>({
         <span>{current.short}</span>
         <ChevronDown className={cn('w-2.5 h-2.5 opacity-50 transition-transform', open && 'rotate-180')} />
       </button>
-
-      {open && (
-        <div className={cn('absolute bottom-full mb-2 z-50 bg-popover border border-border/80 rounded-lg shadow-2xl min-w-[148px] py-1 overflow-hidden', align === 'right' ? 'right-0' : 'left-0')}>
-          {options.map((opt) => {
-            const isActive = value === opt.id
-            return (
-              <button
-                key={opt.id}
-                onClick={() => { onChange(opt.id); setOpen(false) }}
-                className={cn(
-                  'w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors text-left',
-                  isActive
-                    ? `${opt.activeColor} bg-muted/60`
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                )}
-              >
-                {opt.icon && <span className="shrink-0">{opt.icon}</span>}
-                <span className="flex-1">{opt.label}</span>
-                {isActive && <Check className="w-3 h-3 shrink-0 opacity-80" />}
-              </button>
-            )
-          })}
-        </div>
-      )}
+      {menu}
     </div>
   )
 }
