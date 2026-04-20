@@ -31,6 +31,9 @@ const api = {
     resize: (sessionId: string, cols: number, rows: number) =>
       ipcRenderer.invoke('ssh:resize', sessionId, cols, rows),
     disconnect: (sessionId: string) => ipcRenderer.invoke('ssh:disconnect', sessionId),
+    forwardStart: (payload: unknown) => ipcRenderer.invoke('ssh:forward-start', payload),
+    forwardStop:  (forwardId: string) => ipcRenderer.invoke('ssh:forward-stop', forwardId),
+    forwardStopSession: (sessionId: string) => ipcRenderer.invoke('ssh:forward-stop-session', sessionId),
     onData: (cb: (sessionId: string, data: string) => void) => {
       const handler = (_: unknown, sessionId: string, data: string) => cb(sessionId, data)
       ipcRenderer.on('ssh:data', handler)

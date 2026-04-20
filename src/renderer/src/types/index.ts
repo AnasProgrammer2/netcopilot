@@ -104,6 +104,16 @@ export interface IpcTelnetConnectPayload {
   port: number
 }
 
+export interface PortForwardRule {
+  id:           string
+  connectionId: string
+  type:         'local' | 'dynamic'
+  localPort:    number
+  remoteHost:   string
+  remotePort:   number
+  description?: string
+}
+
 export interface TerminalDimensions {
   cols: number
   rows: number

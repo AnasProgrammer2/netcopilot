@@ -12,7 +12,12 @@ import { TitleBar } from './components/TitleBar'
 import { MasterPasswordLock } from './components/MasterPasswordLock'
 
 export default function App(): JSX.Element {
-  const { loadConnections, loadGroups, loadSshKeys, loadSettings, sessions, setQuickConnectOpen } = useAppStore()
+  const {
+    loadConnections, loadGroups, loadSshKeys, loadSettings,
+    sessions, activeSessionId,
+    setQuickConnectOpen, setSettingsOpen, setAiPanelOpen, aiPanelOpen,
+    setActiveSession, closeSession, setSplitSession, splitSessionId,
+  } = useAppStore()
   const [masterLocked, setMasterLocked] = useState<boolean | null>(null) // null = checking
   const [locked, setLocked] = useState(false)
   const lastActivityRef = useRef(Date.now())
@@ -61,12 +66,61 @@ export default function App(): JSX.Element {
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      const mod = e.metaKey || e.ctrlKey
+      if (!mod) return
+
+      // ⌘K / Ctrl+K — Quick Connect
+      if (e.key === 'k') {
         e.preventDefault()
         setQuickConnectOpen(true)
       }
+      // ⌘, / Ctrl+, — Settings
+      else if (e.key === ',') {
+        e.preventDefault()
+        setSettingsOpen(true)
+      }
+      // ⌘T / Ctrl+T — New tab (Quick Connect)
+      else if (e.key === 't') {
+        e.preventDefault()
+        setQuickConnectOpen(true)
+      }
+      // ⌘W / Ctrl+W — Close active tab
+      else if (e.key === 'w') {
+        e.preventDefault()
+        if (activeSessionId) {
+          if (activeSessionId === splitSessionId) setSplitSession(null)
+          closeSession(activeSessionId)
+        }
+      }
+      // ⌘Shift+A / Ctrl+Shift+A — Toggle ARIA panel
+      else if (e.shiftKey && e.key === 'A') {
+        e.preventDefault()
+        setAiPanelOpen(!aiPanelOpen)
+      }
+      // ⌘D / Ctrl+D — Toggle split view
+      else if (e.key === 'd') {
+        e.preventDefault()
+        if (splitSessionId) {
+          setSplitSession(null)
+        } else if (sessions.length >= 2) {
+          const other = sessions.find(s => s.id !== activeSessionId)
+          if (other) setSplitSession(other.id)
+        }
+      }
+      // ⌘1-9 / Ctrl+1-9 — Switch to tab N
+      else if (e.key >= '1' && e.key <= '9') {
+        const idx = parseInt(e.key) - 1
+        if (idx < sessions.length) {
+          e.preventDefault()
+          setActiveSession(sessions[idx].id)
+        }
+      }
     },
-    [setQuickConnectOpen]
+    [
+      setQuickConnectOpen, setSettingsOpen, setAiPanelOpen, aiPanelOpen,
+      activeSessionId, splitSessionId, sessions,
+      closeSession, setSplitSession, setActiveSession,
+    ]
   )
 
   useEffect(() => {
