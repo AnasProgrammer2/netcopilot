@@ -341,7 +341,7 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
       {/* Messages list */}
       {activeSession && (
         <>
-          <div ref={scrollRef} className="flex-1 overflow-y-auto py-2">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto py-2 select-text">
             {aiMessages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full gap-3 p-6 text-center">
                 <Bot className="w-8 h-8 text-primary/30" />
