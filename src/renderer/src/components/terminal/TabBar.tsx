@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown, Sparkles, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { terminalRegistry } from '../../lib/terminalRegistry'
@@ -14,7 +15,9 @@ export function TabBar(): JSX.Element {
   } = useAppStore()
 
   const [splitMenuOpen, setSplitMenuOpen] = useState(false)
-  const splitMenuRef = useRef<HTMLDivElement>(null)
+  const splitMenuRef  = useRef<HTMLDivElement>(null)
+  const splitBtnRef   = useRef<HTMLButtonElement>(null)
+  const [splitMenuPos, setSplitMenuPos] = useState({ top: 0, left: 0 })
 
   // Close split menu on outside click
   useEffect(() => {
@@ -27,6 +30,13 @@ export function TabBar(): JSX.Element {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [splitMenuOpen])
+
+  const openSplitMenu = () => {
+    if (!canSplit || !splitBtnRef.current) return
+    const r = splitBtnRef.current.getBoundingClientRect()
+    setSplitMenuPos({ top: r.bottom + 4, left: r.right })
+    setSplitMenuOpen(true)
+  }
 
   const canSplit = sessions.length >= 2
 
@@ -81,7 +91,7 @@ export function TabBar(): JSX.Element {
       </button>
 
       {/* Split button */}
-      <div ref={splitMenuRef} className="relative shrink-0 self-center mr-2">
+      <div className="relative shrink-0 self-center mr-2">
         {splitSessionId ? (
           <button
             onClick={() => setSplitSession(null)}
@@ -93,7 +103,8 @@ export function TabBar(): JSX.Element {
           </button>
         ) : (
           <button
-            onClick={() => canSplit && setSplitMenuOpen(v => !v)}
+            ref={splitBtnRef}
+            onClick={openSplitMenu}
             title={canSplit ? 'Split view' : 'Open another session to split'}
             disabled={!canSplit}
             className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
@@ -104,9 +115,20 @@ export function TabBar(): JSX.Element {
           </button>
         )}
 
-        {/* Split session picker */}
-        {splitMenuOpen && (
-          <div className="absolute right-0 top-full mt-1 z-30 bg-popover border border-border rounded-lg shadow-xl w-48 py-1 overflow-hidden">
+        {/* Split session picker — rendered via portal to avoid clipping */}
+        {splitMenuOpen && createPortal(
+          <div
+            ref={splitMenuRef}
+            onMouseDown={e => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              top:  splitMenuPos.top,
+              left: splitMenuPos.left,
+              transform: 'translateX(-100%)',
+              zIndex: 9999,
+            }}
+            className="bg-popover border border-border rounded-lg shadow-xl w-48 py-1 overflow-hidden"
+          >
             <p className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest">
               Show alongside
             </p>
@@ -126,7 +148,8 @@ export function TabBar(): JSX.Element {
                 </button>
               ))
             }
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </div>
