@@ -178,10 +178,27 @@ NetCopilot ships with a default blacklist of dangerous commands: `reload`, `shut
 ARIA is built as a **specialized infrastructure expert**, not a general-purpose AI:
 
 - Deep expertise in Cisco, Juniper, Arista, Palo Alto, FortiGate, MikroTik, Huawei, and more
-- Knowledge equivalent to CCNA, CCNP, CCIE, JNCIE, and DevOps certifications
 - Strict operational scope — ARIA only handles network and infrastructure topics
 - Responds in the same language the engineer writes in (English, Arabic, or other)
 - API key stored in the OS keychain — never on disk or in any config file
+
+### Certifications ARIA Masters
+
+Working with ARIA is like having a senior engineer with all of these certifications on your team:
+
+| Vendor | Certifications |
+|--------|---------------|
+| **Cisco** | CCNA · CCNP (Enterprise, Security, Data Center, Service Provider) · CCIE (Enterprise Infrastructure, Security, Data Center, Service Provider, Wireless) |
+| **Juniper** | JNCIA · JNCIS · JNCIP · JNCIE (ENT, SP, SEC, DC) |
+| **Nokia** | NRS I · NRS II · SRA · SRX (Service Routing Expert) |
+| **Arista** | ACE-A · ACE-L2 · ACE-L3 · ACE-O |
+| **Palo Alto** | PCNSA · PCNSE |
+| **Fortinet** | NSE 4 · NSE 5 · NSE 6 · NSE 7 · NSE 8 |
+| **F5** | 101 · 201 · 301A · 301B (BIG-IP Administrator & Developer) |
+| **Linux / Cloud** | RHCE · LFCS · LFCE · AWS Solutions Architect · GCP Network Engineer · Azure Network Engineer |
+| **General** | CompTIA Network+ · Security+ · CASP+ · Wireshark WCNA |
+
+> ARIA combines the knowledge of all these certifications into one assistant — available instantly, in any language, at any hour.
 
 ---
 
