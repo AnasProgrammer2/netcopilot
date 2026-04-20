@@ -8,6 +8,9 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     strategy:
@@ -35,7 +38,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       # Linux — native build dependencies
@@ -43,14 +46,22 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libudev-dev libusb-1.0-0-dev
+          sudo apt-get install -y \
+            libudev-dev \
+            libusb-1.0-0-dev \
+            build-essential \
+            python3 \
+            libarchive-tools \
+            rpm \
+            fakeroot \
+            libopenjp2-tools \
+            libsecret-1-dev
 
       - name: Install dependencies
         run: npm ci
 
       - name: Build & package
         env:
-          # Skip macOS code signing (no Apple Developer cert in CI)
           CSC_IDENTITY_AUTO_DISCOVERY: false
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build:${{ matrix.platform }}
