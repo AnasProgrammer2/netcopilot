@@ -67,7 +67,7 @@ jobs:
         run: npm run build:${{ matrix.platform }}
 
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.3.2
         with:
           files: |
             dist/*.dmg
