@@ -492,19 +492,36 @@ export function TerminalTab({ session }: Props): JSX.Element {
           termRef.current?.write('\x1b[32mConnected\x1b[0m\r\n')
           useAppStore.getState().updateLastConnected(conn.id)
 
-          // Execute startup commands after a short delay
-          const cmds = (conn.startupCommands ?? []).filter(Boolean)
-          if (cmds.length > 0) {
+          // Auto-disable paging so ARIA gets full output without --More-- prompts
+          const pagingCmd = (() => {
+            const dt = conn.deviceType
+            if (conn.protocol === 'serial') return null
+            if (dt?.startsWith('cisco') || dt === 'generic') return 'terminal length 0'
+            if (dt === 'junos')      return 'set cli screen-length 0'
+            if (dt === 'arista-eos') return 'terminal length 0'
+            if (dt === 'huawei-vrp') return 'screen-length 0 temporary'
+            if (dt === 'nokia-sros') return 'environment no more'
+            if (dt === 'hp-procurve') return 'no page'
+            if (dt === 'linux' || dt === 'windows') return null
+            return 'terminal length 0'
+          })()
+
+          const startupCmds = [
+            ...(pagingCmd ? [pagingCmd] : []),
+            ...(conn.startupCommands ?? []).filter(Boolean),
+          ]
+
+          if (startupCmds.length > 0) {
             startupTimerRef.current = setTimeout(() => {
               startupTimerRef.current = null
               if (!mountedRef.current) return
-              for (const cmd of cmds) {
+              for (const cmd of startupCmds) {
                 const data = cmd + '\r'
                 if (conn.protocol === 'ssh')         window.api.ssh.send(session.id, data)
                 else if (conn.protocol === 'serial') window.api.serial.send(session.id, data)
                 else                                  window.api.telnet.send(session.id, data)
               }
-            }, 500)
+            }, 800)
           }
 
           // Enable password auto-login for Cisco devices

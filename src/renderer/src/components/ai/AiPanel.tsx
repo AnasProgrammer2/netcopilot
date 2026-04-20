@@ -231,22 +231,35 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         resolve()
       }
 
+      // Detect --More-- paging prompts and automatically advance through them
+      const MORE_PATTERN = /--\s*[Mm]ore\s*--|<--- More --->|\s+---- More ----/
+
+      const sendData = (d: string) => {
+        if (targetSessionId && sendToSession) sendToSession(targetSessionId, d)
+        else sendToTerminal(d)
+      }
+
       // Collect terminal output from the correct session only
       offData = collectTerminalOutput((data) => {
         output += data
         clearTimeout(timer)
+
+        // If device is paginating, send space to get the next page
+        if (MORE_PATTERN.test(data)) {
+          sendData(' ')
+          // Continue collecting — don't reset the debounce yet
+          timer = setTimeout(finish, 3000)
+          return
+        }
+
         timer = setTimeout(finish, 2000)
       }, resolvedSessionId)
 
       // Send the command to the correct session
-      if (targetSessionId && sendToSession) {
-        sendToSession(targetSessionId, command + '\r')
-      } else {
-        sendToTerminal(command + '\r')
-      }
+      sendData(command + '\r')
 
-      // Safety timeout: if no output arrives in 6s, finish anyway
-      timer = setTimeout(finish, 6000)
+      // Safety timeout: if no output arrives in 8s, finish anyway
+      timer = setTimeout(finish, 8000)
     })
   }, [updateAiToolCall, sendToTerminal, sendToSession, activeSession, allSessions])
 
