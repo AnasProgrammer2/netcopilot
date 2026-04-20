@@ -7,6 +7,28 @@ import { cn } from '../../lib/utils'
 import { AiMessage } from './AiMessage'
 import { Session } from '../../types'
 import { terminalRegistry } from '../../lib/terminalRegistry'
+import { DeviceType } from '../../types'
+
+// ── Quick Commands per device type ────────────────────────────────────────────
+const QUICK_COMMANDS: Record<DeviceType | 'default', string[]> = {
+  'cisco-ios':    ['Check BGP neighbor status', 'Show interface errors', 'What routes are in the routing table?', 'Check CPU and memory usage', 'Show OSPF neighbors'],
+  'cisco-iosxe':  ['Check BGP neighbor status', 'Show interface errors', 'Diagnose high CPU usage', 'Show IP SLA status', 'Check QoS policy stats'],
+  'cisco-nxos':   ['Check vPC consistency', 'Show VXLAN/EVPN state', 'Check fabric links status', 'Show interface counters', 'Diagnose BGP issues'],
+  'cisco-asa':    ['Check active VPN sessions', 'Show firewall hit counts', 'Check NAT translations', 'Show active connections', 'Diagnose connectivity issue'],
+  'junos':        ['Show routing table summary', 'Check BGP peers', 'Show interface errors', 'Check OSPF adjacencies', 'Show commit history'],
+  'arista-eos':   ['Check EVPN/BGP state', 'Show interface counters', 'Check MLAG status', 'Show hardware capacity', 'Diagnose packet drops'],
+  'panos':        ['Check security policy hit counts', 'Show active sessions', 'Check threat logs', 'Verify NAT rules', 'Show interface status'],
+  'fortios':      ['Check SD-WAN performance', 'Show active firewall sessions', 'Check VPN tunnel status', 'Show resource usage', 'Diagnose policy issue'],
+  'mikrotik':     ['Show interface statistics', 'Check firewall rules', 'Show routing table', 'Check OSPF/BGP neighbors', 'Show active connections'],
+  'nokia-sros':   ['Show service state', 'Check MPLS LSPs', 'Show interface errors', 'Check BGP peers', 'Show router info'],
+  'huawei-vrp':   ['Show interface status', 'Check BGP peers', 'Show OSPF state', 'Check CPU usage', 'Show ARP table'],
+  'hp-procurve':  ['Show VLAN config', 'Check spanning tree', 'Show interface stats', 'Check LACP status', 'Show MAC table'],
+  'f5-tmos':      ['Check virtual server status', 'Show pool member health', 'Check active connections', 'Show SSL cert expiry', 'Diagnose traffic issue'],
+  'linux':        ['Check CPU and memory usage', 'Show disk space', 'List running services', 'Check network connections', 'Show recent system errors'],
+  'windows':      ['Check running services', 'Show event log errors', 'Check disk space', 'List network adapters', 'Show active connections'],
+  'generic':      ['Show system info', 'Check interface status', 'Show running config', 'Check CPU/memory', 'Ping gateway'],
+  'default':      ['Show system info', 'Check interface status', 'Show running config', 'Check CPU/memory', 'Ping gateway'],
+}
 
 interface Props {
   activeSession: Session | null
@@ -302,7 +324,33 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border shrink-0">
         <Sparkles className="w-4 h-4 text-primary shrink-0" />
-        <span className="text-sm font-semibold text-foreground flex-1">ARIA</span>
+        <span className="text-sm font-semibold text-foreground">ARIA</span>
+
+        {/* Connection Health Indicator */}
+        {activeSession && (() => {
+          const s = activeSession.status
+          const dot   = s === 'connected'    ? 'bg-emerald-400'
+                      : s === 'connecting'   ? 'bg-amber-400 animate-pulse'
+                      : s === 'error'        ? 'bg-red-400'
+                      : 'bg-muted-foreground/40'
+          const label = s === 'connected'    ? 'Connected'
+                      : s === 'connecting'   ? 'Connecting…'
+                      : s === 'error'        ? 'Error'
+                      : 'Disconnected'
+          const color = s === 'connected'    ? 'text-emerald-400'
+                      : s === 'connecting'   ? 'text-amber-400'
+                      : s === 'error'        ? 'text-red-400'
+                      : 'text-muted-foreground/50'
+          return (
+            <div className="flex items-center gap-1 flex-1" title={`${activeSession.connection.host} — ${label}`}>
+              <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', dot)} />
+              <span className={cn('text-[10px] font-medium truncate max-w-[100px]', color)}>
+                {activeSession.connection.host}
+              </span>
+            </div>
+          )
+        })()}
+        {!activeSession && <span className="flex-1" />}
 
         {/* Token counter next to clear button */}
         {(aiTokens.input > 0 || aiTokens.output > 0) && (
@@ -359,14 +407,38 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
       {activeSession && (
         <>
           <div ref={scrollRef} className="flex-1 overflow-y-auto py-2 select-text">
-            {aiMessages.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full gap-3 p-6 text-center">
-                <Sparkles className="w-8 h-8 text-primary/30" />
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Ask me anything about your device, or I'll proactively help when I see issues in the terminal.
-                </p>
-              </div>
-            )}
+            {aiMessages.length === 0 && (() => {
+              const deviceType = activeSession.connection.deviceType ?? 'generic'
+              const cmds = QUICK_COMMANDS[deviceType] ?? QUICK_COMMANDS['default']
+              return (
+                <div className="flex flex-col gap-4 p-4 h-full">
+                  <div className="flex flex-col items-center gap-2 pt-4 text-center">
+                    <Sparkles className="w-6 h-6 text-primary/40" />
+                    <p className="text-xs text-muted-foreground/70">
+                      Quick start — tap a suggestion or ask anything
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {cmds.map((cmd) => (
+                      <button
+                        key={cmd}
+                        onClick={() => {
+                          setInput(cmd)
+                          setTimeout(() => inputRef.current?.focus(), 50)
+                        }}
+                        className={cn(
+                          'text-left text-xs px-3 py-2 rounded-lg border border-border/60',
+                          'text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-primary/5',
+                          'transition-all'
+                        )}
+                      >
+                        {cmd}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
 
             {aiMessages.map((msg) => (
               <AiMessage
