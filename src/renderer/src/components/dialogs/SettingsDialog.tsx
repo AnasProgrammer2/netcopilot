@@ -3,7 +3,7 @@ import appIcon from '../../assets/icon.png'
 import {
   X, Monitor, Terminal, Network, Lock, Info, FileText,
   Sun, Moon, Laptop, Check, ChevronRight, FolderOpen,
-  Bot, Eye, EyeOff, ShieldCheck, Wrench, Zap
+  Sparkles, Eye, EyeOff, ShieldCheck, Wrench, Zap
 } from 'lucide-react'
 import { useAppStore, AiPermission, AiApproval } from '../../store'
 import { cn } from '../../lib/utils'
@@ -87,7 +87,7 @@ const NAV: { id: SettingsSection; label: string; icon: React.ComponentType<{ cla
   { id: 'connection', label: 'Connection', icon: Network   },
   { id: 'logging',    label: 'Logging',    icon: FileText  },
   { id: 'security',   label: 'Security',   icon: Lock      },
-  { id: 'ai',         label: 'ARIA',        icon: Bot       },
+  { id: 'ai',         label: 'ARIA',        icon: Sparkles  },
   { id: 'about',      label: 'About',      icon: Info      },
 ]
 
@@ -931,7 +931,7 @@ function AiSection(): JSX.Element {
       id:   'ask',
       label: 'Ask before each command',
       desc:  'AI shows the command and waits for your approval before running.',
-      icon:  <Bot className="w-4 h-4 text-primary" />,
+      icon:  <Sparkles className="w-4 h-4 text-primary" />,
     },
     {
       id:   'auto',
@@ -950,7 +950,7 @@ function AiSection(): JSX.Element {
   return (
     <div className="space-y-6">
       <SectionHeader
-        icon={<Bot className="w-4 h-4" />}
+        icon={<Sparkles className="w-4 h-4" />}
         title="ARIA"
         description="Configure ARIA — your AI-native network assistant."
       />
