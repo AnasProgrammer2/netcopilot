@@ -699,7 +699,7 @@ function AboutSection() {
     : navigator.platform
 
   const rows = [
-    { label: 'Version',  value: '0.4.3' },
+    { label: 'Version',  value: '0.5.0' },
     { label: 'Electron', value: info?.versions.electron ?? '—' },
     { label: 'Node.js',  value: info?.versions.node     ?? '—' },
     { label: 'Chrome',   value: info?.versions.chrome   ?? '—' },

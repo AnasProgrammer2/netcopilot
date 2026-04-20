@@ -58,6 +58,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
   const [sessionApproval,   setSessionApproval]   = useState<AiApproval>(aiApproval)
   const [sessionBlacklist,  setSessionBlacklist]  = useState<string[]>(aiBlacklist)
   const [autoWatch,         setAutoWatch]          = useState(true)
+  const [historyCommands,   setHistoryCommands]    = useState<string[]>([])
   const prevMessageCount = useRef(0)
 
   // Sequential command queue — prevents race condition when auto-executing multiple commands
@@ -70,6 +71,15 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
     }
     prevMessageCount.current = aiMessages.length
   }, [aiMessages.length, aiPermission, aiApproval, aiBlacklist])
+
+  // Load Smart History for the active session's device type
+  useEffect(() => {
+    const rawDt = activeSession?.connection.deviceType ?? 'generic'
+    const deviceType = rawDt === 'auto' ? 'generic' : rawDt
+    window.api.history.get(deviceType, 12).then((rows) => {
+      setHistoryCommands(rows.map(r => r.command))
+    }).catch(() => {/* ignore */})
+  }, [activeSession?.connection.deviceType])
 
   // Sync per-session flags to window bridge so closed effects can read latest values
   useEffect(() => {
@@ -293,6 +303,13 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 
     if (!isProactive) {
       addAiMessage({ id: nanoid(), role: 'user', content: text })
+      // Smart History: persist command keyed by device type (resolve 'auto' to 'generic')
+      const rawDt = activeSession?.connection.deviceType ?? 'generic'
+      const deviceType = rawDt === 'auto' ? 'generic' : rawDt
+      window.api.history.record(deviceType, text.trim())
+        .then(() => window.api.history.get(deviceType, 12))
+        .then((rows) => setHistoryCommands(rows.map(r => r.command)))
+        .catch(() => {/* ignore */})
     }
 
     setAiStreaming(true)
@@ -532,12 +549,25 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
             onBlock={handleBlockCommand}
           />
 
-          {/* Quick Suggestions Bar */}
+          {/* Quick Suggestions Bar — blends Smart History with predefined commands */}
           {!aiStreaming && !aiAgentActive && (() => {
-            const deviceType = activeSession.connection.deviceType ?? 'generic'
-            const allCmds = QUICK_COMMANDS[deviceType] ?? QUICK_COMMANDS['default']
-            const asked = new Set(aiMessages.filter(m => m.role === 'user').map(m => m.content))
-            const cmds = allCmds.filter(c => !asked.has(c)).slice(0, aiMessages.length === 0 ? 5 : 3)
+            const rawDt    = activeSession.connection.deviceType ?? 'generic'
+            const deviceType = (rawDt === 'auto' ? 'generic' : rawDt) as keyof typeof QUICK_COMMANDS
+            const predef = QUICK_COMMANDS[deviceType] ?? QUICK_COMMANDS['default']
+            const asked  = new Set(aiMessages.filter(m => m.role === 'user').map(m => m.content))
+            const limit  = aiMessages.length === 0 ? 5 : 3
+
+            // History items that haven't been asked yet (most-used first, already sorted by DB)
+            const fromHistory = historyCommands.filter(c => !asked.has(c))
+            const fromHistorySet = new Set(fromHistory)
+
+            // Predefined items that aren't already covered by history
+            const fromPredef = predef.filter(c => !asked.has(c) && !fromHistorySet.has(c))
+
+            // Interleave: start with history, fill up with predefined
+            const cmds = [...fromHistory, ...fromPredef].slice(0, limit)
+            const historySet = new Set(fromHistory.slice(0, limit))
+
             if (cmds.length === 0) return null
             return (
               <div className="px-3 pt-1 pb-1.5 shrink-0">
@@ -549,13 +579,20 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                         setInput(cmd)
                         setTimeout(() => inputRef.current?.focus(), 50)
                       }}
+                      title={historySet.has(cmd) ? 'From your history' : undefined}
                       className={cn(
-                        'shrink-0 text-[11px] px-3 py-1.5 rounded-full',
-                        'bg-primary/6 border border-primary/15 text-primary/70',
-                        'hover:bg-primary/12 hover:border-primary/30 hover:text-primary',
+                        'shrink-0 text-[11px] px-3 py-1.5 rounded-full flex items-center gap-1',
+                        historySet.has(cmd)
+                          ? 'bg-amber-500/8 border border-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/15 hover:border-amber-500/35'
+                          : 'bg-primary/6 border border-primary/15 text-primary/70 hover:bg-primary/12 hover:border-primary/30 hover:text-primary',
                         'transition-all whitespace-nowrap font-medium'
                       )}
                     >
+                      {historySet.has(cmd) && (
+                        <svg className="w-2.5 h-2.5 shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                      )}
                       {cmd}
                     </button>
                   ))}

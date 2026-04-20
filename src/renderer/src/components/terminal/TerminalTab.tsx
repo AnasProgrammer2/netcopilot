@@ -5,8 +5,10 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import { SearchAddon } from '@xterm/addon-search'
 import '@xterm/xterm/css/xterm.css'
 import { Search, X, ChevronUp, ChevronDown } from 'lucide-react'
+import { toast } from 'sonner'
 import { Session } from '../../types'
 import { useAppStore } from '../../store'
+import { detectDeviceType, PROBE_COMMAND, DEVICE_LABELS } from '../../lib/deviceDetector'
 import { PasswordPrompt } from '../dialogs/PasswordPrompt'
 import { TerminalHighlighter } from '../../lib/highlighter'
 import type { TerminalSettings, ConnectionSettings } from '../../store'
@@ -29,7 +31,9 @@ export function TerminalTab({ session }: Props): JSX.Element {
   const savedCredsRef   = useRef<{ username: string; password: string } | null>(null)
   const enableStateRef  = useRef<'idle' | 'waiting-prompt' | 'sent-enable' | 'done'>('idle')
   const highlighterRef  = useRef<TerminalHighlighter>(
-    new TerminalHighlighter(session.connection.deviceType)
+    new TerminalHighlighter(
+      session.connection.deviceType === 'auto' ? 'generic' : session.connection.deviceType
+    )
   )
   const connSettingsRef = useRef<ConnectionSettings>(
     useAppStore.getState().connectionSettings
@@ -492,9 +496,60 @@ export function TerminalTab({ session }: Props): JSX.Element {
           termRef.current?.write('\x1b[32mConnected\x1b[0m\r\n')
           useAppStore.getState().updateLastConnected(conn.id)
 
+          // ── Auto device-type detection ─────────────────────────────────────
+          if (conn.deviceType === 'auto' && conn.protocol !== 'serial') {
+            // Collect banner output for 2.5s, then probe if still unresolved
+            let bannerBuf = ''
+            let detectionDone = false
+
+            const bannerListener = (_sid: string, d: string) => {
+              if (_sid === session.id && !detectionDone) bannerBuf += d
+            }
+
+            const unsubBanner =
+              conn.protocol === 'ssh'
+                ? window.api.ssh.onData(bannerListener)
+                : window.api.telnet.onData(bannerListener)
+
+            const applyDetected = async (detected: import('../../types').DeviceType | null) => {
+              detectionDone = true
+              unsubBanner()
+              const resolved = detected ?? 'generic'
+              if (!mountedRef.current) return
+
+              // Persist to DB
+              const updated = { ...conn, deviceType: resolved, updatedAt: Date.now() }
+              await window.api.store.saveConnection(updated)
+              useAppStore.getState().saveConnection(updated)
+
+              toast.success(`Device detected: ${DEVICE_LABELS[resolved]}`, {
+                description: conn.host,
+                duration: 4000,
+              })
+            }
+
+            // Phase 1: analyse banner after 2.5s
+            setTimeout(async () => {
+              if (detectionDone || !mountedRef.current) return
+              const detected = detectDeviceType(bannerBuf)
+              if (detected) { await applyDetected(detected); return }
+
+              // Phase 2: send probe command and wait 3s more
+              const probe = PROBE_COMMAND + '\r'
+              if (conn.protocol === 'ssh')    window.api.ssh.send(session.id, probe)
+              else                             window.api.telnet.send(session.id, probe)
+
+              setTimeout(async () => {
+                if (detectionDone || !mountedRef.current) return
+                await applyDetected(detectDeviceType(bannerBuf))
+              }, 3000)
+            }, 2500)
+          }
+
           // Auto-disable paging so ARIA gets full output without --More-- prompts
+          const resolvedDt = conn.deviceType === 'auto' ? 'generic' : conn.deviceType
           const pagingCmd = (() => {
-            const dt = conn.deviceType
+            const dt = resolvedDt
             if (conn.protocol === 'serial') return null
             if (dt?.startsWith('cisco') || dt === 'generic') return 'terminal length 0'
             if (dt === 'junos')      return 'set cli screen-length 0'
@@ -525,7 +580,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
           }
 
           // Enable password auto-login for Cisco devices
-          if (conn.enablePassword && conn.deviceType?.startsWith('cisco')) {
+          if (conn.enablePassword && resolvedDt?.startsWith('cisco')) {
             enableStateRef.current = 'waiting-prompt'
           } else {
             enableStateRef.current = 'idle'

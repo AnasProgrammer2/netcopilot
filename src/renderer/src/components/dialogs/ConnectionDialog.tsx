@@ -25,6 +25,8 @@ const DEFAULT_SERIAL: SerialConfig = {
 }
 
 const DEVICE_TYPES: { value: DeviceType; label: string; group: string }[] = [
+  // Auto-detect
+  { value: 'auto',        label: '✨ Auto-detect',      group: 'Smart' },
   // Servers
   { value: 'linux',       label: 'Linux / Unix',       group: 'Servers' },
   { value: 'windows',     label: 'Windows Server',     group: 'Servers' },
@@ -64,7 +66,7 @@ function emptyForm(cs: ConnectionSettings): Partial<Connection> {
     authType: 'password',
     tags: [],
     notes: '',
-    deviceType: 'linux',
+    deviceType: 'auto',
     color: COLORS[0],
     autoReconnect: cs.autoReconnect,
     reconnectDelay: cs.reconnectDelay
