@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useState, useRef } from 'react'
 import { Lock } from 'lucide-react'
+import { Toaster } from 'sonner'
 import { useAppStore } from './store'
 import { Sidebar } from './components/sidebar/Sidebar'
 import { TerminalArea } from './components/terminal/TerminalArea'
@@ -98,6 +99,7 @@ export default function App(): JSX.Element {
 
   return (
     <div className="flex flex-col h-screen w-screen bg-background text-foreground select-none overflow-hidden">
+      <Toaster position="bottom-right" theme="dark" richColors closeButton />
       <TitleBar />
 
       <div className="flex flex-1 overflow-hidden min-h-0">

@@ -279,6 +279,11 @@ export function TerminalTab({ session }: Props): JSX.Element {
       scrollToBottom: () => {
         term.scrollToBottom()
       },
+      reconnect: () => {
+        if (connectingRef.current) return
+        term.write('\r\n\x1b[33m⟳ Reconnecting...\x1b[0m\r\n')
+        doConnect(true)
+      },
     })
 
     // Intercept Ctrl/Cmd+F for search

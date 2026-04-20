@@ -38,11 +38,16 @@ export function TerminalArea(): JSX.Element {
     window.addEventListener('mouseup', onUp)
   }, [aiWidth])
 
-  // Callbacks for AiPanel
+  // Callbacks for AiPanel — includes split session context when active
   const getTerminalContext = useCallback((lines = 120) => {
     if (!activeSessionId) return ''
-    return terminalRegistry.get(activeSessionId)?.getContext(lines) ?? ''
-  }, [activeSessionId])
+    const primary = terminalRegistry.get(activeSessionId)?.getContext(lines) ?? ''
+    if (!isSplit || !splitSessionId) return primary
+    const splitSession = sessions.find(s => s.id === splitSessionId)
+    const secondary = terminalRegistry.get(splitSessionId)?.getContext(lines) ?? ''
+    if (!secondary) return primary
+    return `=== ${activeSession?.connection.name ?? 'Primary'} ===\n${primary}\n\n=== ${splitSession?.connection.name ?? 'Secondary'} ===\n${secondary}`
+  }, [activeSessionId, splitSessionId, isSplit, sessions, activeSession])
 
   const sendToTerminal = useCallback((data: string) => {
     if (!activeSessionId || !activeSession) return
@@ -109,6 +114,7 @@ export function TerminalArea(): JSX.Element {
             <div className="shrink-0 flex flex-col overflow-hidden min-h-0" style={{ width: aiWidth }}>
               <AiPanel
                 activeSession={activeSession}
+                splitSession={isSplit ? sessions.find(s => s.id === splitSessionId) ?? null : null}
                 getTerminalContext={getTerminalContext}
                 sendToTerminal={sendToTerminal}
               />

@@ -6,6 +6,7 @@ export interface TerminalHandle {
   getContext:     (lines?: number) => string
   sendData:       (data: string) => void
   scrollToBottom: () => void
+  reconnect:      () => void
 }
 
 const registry = new Map<string, TerminalHandle>()
