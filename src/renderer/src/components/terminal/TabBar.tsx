@@ -177,15 +177,19 @@ function Tab({ session, isActive, isSplit, onActivate, onClose }: TabProps): JSX
       onClick={onActivate}
       className={cn(
         'relative flex items-center gap-1.5 px-3 h-9 cursor-pointer shrink-0 group max-w-52 select-none',
-        'rounded-t-md border border-b-0 transition-colors',
+        'rounded-t-md border border-b-0 transition-all',
         isActive
           ? 'bg-background border-border text-foreground z-10'
           : 'bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-background/40',
         isSplit && !isActive && 'border-primary/30 bg-primary/5 text-primary/80'
       )}
     >
+      {/* Active tab — colored top bar */}
       {isActive && (
-        <span className="absolute bottom-[-1px] left-0 right-0 h-px bg-background" />
+        <>
+          <span className="absolute top-0 left-3 right-3 h-[2px] rounded-b bg-primary/70" />
+          <span className="absolute bottom-[-1px] left-0 right-0 h-px bg-background" />
+        </>
       )}
 
       <span className={cn('w-1.5 h-1.5 rounded-full shrink-0 transition-colors', statusDot)} />

@@ -47,7 +47,7 @@ function formatTokens(n: number): string {
 
 export function AiPanel({ activeSession, splitSession, allSessions, getTerminalContext, sendToTerminal, sendToSession }: Props): JSX.Element {
   const {
-    aiMessages, aiStreaming, aiAgentActive, aiPermission, aiApproval, aiBlacklist, aiTokens,
+    aiMessages, aiStreaming, aiAgentActive, aiPermission, aiApproval, aiBlacklist, aiTokens, aiModel,
     addAiMessage, appendAiChunk, finalizeAiStream, updateAiToolCall, clearAiMessages,
     setAiStreaming, setAiAgentActive, setAiPanelOpen,
   } = useAppStore()
@@ -300,6 +300,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       protocol:        conn?.protocol ?? 'ssh',
       permission:      sessionPermission,
       isProactive,
+      model:           aiModel,
       sessions: allSessions?.map(s => ({
         sessionId:  s.id,
         name:       s.connection.name,
@@ -339,8 +340,16 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
     <div className="flex flex-col h-full min-h-0 border-l border-border bg-background">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border shrink-0">
-        <Sparkles className="w-4 h-4 text-primary shrink-0" />
-        <span className="text-sm font-semibold text-foreground">ARIA</span>
+        {/* ARIA logo */}
+        <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-br from-primary/30 to-primary/10 shrink-0">
+          <Sparkles className="w-3.5 h-3.5 text-primary" />
+        </div>
+        <span className="text-sm font-bold text-foreground tracking-tight">ARIA</span>
+
+        {/* Model chip */}
+        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted/60 text-muted-foreground/70 font-medium border border-border/50 leading-none hidden sm:inline shrink-0">
+          {aiModel.replace('claude-', '').replace('-4-5', ' 4.5')}
+        </span>
 
         {/* Connection Health Indicator */}
         {activeSession && (() => {
@@ -358,9 +367,9 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                       : s === 'error'        ? 'text-red-400'
                       : 'text-muted-foreground/50'
           return (
-            <div className="flex items-center gap-1 flex-1" title={`${activeSession.connection.name} — ${activeSession.connection.host} (${label})`}>
+            <div className="flex items-center gap-1 flex-1 min-w-0" title={`${activeSession.connection.name} — ${activeSession.connection.host} (${label})`}>
               <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', dot)} />
-              <span className={cn('text-[10px] font-medium truncate max-w-[100px]', color)}>
+              <span className={cn('text-[10px] font-medium truncate', color)}>
                 {activeSession.connection.name}
               </span>
             </div>
@@ -417,11 +426,16 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 
       {/* No session notice */}
       {!activeSession && (
-        <div className="flex flex-col items-center justify-center flex-1 gap-3 p-6 text-center">
-          <AlertCircle className="w-8 h-8 text-muted-foreground/40" />
-          <p className="text-sm text-muted-foreground">
-            Connect to a device to start chatting with ARIA
-          </p>
+        <div className="flex flex-col items-center justify-center flex-1 gap-4 p-6 text-center">
+          <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-muted/50 border border-border">
+            <AlertCircle className="w-5 h-5 text-muted-foreground/50" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground/70">No active session</p>
+            <p className="text-xs text-muted-foreground/60 max-w-[180px] leading-relaxed">
+              Connect to a device to start chatting with ARIA
+            </p>
+          </div>
         </div>
       )}
 
@@ -430,12 +444,34 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         <>
           <div ref={scrollRef} className="flex-1 overflow-y-auto py-2 select-text">
             {aiMessages.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full gap-2 p-6 text-center">
-                <Sparkles className="w-7 h-7 text-primary/25" />
-                <p className="text-xs text-muted-foreground/60 leading-relaxed">
-                  Ask me anything about<br/>
-                  <span className="font-medium text-foreground/50">{activeSession.connection.name}</span>
-                </p>
+              <div className="flex flex-col items-center justify-center h-full gap-5 px-5 py-8 text-center">
+                {/* Glowing icon */}
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-2xl bg-primary/20 blur-xl scale-150" />
+                  <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/25 to-primary/5 border border-primary/20">
+                    <Sparkles className="w-6 h-6 text-primary" />
+                  </div>
+                </div>
+
+                {/* Heading */}
+                <div className="space-y-1.5">
+                  <p className="text-sm font-semibold text-foreground">
+                    Hi, I'm ARIA
+                  </p>
+                  <p className="text-xs text-muted-foreground/70 leading-relaxed max-w-[200px]">
+                    Your AI network engineer.<br/>
+                    Connected to <span className="font-semibold text-foreground/60">{activeSession.connection.name}</span>.
+                  </p>
+                </div>
+
+                {/* Capability chips */}
+                <div className="flex flex-wrap gap-1.5 justify-center max-w-[220px]">
+                  {['Diagnose issues', 'Read configs', 'Run commands', 'Plan changes'].map(cap => (
+                    <span key={cap} className="text-[10px] px-2 py-1 rounded-full bg-primary/8 border border-primary/15 text-primary/70 font-medium">
+                      {cap}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -478,13 +514,12 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
           {!aiStreaming && !aiAgentActive && (() => {
             const deviceType = activeSession.connection.deviceType ?? 'generic'
             const allCmds = QUICK_COMMANDS[deviceType] ?? QUICK_COMMANDS['default']
-            // When conversation started, show fewer suggestions based on what wasn't asked yet
             const asked = new Set(aiMessages.filter(m => m.role === 'user').map(m => m.content))
             const cmds = allCmds.filter(c => !asked.has(c)).slice(0, aiMessages.length === 0 ? 5 : 3)
             if (cmds.length === 0) return null
             return (
-              <div className="px-3 py-1.5 shrink-0">
-                <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
+              <div className="px-3 pt-1 pb-1.5 shrink-0">
+                <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
                   {cmds.map((cmd) => (
                     <button
                       key={cmd}
@@ -493,9 +528,10 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                         setTimeout(() => inputRef.current?.focus(), 50)
                       }}
                       className={cn(
-                        'shrink-0 text-[11px] px-2.5 py-1 rounded-full border border-border/50',
-                        'text-muted-foreground/80 hover:text-foreground hover:border-primary/40 hover:bg-primary/5',
-                        'transition-all whitespace-nowrap'
+                        'shrink-0 text-[11px] px-3 py-1.5 rounded-full',
+                        'bg-primary/6 border border-primary/15 text-primary/70',
+                        'hover:bg-primary/12 hover:border-primary/30 hover:text-primary',
+                        'transition-all whitespace-nowrap font-medium'
                       )}
                     >
                       {cmd}
