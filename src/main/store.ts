@@ -132,4 +132,36 @@ export function setupStoreHandlers(ipcMain: IpcMain): void {
     `).run({ key, value: JSON.stringify(value) })
     return true
   })
+
+  // ── Command History ──────────────────────────────────────────────────────────
+
+  ipcMain.handle('history:record', (_, deviceType: string, command: string) => {
+    getDb().prepare(`
+      INSERT INTO command_history (device_type, command, count, last_used)
+      VALUES (@device_type, @command, 1, @now)
+      ON CONFLICT(device_type, command)
+      DO UPDATE SET count = count + 1, last_used = @now
+    `).run({ device_type: deviceType, command, now: Date.now() })
+    return true
+  })
+
+  ipcMain.handle('history:get', (_, deviceType: string, limit = 8) => {
+    const rows = getDb().prepare(`
+      SELECT command, count, last_used
+      FROM command_history
+      WHERE device_type = ?
+      ORDER BY count DESC, last_used DESC
+      LIMIT ?
+    `).all(deviceType, limit) as { command: string; count: number; last_used: number }[]
+    return rows
+  })
+
+  ipcMain.handle('history:clear', (_, deviceType?: string) => {
+    if (deviceType) {
+      getDb().prepare('DELETE FROM command_history WHERE device_type = ?').run(deviceType)
+    } else {
+      getDb().prepare('DELETE FROM command_history').run()
+    }
+    return true
+  })
 }

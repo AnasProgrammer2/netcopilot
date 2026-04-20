@@ -1,6 +1,7 @@
 export type Protocol = 'ssh' | 'telnet' | 'serial'
 export type AuthType = 'password' | 'key' | 'key+password'
 export type DeviceType =
+  | 'auto'
   | 'linux'
   | 'cisco-ios'
   | 'cisco-iosxe'

@@ -128,6 +128,11 @@ declare global {
       verifyMasterPassword(password: string): Promise<boolean>
       clearMasterPassword(currentPassword: string): Promise<{ success: boolean; error?: string }>
     }
+    history: {
+      record(deviceType: string, command: string): Promise<boolean>
+      get(deviceType: string, limit?: number): Promise<Array<{ command: string; count: number; last_used: number }>>
+      clear(deviceType?: string): Promise<boolean>
+    }
     ai: {
       chat(payload: unknown): Promise<void>
       cancel(): void

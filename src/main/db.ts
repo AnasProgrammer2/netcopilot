@@ -84,6 +84,14 @@ function initSchema(db: Database.Database): void {
       key   TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS command_history (
+      device_type TEXT    NOT NULL,
+      command     TEXT    NOT NULL,
+      count       INTEGER NOT NULL DEFAULT 1,
+      last_used   INTEGER NOT NULL,
+      PRIMARY KEY (device_type, command)
+    );
   `)
 
   // Seed default AI blacklist if missing or empty (handles both fresh installs and empty migrations)

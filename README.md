@@ -172,7 +172,8 @@ NetCopilot ships with a default blacklist of dangerous commands: `reload`, `shut
 | **Connection health** | Live colored indicator in ARIA header shows session status |
 | **Session isolation** | Each tab has its own independent ARIA conversation |
 | **Session summary** | When closing a tab, ARIA delivers a recap of all commands it ran |
-| **Quick suggestions** | Device-aware command suggestions update dynamically as context changes |
+| **Quick suggestions** | Device-aware command suggestions, blended with your personal command history |
+| **Smart History** | ARIA learns which commands you use most per device type and surfaces them first — highlighted in amber |
 | **Model selector** | Choose between Claude Sonnet, Opus, or Haiku from Settings → ARIA |
 | **Sequential execution** | Auto mode runs multiple commands one by one — no race conditions |
 
@@ -219,12 +220,33 @@ Working with ARIA is like having a senior engineer with all of these certificati
 
 | Category | Devices |
 |---|---|
+| **Auto-detect** | Automatically identifies device type on first login — no manual selection needed |
 | Cisco | IOS, IOS-XE, NX-OS, ASA |
 | Routing & Switching | Juniper JunOS, Arista EOS, Nokia SR-OS, Huawei VRP, MikroTik RouterOS, HP/Aruba ProCurve |
 | Firewalls | Palo Alto PAN-OS, Fortinet FortiOS |
 | Load Balancers | F5 BIG-IP TMOS |
 | Servers | Linux / Unix, Windows Server |
 | Generic | Any SSH/Telnet/Serial device |
+
+### Auto Device-Type Detection
+
+New connections default to **Auto-detect** mode. After logging in, NetCopilot automatically identifies the device by analysing the login banner and prompt — no manual selection required:
+
+1. **Banner analysis** — matches vendor signatures (NX-OS, IOS-XE, JUNOS, EOS, FortiOS, TiMOS, RouterOS, and more) within 2.5 seconds of connecting
+2. **Probe fallback** — if the banner is ambiguous, sends `show version` and analyses the response
+3. **Auto-save** — updates the connection's device type permanently in the local database
+4. **Instant adaptation** — ARIA suggestions, syntax highlighting, and paging-disable commands all adjust automatically
+
+> Toast notification confirms detection: **"Device detected: Cisco IOS XE — 10.0.0.1"**
+
+### Smart History
+
+ARIA learns from your sessions:
+
+- Every command you send is saved locally, keyed by device type
+- Quick Suggestions are ranked by your personal usage frequency — most-used commands appear first
+- History-based suggestions are highlighted in **amber** with a clock icon to distinguish them from defaults
+- All history is stored in the encrypted local database — never sent anywhere
 
 ### Terminal Features
 
@@ -308,10 +330,10 @@ Credentials are never stored in plaintext. The database encryption key is genera
 ## Roadmap
 
 - SFTP browser for visual file transfer
-- Port forwarding — local, remote, and dynamic tunneling
 - Command snippets library for frequently used operations
-- Jump Host / Bastion Server support
 - Persistent ARIA memory across sessions
+- Network topology map generated from ARIA's discoveries
+- Config diff — ARIA compares running vs startup or two devices side-by-side
 - Team collaboration — shared connection libraries
 
 ---

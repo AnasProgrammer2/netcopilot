@@ -126,6 +126,16 @@ const api = {
     clearMasterPassword: (currentPassword: string) => ipcRenderer.invoke('auth:clearMasterPassword', currentPassword)
   },
 
+  // Command History (Smart History)
+  history: {
+    record: (deviceType: string, command: string) =>
+      ipcRenderer.invoke('history:record', deviceType, command),
+    get: (deviceType: string, limit?: number) =>
+      ipcRenderer.invoke('history:get', deviceType, limit),
+    clear: (deviceType?: string) =>
+      ipcRenderer.invoke('history:clear', deviceType)
+  },
+
   // AI Copilot
   ai: {
     chat:       (payload: unknown)                   => ipcRenderer.invoke('ai:chat', payload),
