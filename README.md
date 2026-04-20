@@ -6,6 +6,73 @@ NetCopilot is a professional desktop terminal built for network engineers. It co
 
 ---
 
+## Download
+
+Pre-built binaries for macOS, Windows, and Linux are available on the [Releases](https://github.com/AnasProgrammer2/netcopilot/releases) page — no build step required.
+
+| Platform | File |
+|----------|------|
+| macOS (Apple Silicon) | `.dmg` (arm64) |
+| macOS (Intel) | `.dmg` (x64) |
+| Windows | `.exe` installer |
+| Linux | `.AppImage` or `.deb` |
+
+---
+
+## Getting Started (Development)
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) v20 or later
+- npm v9 or later
+- Git
+
+### Setup
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/AnasProgrammer2/netcopilot.git
+cd netcopilot
+
+# 2. Install dependencies
+npm install
+
+# 3. Start in development mode
+npm run dev
+```
+
+The app will launch immediately. Hot-reload is enabled for renderer changes.
+
+### Building a Release
+
+```bash
+# macOS
+npm run build:mac
+
+# Windows
+npm run build:win
+
+# Linux
+npm run build:linux
+```
+
+Output files will be in the `dist/` folder.
+
+> **Note:** macOS builds are unsigned by default. If you see a security warning, right-click the `.dmg` and choose Open.
+
+### ARIA Setup (Required for AI features)
+
+ARIA requires an [Anthropic API key](https://console.anthropic.com/):
+
+1. Open the app → Settings → ARIA
+2. Paste your API key
+3. Click **Test Connection** to verify
+4. Choose your preferred model (Sonnet, Opus, or Haiku)
+
+Your API key is stored in the **OS keychain** — never on disk or in any file.
+
+---
+
 ## ARIA — The AI Agent
 
 ARIA is the core of NetCopilot. It is not a chatbot. It is a **real agentic system** built specifically for network and infrastructure engineers.
