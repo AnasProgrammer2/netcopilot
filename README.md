@@ -1,5 +1,5 @@
 # NetCopilot
-<img width="1536" height="1024" alt="ChatGPT Image Apr 20, 2026, 04_38_47 PM" src="https://github.com/user-attachments/assets/1c8ef1f9-525b-489c-a8f3-9ce75d878abd" />
+<img width="900" alt="NetCopilot — AI-Native Network Terminal" src="https://github.com/user-attachments/assets/1c8ef1f9-525b-489c-a8f3-9ce75d878abd" />
 
 
 
