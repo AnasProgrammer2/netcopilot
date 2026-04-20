@@ -1,5 +1,14 @@
 import { Connection, ConnectionGroup, SSHKey } from '.'
 
+interface JumpHostPayload {
+  host: string
+  port: number
+  username: string
+  password?: string
+  privateKey?: string
+  passphrase?: string
+}
+
 interface SshConnectPayload {
   sessionId: string
   host: string
@@ -12,6 +21,7 @@ interface SshConnectPayload {
   rows?: number
   readyTimeout?: number
   keepaliveInterval?: number
+  jumpHost?: JumpHostPayload
 }
 
 interface TelnetConnectPayload {

@@ -431,6 +431,30 @@ export function TerminalTab({ session }: Props): JSX.Element {
             password = savedCredsRef.current.password
           }
 
+          // Resolve jump host credentials if configured
+          let jumpHostConfig: {
+            host: string; port: number; username: string
+            password?: string; privateKey?: string; passphrase?: string
+          } | undefined = undefined
+
+          if (conn.jumpHostId) {
+            const allConns = useAppStore.getState().connections
+            const jh = allConns.find(c => c.id === conn.jumpHostId)
+            if (jh) {
+              const jhPassword   = await window.api.credentials.get(`${jh.id}:password`)
+              const jhPrivateKey = jh.sshKeyId
+                ? await window.api.credentials.get(`${jh.sshKeyId}:privateKey`)
+                : null
+              jumpHostConfig = {
+                host:       jh.host,
+                port:       jh.port,
+                username:   jh.username,
+                password:   jhPassword  ?? undefined,
+                privateKey: jhPrivateKey ?? undefined,
+              }
+            }
+          }
+
           const { cols, rows } = termRef.current ?? { cols: 220, rows: 50 }
           await window.api.ssh.connect({
             sessionId: session.id,
@@ -444,7 +468,8 @@ export function TerminalTab({ session }: Props): JSX.Element {
             passphrase: conn.authType === 'key+password' && password ? password : undefined,
             cols, rows,
             readyTimeout:      cs.connectTimeout    * 1000,
-            keepaliveInterval: cs.keepaliveInterval * 1000
+            keepaliveInterval: cs.keepaliveInterval * 1000,
+            jumpHost: jumpHostConfig,
           })
 
         } else if (conn.protocol === 'telnet') {

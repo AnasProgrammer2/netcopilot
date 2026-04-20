@@ -72,7 +72,7 @@ function emptyForm(cs: ConnectionSettings): Partial<Connection> {
 }
 
 export function ConnectionDialog(): JSX.Element {
-  const { connectionDialogOpen, editingConnection, setConnectionDialogOpen, saveConnection, sshKeys, groups, connectionSettings } = useAppStore()
+  const { connectionDialogOpen, editingConnection, setConnectionDialogOpen, saveConnection, sshKeys, groups, connectionSettings, connections } = useAppStore()
   const [form, setForm] = useState<Partial<Connection>>(emptyForm(connectionSettings))
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -424,6 +424,32 @@ export function ConnectionDialog(): JSX.Element {
 
           {tab === 'advanced' && (
             <>
+              {/* Jump Host / Bastion */}
+              {form.protocol === 'ssh' && (
+                <Field label="Jump Host (Bastion)">
+                  <select
+                    value={form.jumpHostId ?? ''}
+                    onChange={(e) => update('jumpHostId', e.target.value || undefined)}
+                    className={inputClass}
+                  >
+                    <option value="">— None (direct connection) —</option>
+                    {connections
+                      .filter(c => c.protocol === 'ssh' && c.id !== editingConnection?.id)
+                      .map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} ({c.host})
+                        </option>
+                      ))
+                    }
+                  </select>
+                  {form.jumpHostId && (
+                    <p className="text-[11px] text-amber-500/80 mt-1 flex items-center gap-1">
+                      <span>⚡</span> Connection will tunnel through the selected host
+                    </p>
+                  )}
+                </Field>
+              )}
+
               {form.deviceType?.startsWith('cisco') && (
                 <Field label="Enable Password">
                   <input
