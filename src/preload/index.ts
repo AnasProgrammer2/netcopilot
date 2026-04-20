@@ -142,8 +142,8 @@ const api = {
       ipcRenderer.on('ai:done', handler)
       return () => ipcRenderer.removeListener('ai:done', handler)
     },
-    onToolCall: (cb: (call: { id: string; command: string; reason: string }) => void) => {
-      const handler = (_: unknown, call: { id: string; command: string; reason: string }) => cb(call)
+    onToolCall: (cb: (call: { id: string; command: string; reason: string; targetSession?: string }) => void) => {
+      const handler = (_: unknown, call: { id: string; command: string; reason: string; targetSession?: string }) => cb(call)
       ipcRenderer.on('ai:tool-call', handler)
       return () => ipcRenderer.removeListener('ai:tool-call', handler)
     },

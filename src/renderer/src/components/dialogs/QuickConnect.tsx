@@ -1,9 +1,34 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Search, Zap, History, Server } from 'lucide-react'
+import { Search, Zap, History, Server, Router, Monitor, Usb } from 'lucide-react'
 import { useAppStore } from '../../store'
-import { Connection, Protocol } from '../../types'
+import { Connection, Protocol, DeviceType } from '../../types'
 import { cn } from '../../lib/utils'
 import { nanoid } from 'nanoid'
+
+function getDeviceIcon(deviceType: DeviceType, protocol?: string) {
+  if (protocol === 'serial') return Usb
+  switch (deviceType) {
+    case 'cisco-ios': case 'cisco-iosxe': case 'cisco-nxos':
+    case 'cisco-asa': case 'junos': case 'arista-eos':
+    case 'panos': case 'nokia-sros': case 'huawei-vrp':
+    case 'mikrotik': case 'fortios': case 'hp-procurve': case 'f5-tmos':
+      return Router
+    case 'windows': return Monitor
+    default:        return Server
+  }
+}
+
+function getDeviceAccent(deviceType: DeviceType, protocol?: string): string {
+  if (protocol === 'serial') return '#f59e0b'
+  switch (deviceType) {
+    case 'cisco-ios': case 'cisco-iosxe': case 'cisco-nxos': return '#3b82f6'
+    case 'cisco-asa': case 'panos': case 'fortios':           return '#f97316'
+    case 'junos': case 'arista-eos':                          return '#a855f7'
+    case 'linux':                                             return '#22c55e'
+    case 'windows':                                           return '#60a5fa'
+    default:                                                  return '#94a3b8'
+  }
+}
 
 export function QuickConnect(): JSX.Element {
   const { quickConnectOpen, setQuickConnectOpen, connections, openSession } = useAppStore()
@@ -104,17 +129,17 @@ export function QuickConnect(): JSX.Element {
       >
         {/* Input */}
         <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border">
-          <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+          <Search className="w-4 h-4 text-muted-foreground/50 shrink-0" />
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="user@host:port or search connections..."
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+            placeholder="user@host:port  or search connections..."
+            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none"
           />
           {query && (
-            <kbd className="text-[11px] text-muted-foreground border border-border rounded px-1.5 py-0.5 font-mono">↵</kbd>
+            <kbd className="text-[11px] text-muted-foreground/60 border border-border rounded-md px-1.5 py-0.5 font-mono bg-muted">↵</kbd>
           )}
         </div>
 
@@ -129,19 +154,20 @@ export function QuickConnect(): JSX.Element {
               key={idx}
               onClick={() => handleSelect(item)}
               className={cn(
-                'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
+                'w-full flex items-center gap-3 px-3 py-2 text-left transition-all mx-1 rounded-lg cursor-pointer',
                 idx === selectedIdx
                   ? 'bg-accent text-foreground'
                   : 'text-foreground/80 hover:bg-accent/50'
               )}
+              style={{ width: 'calc(100% - 8px)' }}
             >
               {item.type === 'quick' ? (
                 <>
-                  <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                    <Zap className="w-3.5 h-3.5 text-primary" />
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Zap className="w-4 h-4 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">
+                    <p className="text-sm font-semibold">
                       Connect to <span className="text-primary">{item.parsed?.host}</span>
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -149,34 +175,48 @@ export function QuickConnect(): JSX.Element {
                       {item.parsed?.username ? ` · ${item.parsed.username}` : ''}
                     </p>
                   </div>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-md">
                     Quick
                   </span>
                 </>
               ) : (
                 <>
-                  <div className="w-7 h-7 rounded-md bg-secondary flex items-center justify-center shrink-0">
-                    {item.conn.lastConnectedAt ? (
-                      <History className="w-3.5 h-3.5 text-muted-foreground" />
-                    ) : (
-                      <Server className="w-3.5 h-3.5 text-muted-foreground" />
-                    )}
-                  </div>
+                  {/* Device-aware icon */}
+                  {(() => {
+                    const Icon   = getDeviceIcon(item.conn.deviceType, item.conn.protocol)
+                    const accent = item.conn.color || getDeviceAccent(item.conn.deviceType, item.conn.protocol)
+                    return (
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: `${accent}18` }}
+                      >
+                        <Icon className="w-4 h-4" style={{ color: accent }} />
+                      </div>
+                    )
+                  })()}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{item.conn.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-semibold truncate">{item.conn.name}</p>
+                      {item.conn.lastConnectedAt && (
+                        <History className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground truncate">
-                      {item.conn.username}@{item.conn.host}:{item.conn.port}
+                      {item.conn.username ? `${item.conn.username}@` : ''}{item.conn.host}
+                      {item.conn.protocol !== 'serial' ? `:${item.conn.port}` : ''}
                     </p>
                   </div>
-                  <span
-                    className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded shrink-0"
-                    style={{
-                      backgroundColor: (item.conn.color ?? '#8b5cf6') + '20',
-                      color: item.conn.color ?? '#8b5cf6'
-                    }}
-                  >
-                    {item.conn.protocol}
-                  </span>
+                  {(() => {
+                    const accent = item.conn.color || getDeviceAccent(item.conn.deviceType, item.conn.protocol)
+                    return (
+                      <span
+                        className="text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                        style={{ backgroundColor: `${accent}18`, color: accent }}
+                      >
+                        {item.conn.protocol}
+                      </span>
+                    )
+                  })()}
                 </>
               )}
             </button>

@@ -54,6 +54,11 @@ export function TerminalArea(): JSX.Element {
     terminalRegistry.get(activeSessionId)?.sendData(data)
   }, [activeSessionId, activeSession])
 
+  // Route a command to a specific session by ID (used by ARIA multi-session)
+  const sendToSession = useCallback((sessionId: string, data: string) => {
+    terminalRegistry.get(sessionId)?.sendData(data)
+  }, [])
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden min-h-0">
       <TabBar />
@@ -115,8 +120,10 @@ export function TerminalArea(): JSX.Element {
               <AiPanel
                 activeSession={activeSession}
                 splitSession={isSplit ? sessions.find(s => s.id === splitSessionId) ?? null : null}
+                allSessions={sessions}
                 getTerminalContext={getTerminalContext}
                 sendToTerminal={sendToTerminal}
+                sendToSession={sendToSession}
               />
             </div>
           </>

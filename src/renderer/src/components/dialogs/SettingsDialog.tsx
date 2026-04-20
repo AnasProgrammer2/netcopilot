@@ -59,7 +59,7 @@ const DEFAULTS: AppSettings = {
   logTimestamp: false,
 }
 
-const inputCls = 'w-full px-3 py-2 rounded-md bg-background border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary'
+const inputCls = 'w-full px-3 py-2 rounded-lg bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40 transition-colors'
 
 const ACCENT_COLORS = [
   { label: 'Violet',  value: '#8b5cf6' },
@@ -152,15 +152,15 @@ export function SettingsDialog(): JSX.Element {
                 key={id}
                 onClick={() => setSection(id)}
                 className={cn(
-                  'w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-left transition-colors',
+                  'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-left transition-all cursor-pointer',
                   section === id
-                    ? 'bg-primary/15 text-primary font-medium'
+                    ? 'bg-primary/15 text-primary font-semibold'
                     : 'text-muted-foreground hover:text-foreground hover:bg-accent'
                 )}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" />
                 {label}
-                {section === id && <ChevronRight className="w-3 h-3 ml-auto opacity-50" />}
+                {section === id && <ChevronRight className="w-3 h-3 ml-auto opacity-40" />}
               </button>
             ))}
           </nav>
@@ -179,20 +179,20 @@ export function SettingsDialog(): JSX.Element {
 
         {/* Footer */}
         {section !== 'about' && section !== 'ai' && (
-          <div className="flex items-center justify-end gap-2 px-6 py-3 border-t border-border bg-sidebar/30 shrink-0">
+          <div className="flex items-center justify-end gap-2 px-6 py-3 border-t border-border bg-muted/20 shrink-0">
             <button
               onClick={() => setSettingsOpen(false)}
-              className="px-4 py-2 text-sm rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="px-4 py-2 text-sm rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               className={cn(
-                'flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md transition-colors min-w-[110px] justify-center',
+                'flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg transition-all min-w-[110px] justify-center cursor-pointer',
                 saved
                   ? 'bg-emerald-600 text-white'
-                  : 'bg-primary text-white hover:bg-primary/90'
+                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
               )}
             >
               {saved && <Check className="w-3.5 h-3.5" />}
@@ -699,7 +699,7 @@ function AboutSection() {
     : navigator.platform
 
   const rows = [
-    { label: 'Version',  value: '0.1.0' },
+    { label: 'Version',  value: '0.4.0' },
     { label: 'Electron', value: info?.versions.electron ?? '—' },
     { label: 'Node.js',  value: info?.versions.node     ?? '—' },
     { label: 'Chrome',   value: info?.versions.chrome   ?? '—' },
@@ -785,7 +785,7 @@ function Toggle({ label, description, value, onChange }: {
         role="switch"
         aria-checked={value}
         className={cn(
-          'relative inline-flex w-11 h-6 rounded-full transition-colors shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+          'relative inline-flex w-11 h-6 rounded-full transition-colors shrink-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
           value ? 'bg-primary' : 'bg-muted-foreground/25'
         )}
       >

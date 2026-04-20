@@ -8,6 +8,14 @@ import { DEFAULT_AI_BLACKLIST } from './aiDefaults'
 
 type AiPermission = 'troubleshoot' | 'full-access'
 
+interface SessionInfo {
+  sessionId:  string
+  name:       string
+  host:       string
+  deviceType: string
+  protocol:   string
+}
+
 interface ChatPayload {
   messages:        Anthropic.MessageParam[]
   terminalContext: string
@@ -16,6 +24,7 @@ interface ChatPayload {
   protocol:        string
   permission:      AiPermission
   isProactive:     boolean
+  sessions?:       SessionInfo[]   // all open sessions for multi-session awareness
 }
 
 // ── Module-level state ───────────────────────────────────────────────────────
@@ -52,14 +61,16 @@ const CREATE_PLAN_TOOL: Anthropic.Tool = {
 const RUN_COMMAND_TOOL: Anthropic.Tool = {
   name: 'run_command',
   description:
-    'Execute a command on the connected network device or server. ' +
+    'Execute a command on a connected network device or server. ' +
     'In troubleshoot mode: ONLY use read-only/display commands (show, display, ping, traceroute, ls, ps, df, cat, ip, ss, netstat, journalctl, hostname, uname, ifconfig, arp). ' +
-    'In full-access mode: any command is allowed including configuration changes.',
+    'In full-access mode: any command is allowed including configuration changes. ' +
+    'When multiple sessions are open, use target_session to specify which device to run the command on.',
   input_schema: {
     type: 'object' as const,
     properties: {
-      command: { type: 'string', description: 'Exact command string to execute on the device' },
-      reason:  { type: 'string', description: 'One-sentence explanation of why this command is needed' },
+      command:        { type: 'string', description: 'Exact command string to execute on the device' },
+      reason:         { type: 'string', description: 'One-sentence explanation of why this command is needed' },
+      target_session: { type: 'string', description: 'Session ID to run the command on. Omit to use the active session. Required when you need to run on a specific device in a multi-session setup.' },
     },
     required: ['command', 'reason'],
   },
@@ -170,6 +181,18 @@ OPERATIONAL RULES
    - Arabic input → Arabic response; English input → English response
    - Never switch languages unless the user does first
    - Technical terms (command names, protocol names) always stay in English regardless of response language
+
+═══════════════════════════════════════════════════
+OPEN SESSIONS
+═══════════════════════════════════════════════════
+${payload.sessions && payload.sessions.length > 1
+  ? payload.sessions.map(s =>
+      `• [${s.sessionId}] ${s.name} — ${s.host} (${s.deviceType}, ${s.protocol})${s.host === payload.host ? ' ← ACTIVE' : ''}`
+    ).join('\n')
+  : `• Active: ${payload.host} (${payload.deviceType}, ${payload.protocol})`
+}
+
+When multiple sessions are listed, use the target_session field in run_command to specify which device to run a command on. Use the exact sessionId from the list above.
 
 ═══════════════════════════════════════════════════
 CURRENT TERMINAL CONTEXT
@@ -321,12 +344,13 @@ async function runAiLoop(
         }
 
         // ── run_command: send to renderer, wait for execution result ──────────
-        const input = toolBlock.input as { command: string; reason: string }
+        const input = toolBlock.input as { command: string; reason: string; target_session?: string }
 
         getWindow()?.webContents.send('ai:tool-call', {
-          id:      toolBlock.id,
-          command: input.command,
-          reason:  input.reason,
+          id:             toolBlock.id,
+          command:        input.command,
+          reason:         input.reason,
+          targetSession:  input.target_session,
         })
 
         // Wait for tool result from renderer (up to 300s for manual approval / long commands)

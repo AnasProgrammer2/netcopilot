@@ -9,11 +9,12 @@ export type AiApproval   = 'ask' | 'auto' | 'blacklist'
 
 
 export interface AiToolCall {
-  id:      string
-  command: string
-  reason:  string
-  status:  'pending' | 'approved' | 'blocked' | 'running' | 'done'
-  output?: string
+  id:             string
+  command:        string
+  reason:         string
+  status:         'pending' | 'approved' | 'blocked' | 'running' | 'done'
+  output?:        string
+  targetSession?: string  // session ID to run command on (multi-session support)
 }
 
 export interface AiPlan {
