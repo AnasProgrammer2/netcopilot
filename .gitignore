@@ -4,3 +4,6 @@ dist/
 .env
 *.local
 .DS_Store
+
+# UI/UX Pro Max skill (local dev tool)
+.cursor/skills/

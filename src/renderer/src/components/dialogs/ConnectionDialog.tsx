@@ -175,16 +175,16 @@ export function ConnectionDialog(): JSX.Element {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-border px-5">
+        <div className="flex border-b border-border px-4 gap-0.5">
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                'px-3 py-2.5 text-sm border-b-2 -mb-px transition-colors',
+                'px-3 py-2.5 text-sm border-b-2 -mb-px transition-all cursor-pointer',
                 tab === t.id
-                  ? 'border-primary text-foreground font-medium'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
+                  ? 'border-primary text-foreground font-semibold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               )}
             >
               {t.label}
@@ -481,19 +481,19 @@ export function ConnectionDialog(): JSX.Element {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+        <div className="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-border bg-muted/20">
           <button
             onClick={() => setConnectionDialogOpen(false)}
-            className="px-4 py-2 text-sm rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="px-4 py-2 text-sm rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving || !form.name || (!isSerial && !form.host) || (isSerial && !form.serialConfig?.path)}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 text-sm font-semibold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
-            {saving ? 'Saving...' : editingConnection ? 'Save Changes' : 'Add Connection'}
+            {saving ? 'Saving…' : editingConnection ? 'Save Changes' : 'Add Connection'}
           </button>
         </div>
       </div>
@@ -502,14 +502,14 @@ export function ConnectionDialog(): JSX.Element {
 }
 
 const inputClass =
-  'w-full px-3 py-2 text-sm bg-background border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring'
+  'w-full px-3 py-2 text-sm bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40 transition-colors'
 
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-medium text-muted-foreground">
+      <label className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wide">
         {label}
-        {required && <span className="text-destructive ml-0.5">*</span>}
+        {required && <span className="text-destructive ml-0.5 normal-case">*</span>}
       </label>
       {children}
     </div>

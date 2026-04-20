@@ -122,7 +122,7 @@ declare global {
       exportMarkdown(payload: { host: string; messages: Array<{ role: string; content: string; toolCalls?: Array<{ command: string; output?: string }> }> }): Promise<{ success: boolean; filePath?: string }>
       onChunk(cb: (chunk: string) => void): () => void
       onDone(cb: (usage?: { inputTokens: number; outputTokens: number }) => void): () => void
-      onToolCall(cb: (call: { id: string; command: string; reason: string }) => void): () => void
+      onToolCall(cb: (call: { id: string; command: string; reason: string; targetSession?: string }) => void): () => void
       onError(cb: (error: string) => void): () => void
       onPlan(cb: (plan: { objective: string; steps: string[] }) => void): () => void
     }

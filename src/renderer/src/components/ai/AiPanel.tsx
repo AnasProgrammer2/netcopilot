@@ -33,8 +33,10 @@ const QUICK_COMMANDS: Record<DeviceType | 'default', string[]> = {
 interface Props {
   activeSession:   Session | null
   splitSession?:   Session | null
+  allSessions?:    Session[]
   getTerminalContext: () => string
   sendToTerminal:  (cmd: string) => void
+  sendToSession?:  (sessionId: string, cmd: string) => void
 }
 
 /** Format token count compactly: 1234 → "1.2k", 123 → "123" */
@@ -43,7 +45,7 @@ function formatTokens(n: number): string {
   return String(n)
 }
 
-export function AiPanel({ activeSession, splitSession, getTerminalContext, sendToTerminal }: Props): JSX.Element {
+export function AiPanel({ activeSession, splitSession, allSessions, getTerminalContext, sendToTerminal, sendToSession }: Props): JSX.Element {
   const {
     aiMessages, aiStreaming, aiAgentActive, aiPermission, aiApproval, aiBlacklist, aiTokens,
     addAiMessage, appendAiChunk, finalizeAiStream, updateAiToolCall, clearAiMessages,
@@ -131,7 +133,7 @@ export function AiPanel({ activeSession, splitSession, getTerminalContext, sendT
       useAppStore.getState().addAiPlan({ objective, steps })
     })
 
-    const offToolCall = window.api.ai.onToolCall(async ({ id, command, reason }) => {
+    const offToolCall = window.api.ai.onToolCall(async ({ id, command, reason, targetSession }) => {
       // First finalize any streaming message (Claude is done generating text for this turn)
       finalizeAiStream()
 
@@ -152,7 +154,7 @@ export function AiPanel({ activeSession, splitSession, getTerminalContext, sendT
       const targetMsg = lastMsg
       if (!targetMsg) return
 
-      const toolCall = { id, command, reason, status: 'pending' as const }
+      const toolCall = { id, command, reason, status: 'pending' as const, targetSession }
 
       // Attach the tool call to the assistant message
       updateAiToolCall(targetMsg.id, id, toolCall)
@@ -172,7 +174,7 @@ export function AiPanel({ activeSession, splitSession, getTerminalContext, sendT
       }
 
       if (currentApproval === 'auto' || currentApproval === 'blacklist') {
-        await executeCommand(targetMsg.id, id, command)
+        await executeCommand(targetMsg.id, id, command, targetSession)
         return
       }
 
@@ -189,8 +191,12 @@ export function AiPanel({ activeSession, splitSession, getTerminalContext, sendT
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const executeCommand = useCallback(async (msgId: string, callId: string, command: string) => {
+  const executeCommand = useCallback(async (msgId: string, callId: string, command: string, targetSessionId?: string) => {
     updateAiToolCall(msgId, callId, { status: 'running' })
+
+    // Determine which session to send command to
+    const resolvedSessionId = targetSessionId ?? activeSession?.id
+    const resolvedSession   = allSessions?.find(s => s.id === resolvedSessionId) ?? activeSession
 
     return new Promise<void>((resolve) => {
       let output  = ''
@@ -207,35 +213,39 @@ export function AiPanel({ activeSession, splitSession, getTerminalContext, sendT
         const out = output.trim() || '(no output)'
         updateAiToolCall(msgId, callId, { status: 'done', output: out })
 
-        // Scroll terminal to prompt after command finishes
-        if (activeSession) {
-          terminalRegistry.get(activeSession.id)?.scrollToBottom()
+        // Scroll the target terminal to prompt after command finishes
+        if (resolvedSession) {
+          terminalRegistry.get(resolvedSession.id)?.scrollToBottom()
         }
 
         await window.api.ai.toolResult(callId, out)
         resolve()
       }
 
-      // Collect terminal output, debounce 2s after last data
+      // Collect terminal output from the correct session only
       offData = collectTerminalOutput((data) => {
         output += data
         clearTimeout(timer)
         timer = setTimeout(finish, 2000)
-      })
+      }, resolvedSessionId)
 
-      // Send the command
-      sendToTerminal(command + '\r')
+      // Send the command to the correct session
+      if (targetSessionId && sendToSession) {
+        sendToSession(targetSessionId, command + '\r')
+      } else {
+        sendToTerminal(command + '\r')
+      }
 
       // Safety timeout: if no output arrives in 6s, finish anyway
       timer = setTimeout(finish, 6000)
     })
-  }, [updateAiToolCall, sendToTerminal])
+  }, [updateAiToolCall, sendToTerminal, sendToSession, activeSession, allSessions])
 
   const handleApproveCommand = useCallback(async (msgId: string, callId: string) => {
     const msg  = useAppStore.getState().aiMessages.find((m) => m.id === msgId)
     const call = msg?.toolCalls?.find((t) => t.id === callId)
     if (!call) return
-    await executeCommand(msgId, callId, call.command)
+    await executeCommand(msgId, callId, call.command, call.targetSession)
   }, [executeCommand])
 
   const handleBlockCommand = useCallback(async (msgId: string, callId: string) => {
@@ -290,6 +300,13 @@ export function AiPanel({ activeSession, splitSession, getTerminalContext, sendT
       protocol:        conn?.protocol ?? 'ssh',
       permission:      sessionPermission,
       isProactive,
+      sessions: allSessions?.map(s => ({
+        sessionId:  s.id,
+        name:       s.connection.name,
+        host:       s.connection.host,
+        deviceType: s.connection.deviceType ?? 'generic',
+        protocol:   s.connection.protocol ?? 'ssh',
+      })),
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addAiMessage, setAiStreaming, finalizeAiStream, getTerminalContext, activeSession, sessionPermission])
@@ -341,10 +358,10 @@ export function AiPanel({ activeSession, splitSession, getTerminalContext, sendT
                       : s === 'error'        ? 'text-red-400'
                       : 'text-muted-foreground/50'
           return (
-            <div className="flex items-center gap-1 flex-1" title={`${activeSession.connection.host} — ${label}`}>
+            <div className="flex items-center gap-1 flex-1" title={`${activeSession.connection.name} — ${activeSession.connection.host} (${label})`}>
               <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', dot)} />
               <span className={cn('text-[10px] font-medium truncate max-w-[100px]', color)}>
-                {activeSession.connection.host}
+                {activeSession.connection.name}
               </span>
             </div>
           )
@@ -851,12 +868,13 @@ function BlacklistButton({ blacklist, onChange }: { blacklist: string[]; onChang
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Subscribe to terminal data from any protocol for the duration of a command execution */
-function collectTerminalOutput(cb: (data: string) => void): () => void {
+/** Subscribe to terminal data from a specific session (or all if no filter) */
+function collectTerminalOutput(cb: (data: string) => void, filterSessionId?: string): () => void {
   const handlers: Array<() => void> = []
 
   for (const proto of ['ssh', 'telnet', 'serial'] as const) {
-    const off = window.api[proto].onData((_sessionId: string, data: string) => {
+    const off = window.api[proto].onData((sessionId: string, data: string) => {
+      if (filterSessionId && sessionId !== filterSessionId) return
       cb(stripAnsi(data))
     })
     handlers.push(off)
