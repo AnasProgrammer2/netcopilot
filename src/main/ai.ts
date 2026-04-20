@@ -24,7 +24,8 @@ interface ChatPayload {
   protocol:        string
   permission:      AiPermission
   isProactive:     boolean
-  sessions?:       SessionInfo[]   // all open sessions for multi-session awareness
+  sessions?:       SessionInfo[]
+  model?:          string
 }
 
 // ── Module-level state ───────────────────────────────────────────────────────
@@ -281,9 +282,10 @@ async function runAiLoop(
     while (true) {
       if (_abortController.signal.aborted) break
 
+      const model = payload.model || 'claude-sonnet-4-5'
       const runner = client.messages.stream(
         {
-          model:      'claude-sonnet-4-5',
+          model,
           max_tokens: 8096,
           system:     systemPrompt,
           tools:      [CREATE_PLAN_TOOL, RUN_COMMAND_TOOL],

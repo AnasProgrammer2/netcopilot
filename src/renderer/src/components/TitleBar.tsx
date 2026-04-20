@@ -1,9 +1,10 @@
-import { Terminal, Settings, Zap } from 'lucide-react'
+import { Settings, Zap, Network } from 'lucide-react'
 import { useAppStore } from '../store'
 
 export function TitleBar(): JSX.Element {
-  const { setSettingsOpen, setQuickConnectOpen } = useAppStore()
+  const { setSettingsOpen, setQuickConnectOpen, sessions } = useAppStore()
   const isMac = navigator.userAgent.includes('Mac')
+  const activeSessions = sessions.filter(s => s.status === 'connected').length
 
   return (
     <div
@@ -12,11 +13,18 @@ export function TitleBar(): JSX.Element {
     >
       {/* Logo */}
       <div className="flex items-center gap-2 no-drag">
-        <Terminal className="w-3.5 h-3.5 text-primary" />
-        <span className="text-sm font-semibold text-foreground tracking-tight">NetCopilot</span>
-        <span className="hidden sm:inline text-[10px] text-muted-foreground/50 font-medium ml-1 tracking-wider uppercase">
+        <div className="flex items-center justify-center w-6 h-6 rounded-md bg-primary/15">
+          <Network className="w-3.5 h-3.5 text-primary" />
+        </div>
+        <span className="text-sm font-semibold text-foreground tracking-tight">AI Network</span>
+        <span className="hidden sm:inline text-[10px] text-muted-foreground/40 font-medium ml-0.5 tracking-wider uppercase">
           beta
         </span>
+        {activeSessions > 0 && (
+          <span className="hidden sm:inline text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 tabular-nums">
+            {activeSessions} live
+          </span>
+        )}
       </div>
 
       {/* Actions */}

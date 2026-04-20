@@ -5,5 +5,10 @@ dist/
 *.local
 .DS_Store
 
+# Database files — never commit user data
+*.db
+*.sqlite
+*.sqlite3
+
 # UI/UX Pro Max skill (local dev tool)
 .cursor/skills/

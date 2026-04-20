@@ -131,16 +131,18 @@ interface AppState {
   aiPanelOpen:  boolean
   aiPermission: AiPermission
   aiApproval:   AiApproval
-  aiBlacklist:    string[]
-  aiMessages:     AiMessage[]
-  aiStreaming:    boolean
-  aiAgentActive:  boolean   // true throughout the full agentic loop (including tool execution pauses)
-  aiTokens:       { input: number; output: number }
+  aiBlacklist:  string[]
+  aiModel:      string
+  aiMessages:   AiMessage[]
+  aiStreaming:  boolean
+  aiAgentActive: boolean
+  aiTokens:     { input: number; output: number }
 
   setAiPanelOpen:    (open: boolean) => void
   setAiPermission:   (p: AiPermission) => void
   setAiApproval:     (a: AiApproval) => void
   setAiBlacklist:    (list: string[]) => void
+  setAiModel:        (model: string) => void
   addAiMessage:      (msg: AiMessage) => void
   addAiPlan:         (plan: AiPlan) => void
   appendAiChunk:     (chunk: string) => void
@@ -165,10 +167,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   aiPermission: 'troubleshoot',
   aiApproval:   'ask',
   aiBlacklist:  [],
-  aiMessages:    [],
-  aiStreaming:   false,
+  aiModel:      'claude-sonnet-4-5',
+  aiMessages:   [],
+  aiStreaming:  false,
   aiAgentActive: false,
-  aiTokens:      { input: 0, output: 0 },
+  aiTokens:     { input: 0, output: 0 },
   sidebarWidth: 260,
   quickConnectOpen: false,
   connectionDialogOpen: false,
@@ -376,12 +379,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     const aiApproval    = (await window.api.store.getSetting('ai.approval')    as AiApproval | null)   ?? 'ask'
     const aiBlacklistRaw = await window.api.store.getSetting('ai.blacklist')
     const aiBlacklist   = Array.isArray(aiBlacklistRaw) ? aiBlacklistRaw as string[] : []
+    const aiModel       = (await window.api.store.getSetting('ai.model')       as string | null) ?? 'claude-sonnet-4-5'
 
     set({
       terminalSettings: { ...DEFAULT_TERMINAL_SETTINGS, ...ts },
       connectionSettings: { ...DEFAULT_CONNECTION_SETTINGS, ...cs },
       sidebarWidth,
       aiPermission,
+      aiModel,
       aiApproval,
       aiBlacklist,
     })
@@ -473,6 +478,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAiPermission: (p) => set({ aiPermission: p }),
   setAiApproval:   (a) => set({ aiApproval: a }),
   setAiBlacklist:  (list) => set({ aiBlacklist: list }),
+  setAiModel:      (model) => set({ aiModel: model }),
   setAiStreaming:   (v) => set({ aiStreaming: v }),
   setAiAgentActive: (v) => set({ aiAgentActive: v }),
   clearAiMessages: () => set({ aiMessages: [], aiTokens: { input: 0, output: 0 }, aiAgentActive: false }),
