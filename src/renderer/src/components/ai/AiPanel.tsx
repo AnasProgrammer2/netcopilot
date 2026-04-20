@@ -407,38 +407,15 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
       {activeSession && (
         <>
           <div ref={scrollRef} className="flex-1 overflow-y-auto py-2 select-text">
-            {aiMessages.length === 0 && (() => {
-              const deviceType = activeSession.connection.deviceType ?? 'generic'
-              const cmds = QUICK_COMMANDS[deviceType] ?? QUICK_COMMANDS['default']
-              return (
-                <div className="flex flex-col gap-4 p-4 h-full">
-                  <div className="flex flex-col items-center gap-2 pt-4 text-center">
-                    <Sparkles className="w-6 h-6 text-primary/40" />
-                    <p className="text-xs text-muted-foreground/70">
-                      Quick start — tap a suggestion or ask anything
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {cmds.map((cmd) => (
-                      <button
-                        key={cmd}
-                        onClick={() => {
-                          setInput(cmd)
-                          setTimeout(() => inputRef.current?.focus(), 50)
-                        }}
-                        className={cn(
-                          'text-left text-xs px-3 py-2 rounded-lg border border-border/60',
-                          'text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-primary/5',
-                          'transition-all'
-                        )}
-                      >
-                        {cmd}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )
-            })()}
+            {aiMessages.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-full gap-2 p-6 text-center">
+                <Sparkles className="w-7 h-7 text-primary/25" />
+                <p className="text-xs text-muted-foreground/60 leading-relaxed">
+                  Ask me anything about<br/>
+                  <span className="font-medium text-foreground/50">{activeSession.connection.name}</span>
+                </p>
+              </div>
+            )}
 
             {aiMessages.map((msg) => (
               <AiMessage
@@ -474,6 +451,38 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
             onApprove={handleApproveCommand}
             onBlock={handleBlockCommand}
           />
+
+          {/* Quick Suggestions Bar */}
+          {!aiStreaming && !aiAgentActive && (() => {
+            const deviceType = activeSession.connection.deviceType ?? 'generic'
+            const allCmds = QUICK_COMMANDS[deviceType] ?? QUICK_COMMANDS['default']
+            // When conversation started, show fewer suggestions based on what wasn't asked yet
+            const asked = new Set(aiMessages.filter(m => m.role === 'user').map(m => m.content))
+            const cmds = allCmds.filter(c => !asked.has(c)).slice(0, aiMessages.length === 0 ? 5 : 3)
+            if (cmds.length === 0) return null
+            return (
+              <div className="px-3 py-1.5 shrink-0">
+                <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
+                  {cmds.map((cmd) => (
+                    <button
+                      key={cmd}
+                      onClick={() => {
+                        setInput(cmd)
+                        setTimeout(() => inputRef.current?.focus(), 50)
+                      }}
+                      className={cn(
+                        'shrink-0 text-[11px] px-2.5 py-1 rounded-full border border-border/50',
+                        'text-muted-foreground/80 hover:text-foreground hover:border-primary/40 hover:bg-primary/5',
+                        'transition-all whitespace-nowrap'
+                      )}
+                    >
+                      {cmd}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Input box */}
           <div className="border-t border-border px-3 pt-2 pb-2 shrink-0">
