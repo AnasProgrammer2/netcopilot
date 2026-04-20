@@ -11,6 +11,7 @@ import { DeviceType } from '../../types'
 
 // ── Quick Commands per device type ────────────────────────────────────────────
 const QUICK_COMMANDS: Record<DeviceType | 'default', string[]> = {
+  'auto':         ['Show system info', 'Check interface status', 'Show running config', 'Check CPU/memory', 'Ping gateway'],
   'cisco-ios':    ['Check BGP neighbor status', 'Show interface errors', 'What routes are in the routing table?', 'Check CPU and memory usage', 'Show OSPF neighbors'],
   'cisco-iosxe':  ['Check BGP neighbor status', 'Show interface errors', 'Diagnose high CPU usage', 'Show IP SLA status', 'Check QoS policy stats'],
   'cisco-nxos':   ['Check vPC consistency', 'Show VXLAN/EVPN state', 'Check fabric links status', 'Show interface counters', 'Diagnose BGP issues'],
