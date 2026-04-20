@@ -1,22 +1,7 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { User, Eye, Copy, Check } from 'lucide-react'
+import { User, Eye, Copy, Check, Sparkles } from 'lucide-react'
 import { useState } from 'react'
-
-function AriaIcon({ className }: { className?: string }): JSX.Element {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
-      <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1" strokeDasharray="2.5 1.5" />
-      <circle cx="8" cy="8" r="1.5" fill="currentColor" />
-      <line x1="8" y1="6.5" x2="8" y2="2.5"   stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-      <line x1="9.3" y1="9.3" x2="12.2" y2="12.2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-      <line x1="6.7" y1="9.3" x2="3.8" y2="12.2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-      <circle cx="8"    cy="2.5"  r="1" fill="currentColor" />
-      <circle cx="12.2" cy="12.2" r="1" fill="currentColor" />
-      <circle cx="3.8"  cy="12.2" r="1" fill="currentColor" />
-    </svg>
-  )
-}
 import { cn } from '../../lib/utils'
 import { AiMessage as AiMessageType, AiToolCall } from '../../store'
 import { AiCommandBlock } from './AiCommandBlock'
@@ -64,7 +49,7 @@ export function AiMessage({ message, approval, blacklist, onApproveCommand, onBl
       )}>
         {isUser ? <User className="w-3 h-3" />
           : isProactive ? <Eye className="w-3 h-3" />
-          : <AriaIcon className="w-3 h-3" />}
+          : <Sparkles className="w-3 h-3" />}
       </div>
 
       {/* Bubble */}
