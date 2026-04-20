@@ -37,6 +37,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
   const logPathRef       = useRef<string | null>(null)
   const logStripAnsiRef  = useRef(true)
   const logTimestampRef  = useRef(false)
+  const doConnectRef     = useRef<((isReconnect?: boolean) => void) | null>(null)
 
   // ── Search state ─────────────────────────────────────────────────────────────
   const [showSearch, setShowSearch]         = useState(false)
@@ -282,7 +283,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
       reconnect: () => {
         if (connectingRef.current) return
         term.write('\r\n\x1b[33m⟳ Reconnecting...\x1b[0m\r\n')
-        doConnect(true)
+        doConnectRef.current?.(true)
       },
     })
 
@@ -372,7 +373,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
       }, delay * 1000)
     }
 
-    const doConnect = async (isReconnect = false) => {
+    const doConnect = async (isReconnect = false): Promise<void> => {
       if (cancelled || !mountedRef.current || connectingRef.current) return
       connectingRef.current = true
       try {
@@ -584,10 +585,12 @@ export function TerminalTab({ session }: Props): JSX.Element {
       unsubClosed = window.api.telnet.onClosed(onClosed)
     }
 
+    doConnectRef.current = doConnect
     doConnect(false)
 
     return () => {
       cancelled = true
+      doConnectRef.current = null
       if (reconnectTimerRef.current) {
         clearTimeout(reconnectTimerRef.current)
         reconnectTimerRef.current = null
