@@ -56,7 +56,7 @@ export function TabBar(): JSX.Element {
       {/* AI Copilot toggle */}
       <button
         onClick={() => setAiPanelOpen(!aiPanelOpen)}
-        title={aiPanelOpen ? 'Close AI Copilot' : 'Open AI Copilot'}
+        title={aiPanelOpen ? 'Close ARIA' : 'Open ARIA'}
         className={cn(
           'shrink-0 self-center flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors ml-auto',
           aiPanelOpen

@@ -301,7 +301,7 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border shrink-0">
         <Bot className="w-4 h-4 text-primary shrink-0" />
-        <span className="text-sm font-semibold text-foreground flex-1">AI Copilot</span>
+        <span className="text-sm font-semibold text-foreground flex-1">ARIA</span>
 
         {/* Token counter next to clear button */}
         {(aiTokens.input > 0 || aiTokens.output > 0) && (
@@ -333,7 +333,7 @@ export function AiPanel({ activeSession, getTerminalContext, sendToTerminal }: P
         <div className="flex flex-col items-center justify-center flex-1 gap-3 p-6 text-center">
           <AlertCircle className="w-8 h-8 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">
-            Connect to a device to use the AI Copilot
+            Connect to a device to start chatting with ARIA
           </p>
         </div>
       )}

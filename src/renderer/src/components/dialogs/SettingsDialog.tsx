@@ -87,7 +87,7 @@ const NAV: { id: SettingsSection; label: string; icon: React.ComponentType<{ cla
   { id: 'connection', label: 'Connection', icon: Network   },
   { id: 'logging',    label: 'Logging',    icon: FileText  },
   { id: 'security',   label: 'Security',   icon: Lock      },
-  { id: 'ai',         label: 'AI Copilot', icon: Bot       },
+  { id: 'ai',         label: 'ARIA',        icon: Bot       },
   { id: 'about',      label: 'About',      icon: Info      },
 ]
 
@@ -951,14 +951,14 @@ function AiSection(): JSX.Element {
     <div className="space-y-6">
       <SectionHeader
         icon={<Bot className="w-4 h-4" />}
-        title="AI Copilot"
-        description="Configure the AI assistant that lives in the terminal panel."
+        title="ARIA"
+        description="Configure ARIA — your AI-native network assistant."
       />
 
       {/* API Key */}
       <SettingsGroup label="Anthropic API Key">
         <p className="text-xs text-muted-foreground mb-2">
-          Required to use the AI Copilot. Your key is stored encrypted in the OS keychain.{' '}
+          Required to use ARIA. Your key is stored encrypted in the OS keychain.{' '}
           <a
             href="https://console.anthropic.com/settings/keys"
             target="_blank"
