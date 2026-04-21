@@ -70,7 +70,7 @@ function createWindow(): void {
   })
 
   // Block DevTools in production
-  if (!is.dev) {
+  if (!process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.webContents.on('devtools-opened', () => {
       mainWindow?.webContents.closeDevTools()
     })
@@ -78,7 +78,7 @@ function createWindow(): void {
     globalShortcut.register('F12', () => {/* blocked */})
   }
 
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+  if (process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
