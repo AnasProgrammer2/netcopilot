@@ -48,7 +48,8 @@ function formatTokens(n: number): string {
 
 export function AiPanel({ activeSession, splitSession, allSessions, getTerminalContext, sendToTerminal, sendToSession }: Props): JSX.Element {
   const {
-    aiMessages, aiStreaming, aiAgentActive, aiPermission, aiApproval, aiBlacklist, aiTokens, aiModel,
+    aiMessages, aiStreaming, aiAgentActive, aiPermission, aiApproval, aiBlacklist, aiTokens,
+    licenseValid, licensePlan,
     addAiMessage, appendAiChunk, finalizeAiStream, updateAiToolCall, clearAiMessages,
     setAiStreaming, setAiAgentActive, setAiPanelOpen,
   } = useAppStore()
@@ -302,6 +303,18 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
   const sendMessage = useCallback(async (text: string, isProactive = false, proactiveContext?: string) => {
     if (!text.trim() && !isProactive) return
 
+    // Block if no valid license
+    if (!licenseValid) {
+      if (!isProactive) {
+        addAiMessage({
+          id:      nanoid(),
+          role:    'assistant',
+          content: '⚠️ No active license. Get yours at **[netcopilot.app/register](https://netcopilot.app/register)** then enter the key in Settings → ARIA.',
+        })
+      }
+      return
+    }
+
     if (!isProactive) {
       addAiMessage({ id: nanoid(), role: 'user', content: text })
       // Smart History: persist command keyed by device type (resolve 'auto' to 'generic')
@@ -340,7 +353,6 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       protocol:        conn?.protocol ?? 'ssh',
       permission:      sessionPermission,
       isProactive,
-      model:           aiModel,
       sessions: allSessions?.map(s => ({
         sessionId:  s.id,
         name:       s.connection.name,
@@ -386,10 +398,16 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         </div>
         <span className="text-sm font-bold text-foreground tracking-tight">ARIA</span>
 
-        {/* Model chip */}
-        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted/60 text-muted-foreground/70 font-medium border border-border/50 leading-none hidden sm:inline shrink-0">
-          {aiModel.replace('claude-', '').replace('-4-5', ' 4.5')}
-        </span>
+        {/* License plan badge */}
+        {licenseValid ? (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/20 leading-none hidden sm:inline shrink-0 uppercase tracking-wide">
+            {licensePlan || 'active'}
+          </span>
+        ) : (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-red-500/10 text-red-400 font-medium border border-red-500/20 leading-none hidden sm:inline shrink-0">
+            No License
+          </span>
+        )}
 
         {/* Connection Health Indicator */}
         {activeSession && (() => {
@@ -604,108 +622,132 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 
           {/* Input box */}
           <div className="border-t border-border px-3 pt-2 pb-2 shrink-0">
-            <div className="bg-card/60 border border-border rounded-xl">
-              {/* Text area row */}
-              <div className="flex items-end gap-2 px-3 pt-2.5 pb-1">
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSubmit()
-                    }
-                  }}
-                  placeholder={`Ask about ${activeSession.connection.name}…`}
-                  rows={1}
-                  disabled={aiStreaming}
-                  className={cn(
-                    'flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground',
-                    'outline-none max-h-32 overflow-y-auto leading-relaxed',
-                    'disabled:opacity-50'
-                  )}
-                  style={{ minHeight: '20px' }}
-                  onInput={(e) => {
-                    const el = e.currentTarget
-                    el.style.height = 'auto'
-                    el.style.height = Math.min(el.scrollHeight, 128) + 'px'
-                  }}
-                />
-              </div>
-
-              {/* Toolbar row */}
-              <div className="flex items-center gap-1 px-2 pb-2">
-                {/* Permission selector */}
-                <ModeSelector
-                  value={sessionPermission}
-                  onChange={setSessionPermission}
-                />
-
-                {/* Divider */}
-                <span className="w-px h-3.5 bg-border/60 mx-0.5" />
-
-                {/* Approval selector */}
-                <ApprovalSelector
-                  value={sessionApproval}
-                  onChange={setSessionApproval}
-                />
-
-                {/* Divider */}
-                <span className="w-px h-3.5 bg-border/60 mx-0.5" />
-
-                {/* Per-session blacklist */}
-                <BlacklistButton
-                  blacklist={sessionBlacklist}
-                  onChange={setSessionBlacklist}
-                />
-
-                {/* Divider */}
-                <span className="w-px h-3.5 bg-border/60 mx-0.5" />
-
-                {/* Auto Watch toggle */}
-                <button
-                  onClick={() => setAutoWatch(v => !v)}
-                  title={autoWatch ? 'Auto Watch ON — click to disable' : 'Auto Watch OFF — click to enable'}
-                  className={cn(
-                    'flex items-center justify-center w-6 h-6 rounded-md transition-all border',
-                    autoWatch
-                      ? 'text-primary/80 border-transparent hover:border-border hover:bg-muted/50'
-                      : 'text-muted-foreground/40 border-transparent hover:border-border hover:bg-muted/50'
-                  )}
+            {!licenseValid ? (
+              /* ── No License Gate ── */
+              <div className="flex flex-col items-center gap-3 py-4 px-3 rounded-xl border border-red-500/20 bg-red-500/5">
+                <div className="flex items-center gap-2 text-red-400">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span className="text-xs font-medium">License required to use ARIA</span>
+                </div>
+                <a
+                  href="https://netcopilot.app/register"
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(e) => { e.preventDefault(); window.open('https://netcopilot.app/register') }}
+                  className="text-xs px-4 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
                 >
-                  {autoWatch
-                    ? <Eye    className="w-3.5 h-3.5" />
-                    : <EyeOff className="w-3.5 h-3.5" />
-                  }
-                </button>
-
-                {/* Push send/stop to the right */}
-                <div className="flex-1" />
-
-                {aiStreaming ? (
-                  <button
-                    onClick={() => window.api.ai.cancel()}
-                    title="Stop generation"
-                    className="shrink-0 p-1.5 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors"
-                  >
-                    <Square className="w-3.5 h-3.5" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleSubmit}
-                    disabled={!input.trim()}
-                    title="Send (Enter)"
-                    className="shrink-0 p-1.5 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                  Get a License →
+                </a>
+                <p className="text-[10px] text-muted-foreground/60 text-center">
+                  Enter your key in Settings → ARIA
+                </p>
               </div>
-            </div>
-            <p className="text-[10px] text-muted-foreground/40 mt-1.5 px-1">
-              Enter to send · Shift+Enter for newline
-            </p>
+            ) : (
+              <>
+                <div className="bg-card/60 border border-border rounded-xl">
+                  {/* Text area row */}
+                  <div className="flex items-end gap-2 px-3 pt-2.5 pb-1">
+                    <textarea
+                      ref={inputRef}
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          handleSubmit()
+                        }
+                      }}
+                      placeholder={`Ask about ${activeSession.connection.name}…`}
+                      rows={1}
+                      disabled={aiStreaming}
+                      className={cn(
+                        'flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground',
+                        'outline-none max-h-32 overflow-y-auto leading-relaxed',
+                        'disabled:opacity-50'
+                      )}
+                      style={{ minHeight: '20px' }}
+                      onInput={(e) => {
+                        const el = e.currentTarget
+                        el.style.height = 'auto'
+                        el.style.height = Math.min(el.scrollHeight, 128) + 'px'
+                      }}
+                    />
+                  </div>
+
+                  {/* Toolbar row */}
+                  <div className="flex items-center gap-1 px-2 pb-2">
+                    {/* Permission selector */}
+                    <ModeSelector
+                      value={sessionPermission}
+                      onChange={setSessionPermission}
+                    />
+
+                    {/* Divider */}
+                    <span className="w-px h-3.5 bg-border/60 mx-0.5" />
+
+                    {/* Approval selector */}
+                    <ApprovalSelector
+                      value={sessionApproval}
+                      onChange={setSessionApproval}
+                    />
+
+                    {/* Divider */}
+                    <span className="w-px h-3.5 bg-border/60 mx-0.5" />
+
+                    {/* Per-session blacklist */}
+                    <BlacklistButton
+                      blacklist={sessionBlacklist}
+                      onChange={setSessionBlacklist}
+                    />
+
+                    {/* Divider */}
+                    <span className="w-px h-3.5 bg-border/60 mx-0.5" />
+
+                    {/* Auto Watch toggle */}
+                    <button
+                      onClick={() => setAutoWatch(v => !v)}
+                      title={autoWatch ? 'Auto Watch ON — click to disable' : 'Auto Watch OFF — click to enable'}
+                      className={cn(
+                        'flex items-center justify-center w-6 h-6 rounded-md transition-all border',
+                        autoWatch
+                          ? 'text-primary/80 border-transparent hover:border-border hover:bg-muted/50'
+                          : 'text-muted-foreground/40 border-transparent hover:border-border hover:bg-muted/50'
+                      )}
+                    >
+                      {autoWatch
+                        ? <Eye    className="w-3.5 h-3.5" />
+                        : <EyeOff className="w-3.5 h-3.5" />
+                      }
+                    </button>
+
+                    {/* Push send/stop to the right */}
+                    <div className="flex-1" />
+
+                    {aiStreaming ? (
+                      <button
+                        onClick={() => window.api.ai.cancel()}
+                        title="Stop generation"
+                        className="shrink-0 p-1.5 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors"
+                      >
+                        <Square className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleSubmit}
+                        disabled={!input.trim()}
+                        title="Send (Enter)"
+                        className="shrink-0 p-1.5 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground/40 mt-1.5 px-1">
+                  Enter to send · Shift+Enter for newline
+                </p>
+              </>
+            )}
           </div>
         </>
       )}
