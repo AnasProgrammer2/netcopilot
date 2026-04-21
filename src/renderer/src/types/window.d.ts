@@ -133,12 +133,17 @@ declare global {
       get(deviceType: string, limit?: number): Promise<Array<{ command: string; count: number; last_used: number }>>
       clear(deviceType?: string): Promise<boolean>
     }
+    license: {
+      get(): Promise<string | null>
+      set(key: string): Promise<boolean>
+      verify(): Promise<{ valid: boolean; plan: string; expiresAt: string | null; reason?: string }>
+      activate(key: string): Promise<{ valid: boolean; plan: string; expiresAt: string | null; reason?: string }>
+      getDeviceId(): Promise<string>
+    }
     ai: {
       chat(payload: unknown): Promise<void>
       cancel(): void
       toolResult(callId: string, output: string): Promise<void>
-      setApiKey(key: string): Promise<boolean>
-      getApiKey(): Promise<string | null>
       resetBlacklist(): Promise<string[]>
       exportMarkdown(payload: { host: string; messages: Array<{ role: string; content: string; toolCalls?: Array<{ command: string; output?: string }> }> }): Promise<{ success: boolean; filePath?: string }>
       onChunk(cb: (chunk: string) => void): () => void

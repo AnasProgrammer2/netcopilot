@@ -10,6 +10,7 @@ import { setupFileDialogHandlers } from './fileDialog'
 import { setupLogHandlers } from './logger'
 import { setupMasterPasswordHandlers } from './masterPassword'
 import { setupAiHandlers } from './ai'
+import { setupLicenseHandlers } from './license'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -97,6 +98,7 @@ app.whenReady().then(() => {
   setupSshHandlers(ipcMain, () => mainWindow)
   setupTelnetHandlers(ipcMain, () => mainWindow)
   setupAiHandlers(ipcMain, () => mainWindow)
+  setupLicenseHandlers(ipcMain)
   setupCredentialHandlers(ipcMain)
   setupSerialHandlers(ipcMain, () => mainWindow)
   setupFileDialogHandlers(ipcMain, () => mainWindow)

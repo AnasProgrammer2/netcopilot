@@ -1,8 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk'
 import { IpcMain, BrowserWindow, dialog } from 'electron'
 import { writeFile } from 'fs/promises'
 import { getDb } from './db'
 import { DEFAULT_AI_BLACKLIST } from './aiDefaults'
+import { loadLicenseKey, getDeviceId } from './license'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,7 +17,7 @@ interface SessionInfo {
 }
 
 interface ChatPayload {
-  messages:        Anthropic.MessageParam[]
+  messages:        AnthropicMessage[]
   terminalContext: string
   deviceType:      string
   host:            string
@@ -28,14 +28,27 @@ interface ChatPayload {
   model?:          string
 }
 
+interface AnthropicMessage {
+  role:    'user' | 'assistant'
+  content: unknown
+}
+
+interface ToolCall {
+  id:    string
+  name:  string
+  input: unknown
+}
+
 // ── Module-level state ───────────────────────────────────────────────────────
+
+const API_BASE = 'https://api.netcopilot.app'
 
 let _abortController: AbortController | null = null
 let _pendingToolResolve: ((output: string) => void) | null = null
 
 // ── Tool definitions ─────────────────────────────────────────────────────────
 
-const CREATE_PLAN_TOOL: Anthropic.Tool = {
+const CREATE_PLAN_TOOL = {
   name: 'create_plan',
   description:
     'Call this tool FIRST — before any run_command calls — when the user request is complex, ' +
@@ -59,7 +72,7 @@ const CREATE_PLAN_TOOL: Anthropic.Tool = {
   },
 }
 
-const RUN_COMMAND_TOOL: Anthropic.Tool = {
+const RUN_COMMAND_TOOL = {
   name: 'run_command',
   description:
     'Execute a command on a connected network device or server. ' +
@@ -71,7 +84,7 @@ const RUN_COMMAND_TOOL: Anthropic.Tool = {
     properties: {
       command:        { type: 'string', description: 'Exact command string to execute on the device' },
       reason:         { type: 'string', description: 'One-sentence explanation of why this command is needed' },
-      target_session: { type: 'string', description: 'Session ID to run the command on. Omit to use the active session. Required when you need to run on a specific device in a multi-session setup.' },
+      target_session: { type: 'string', description: 'Session ID to run the command on. Omit to use the active session.' },
     },
     required: ['command', 'reason'],
   },
@@ -190,88 +203,174 @@ ${payload.sessions && payload.sessions.length > 1
   ? payload.sessions.map(s =>
       `• [${s.sessionId}] ${s.name} — ${s.host} (${s.deviceType}, ${s.protocol})${s.host === payload.host ? ' ← ACTIVE' : ''}`
     ).join('\n')
-  : `• Active: ${payload.host} (${payload.deviceType}, ${payload.protocol})`
-}
-
-When multiple sessions are listed, use the target_session field in run_command to specify which device to run a command on. Use the exact sessionId from the list above.
+  : `• Active: ${payload.host} (${payload.deviceType})`}
 
 ═══════════════════════════════════════════════════
-CURRENT TERMINAL CONTEXT
+TERMINAL CONTEXT (last output from this device)
 ═══════════════════════════════════════════════════
-<terminal_context>
-${payload.terminalContext || '(no output yet)'}
-</terminal_context>`
+${payload.terminalContext || '(empty — session just started)'}
+`
 }
 
-// ── Smart context trimming ────────────────────────────────────────────────────
-// Estimates token count (rough: 1 token ≈ 4 chars) and trims old messages
-// when the conversation exceeds the safe threshold, keeping a summary placeholder.
+// ── Simple context trim (no summarization needed — backend handles limits) ────
 
-function estimateTokens(messages: Anthropic.MessageParam[]): number {
-  return messages.reduce((sum, m) => {
-    const text = typeof m.content === 'string'
-      ? m.content
-      : m.content.map(b => ('text' in b ? b.text : JSON.stringify(b))).join('')
-    return sum + Math.ceil(text.length / 4)
-  }, 0)
+function trimMessages(messages: AnthropicMessage[], maxMessages = 40): AnthropicMessage[] {
+  if (messages.length <= maxMessages) return messages
+  // Always keep the first message (user intent) and the last N-1
+  return [messages[0], ...messages.slice(-(maxMessages - 1))]
 }
 
-async function trimContext(
-  client: Anthropic,
-  messages: Anthropic.MessageParam[]
-): Promise<Anthropic.MessageParam[]> {
-  const TOKEN_LIMIT = 40_000   // trim when exceeding ~40k tokens
-  const KEEP_RECENT = 12       // always keep the last N messages intact
+// ── SSE stream parser ─────────────────────────────────────────────────────────
 
-  if (estimateTokens(messages) <= TOKEN_LIMIT) return messages
-  if (messages.length <= KEEP_RECENT) return messages
-
-  const old    = messages.slice(0, messages.length - KEEP_RECENT)
-  const recent = messages.slice(messages.length - KEEP_RECENT)
-
-  // Build plain text of old messages for summarization
-  const transcript = old.map(m => {
-    const role = m.role === 'user' ? 'User' : 'ARIA'
-    const text = typeof m.content === 'string'
-      ? m.content
-      : m.content.map(b => ('text' in b ? b.text : '[tool call/result]')).join(' ')
-    return `${role}: ${text}`
-  }).join('\n')
+async function* parseSSE(
+  stream: ReadableStream<Uint8Array>
+): AsyncGenerator<{ event: string; data: string }> {
+  const reader  = stream.getReader()
+  const decoder = new TextDecoder()
+  let buffer    = ''
 
   try {
-    const summary = await client.messages.create({
-      model:      'claude-haiku-4-5',
-      max_tokens: 512,
-      messages: [{
-        role:    'user',
-        content: `Summarize this network troubleshooting conversation in 3-5 bullet points. Focus on: what was investigated, commands run, findings, and any fixes applied. Be concise.\n\n${transcript}`,
-      }],
-    })
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
 
-    const summaryText = summary.content[0].type === 'text' ? summary.content[0].text : '(summary unavailable)'
+      const blocks = buffer.split('\n\n')
+      buffer = blocks.pop() ?? ''
 
-    const summaryMsg: Anthropic.MessageParam = {
-      role:    'user',
-      content: `[CONVERSATION SUMMARY — earlier context trimmed for token efficiency]\n${summaryText}`,
+      for (const block of blocks) {
+        const lines = block.split('\n')
+        let eventName = 'message'
+        let data      = ''
+
+        for (const line of lines) {
+          if (line.startsWith('event: ')) eventName = line.slice(7).trim()
+          else if (line.startsWith('data: '))  data      = line.slice(6).trim()
+        }
+
+        if (data) yield { event: eventName, data }
+      }
     }
-
-    return [summaryMsg, ...recent]
-  } catch {
-    // If summarization fails, just keep recent messages
-    return recent
+  } finally {
+    reader.releaseLock()
   }
+}
+
+// ── Single backend call (one Claude turn) ─────────────────────────────────────
+
+interface TurnResult {
+  toolCalls:     ToolCall[]
+  assistantContent: unknown[]   // full content blocks to reconstruct message
+  inputTokens:   number
+  outputTokens:  number
+  stopReason:    string
+  textCollected: string
+}
+
+async function callBackendTurn(
+  systemPrompt: string,
+  messages:     AnthropicMessage[],
+  model:        string,
+  licenseKey:   string,
+  onChunk:      (text: string) => void,
+): Promise<TurnResult> {
+  const body = {
+    licenseKey,
+    deviceId:   getDeviceId(),
+    system:     systemPrompt,
+    messages,
+    tools:      [CREATE_PLAN_TOOL, RUN_COMMAND_TOOL],
+    model,
+    max_tokens: 8096,
+  }
+
+  const response = await fetch(`${API_BASE}/api/ai/chat`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body),
+    signal:  _abortController?.signal ?? undefined,
+  })
+
+  if (!response.ok || !response.body) {
+    let reason = `HTTP ${response.status}`
+    try {
+      const err = await response.clone().json() as { error?: string }
+      if (err.error) reason = err.error
+    } catch { /* ignore */ }
+    throw new Error(reason)
+  }
+
+  const toolCalls:     ToolCall[] = []
+  const contentBlocks: unknown[]  = []
+  let inputTokens  = 0
+  let outputTokens = 0
+  let stopReason   = 'end_turn'
+  let textCollected = ''
+  let currentText   = ''
+
+  for await (const { event, data } of parseSSE(response.body)) {
+    if (_abortController?.signal.aborted) break
+
+    let parsed: Record<string, unknown>
+    try { parsed = JSON.parse(data) } catch { continue }
+
+    switch (event) {
+      case 'chunk': {
+        const text = parsed.text as string
+        currentText += text
+        textCollected += text
+        onChunk(text)
+        break
+      }
+      case 'tool_call': {
+        // Flush any accumulated text into a text block first
+        if (currentText) {
+          contentBlocks.push({ type: 'text', text: currentText })
+          currentText = ''
+        }
+        const tc: ToolCall = {
+          id:    parsed.id as string,
+          name:  parsed.name as string,
+          input: parsed.input,
+        }
+        toolCalls.push(tc)
+        contentBlocks.push({
+          type:  'tool_use',
+          id:    tc.id,
+          name:  tc.name,
+          input: tc.input,
+        })
+        break
+      }
+      case 'done': {
+        if (currentText) {
+          contentBlocks.push({ type: 'text', text: currentText })
+          currentText = ''
+        }
+        inputTokens  = (parsed.inputTokens  as number) || 0
+        outputTokens = (parsed.outputTokens as number) || 0
+        stopReason   = (parsed.stopReason   as string) || 'end_turn'
+        break
+      }
+      case 'error': {
+        throw new Error((parsed.message as string) || 'Backend error')
+      }
+    }
+  }
+
+  return { toolCalls, assistantContent: contentBlocks, inputTokens, outputTokens, stopReason, textCollected }
 }
 
 // ── Core agentic loop ────────────────────────────────────────────────────────
 
 async function runAiLoop(
-  payload: ChatPayload,
-  apiKey: string,
-  getWindow: () => BrowserWindow | null
+  payload:    ChatPayload,
+  licenseKey: string,
+  getWindow:  () => BrowserWindow | null,
 ): Promise<void> {
-  const client = new Anthropic({ apiKey })
   const systemPrompt = buildSystemPrompt(payload)
-  let messages: Anthropic.MessageParam[] = await trimContext(client, [...payload.messages])
+  const model        = payload.model || 'claude-sonnet-4-5'
+  let   messages     = trimMessages([...payload.messages] as AnthropicMessage[])
 
   _abortController = new AbortController()
 
@@ -282,38 +381,25 @@ async function runAiLoop(
     while (true) {
       if (_abortController.signal.aborted) break
 
-      const model = payload.model || 'claude-sonnet-4-5'
-      const runner = client.messages.stream(
-        {
-          model,
-          max_tokens: 8096,
-          system:     systemPrompt,
-          tools:      [CREATE_PLAN_TOOL, RUN_COMMAND_TOOL],
-          messages,
+      const turn = await callBackendTurn(
+        systemPrompt,
+        messages,
+        model,
+        licenseKey,
+        (text) => {
+          if (!_abortController?.signal.aborted) {
+            getWindow()?.webContents.send('ai:chunk', text)
+          }
         },
-        { signal: _abortController.signal }
       )
 
-      runner.on('text', (text) => {
-        if (!_abortController?.signal.aborted) {
-          getWindow()?.webContents.send('ai:chunk', text)
-        }
-      })
-
-      const finalMsg = await runner.finalMessage()
-
-      // Accumulate token usage across all loop iterations
-      totalInputTokens  += finalMsg.usage.input_tokens
-      totalOutputTokens += finalMsg.usage.output_tokens
+      totalInputTokens  += turn.inputTokens
+      totalOutputTokens += turn.outputTokens
 
       if (_abortController.signal.aborted) break
 
-      // Check for tool use
-      const toolBlocks = finalMsg.content.filter(
-        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use'
-      )
-
-      if (toolBlocks.length === 0) {
+      // No tool calls → done
+      if (turn.toolCalls.length === 0) {
         getWindow()?.webContents.send('ai:done', {
           inputTokens:  totalInputTokens,
           outputTokens: totalOutputTokens,
@@ -321,16 +407,16 @@ async function runAiLoop(
         break
       }
 
-      // Add assistant response to history
-      messages.push({ role: 'assistant', content: finalMsg.content })
+      // Add assistant message with full content blocks
+      messages.push({ role: 'assistant', content: turn.assistantContent })
 
       // Process tool calls sequentially
-      const toolResults: Anthropic.ToolResultBlockParam[] = []
+      const toolResults: unknown[] = []
 
-      for (const toolBlock of toolBlocks) {
+      for (const toolBlock of turn.toolCalls) {
         if (_abortController.signal.aborted) break
 
-        // ── create_plan: send to renderer, auto-acknowledge ───────────────────
+        // create_plan: send to renderer, auto-acknowledge
         if (toolBlock.name === 'create_plan') {
           const planInput = toolBlock.input as { objective: string; steps: string[] }
           getWindow()?.webContents.send('ai:plan', {
@@ -345,22 +431,22 @@ async function runAiLoop(
           continue
         }
 
-        // ── run_command: send to renderer, wait for execution result ──────────
+        // run_command: send to renderer, wait for execution result
         const input = toolBlock.input as { command: string; reason: string; target_session?: string }
 
         getWindow()?.webContents.send('ai:tool-call', {
-          id:             toolBlock.id,
-          command:        input.command,
-          reason:         input.reason,
-          targetSession:  input.target_session,
+          id:            toolBlock.id,
+          command:       input.command,
+          reason:        input.reason,
+          targetSession: input.target_session,
         })
 
-        // Wait for tool result from renderer (up to 300s for manual approval / long commands)
+        // Wait for tool result from renderer (up to 300s)
         const output = await new Promise<string>((resolve) => {
           const timer = setTimeout(() => {
             _pendingToolResolve = null
             resolve('(no response — command was not approved or timed out)')
-          }, 300000)
+          }, 300_000)
           _pendingToolResolve = (out: string) => {
             clearTimeout(timer)
             resolve(out)
@@ -376,7 +462,7 @@ async function runAiLoop(
 
       if (_abortController.signal.aborted) break
 
-      // Add tool results and continue loop
+      // Add tool results and loop for Claude's next response
       messages.push({ role: 'user', content: toolResults })
     }
   } catch (err: unknown) {
@@ -384,7 +470,7 @@ async function runAiLoop(
       getWindow()?.webContents.send('ai:error', (err as Error).message)
     }
   } finally {
-    _abortController = null
+    _abortController    = null
     _pendingToolResolve = null
   }
 }
@@ -392,23 +478,22 @@ async function runAiLoop(
 // ── IPC Handlers ─────────────────────────────────────────────────────────────
 
 export function setupAiHandlers(
-  ipcMain: IpcMain,
-  getWindow: () => BrowserWindow | null
+  ipcMain:   IpcMain,
+  getWindow: () => BrowserWindow | null,
 ): void {
   // Start a chat turn (streaming)
   ipcMain.handle('ai:chat', async (_, payload: ChatPayload) => {
-    // Cancel any in-progress stream
     _abortController?.abort()
     _pendingToolResolve = null
 
-    const apiKey = await loadApiKey()
-    if (!apiKey) {
-      getWindow()?.webContents.send('ai:error', 'No API key configured. Add your Anthropic API key in Settings → AI.')
+    const licenseKey = await loadLicenseKey()
+    if (!licenseKey) {
+      getWindow()?.webContents.send('ai:error', 'No license key configured. Add your license key in Settings → ARIA.')
       getWindow()?.webContents.send('ai:done')
       return
     }
 
-    runAiLoop(payload, apiKey, getWindow).catch(() => {/* handled inside */})
+    runAiLoop(payload, licenseKey, getWindow).catch(() => { /* handled inside */ })
   })
 
   // Cancel current stream
@@ -428,7 +513,7 @@ export function setupAiHandlers(
 
   // Export conversation as Markdown
   ipcMain.handle('ai:export-markdown', async (_, payload: {
-    host: string
+    host:     string
     messages: Array<{ role: string; content: string; toolCalls?: Array<{ command: string; output?: string }> }>
   }) => {
     const win = getWindow()
@@ -475,7 +560,7 @@ export function setupAiHandlers(
     return { success: true, filePath }
   })
 
-  // Reset blacklist to built-in defaults (saves to DB and returns the list)
+  // Reset blacklist to built-in defaults
   ipcMain.handle('ai:reset-blacklist', () => {
     const db = getDb()
     db.prepare(
@@ -483,35 +568,4 @@ export function setupAiHandlers(
     ).run({ v: JSON.stringify(DEFAULT_AI_BLACKLIST) })
     return DEFAULT_AI_BLACKLIST
   })
-
-  // API key management (stored via safeStorage in credentials table)
-  ipcMain.handle('ai:set-api-key', async (_, key: string) => {
-    const db = getDb()
-    const { safeStorage } = await import('electron')
-    const encoded = safeStorage.isEncryptionAvailable()
-      ? safeStorage.encryptString(key).toString('base64')
-      : Buffer.from(key).toString('base64')
-    db.prepare(
-      "INSERT INTO settings (key, value) VALUES ('ai.apiKey', @v) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
-    ).run({ v: JSON.stringify(encoded) })
-    return true
-  })
-
-  ipcMain.handle('ai:get-api-key', async () => {
-    return loadApiKey()
-  })
-}
-
-async function loadApiKey(): Promise<string | null> {
-  try {
-    const db  = getDb()
-    const row = db.prepare("SELECT value FROM settings WHERE key = 'ai.apiKey'").get() as { value: string } | undefined
-    if (!row) return null
-    const { safeStorage } = await import('electron')
-    const encoded: string = JSON.parse(row.value)
-    const buf = Buffer.from(encoded, 'base64')
-    return safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(buf) : buf.toString('utf-8')
-  } catch {
-    return null
-  }
 }
