@@ -837,32 +837,11 @@ function LabeledInput({ label, type, value, onChange }: {
   )
 }
 
-const AI_MODELS = [
-  {
-    id:    'claude-sonnet-4-5',
-    name:  'Claude Sonnet 4.5',
-    desc:  'Best balance of intelligence and speed. Recommended for most tasks.',
-    badge: 'Recommended',
-  },
-  {
-    id:    'claude-opus-4-5',
-    name:  'Claude Opus 4.5',
-    desc:  'Most intelligent model. Best for complex multi-step network analysis.',
-    badge: 'Most Powerful',
-  },
-  {
-    id:    'claude-haiku-4-5',
-    name:  'Claude Haiku 4.5',
-    desc:  'Fastest and most cost-efficient. Good for simple queries.',
-    badge: 'Fastest',
-  },
-]
-
 // ─── AI Copilot Settings Section ─────────────────────────────────────────────
 function AiSection(): JSX.Element {
   const {
-    aiPermission, aiApproval, aiBlacklist, aiModel,
-    setAiPermission, setAiApproval, setAiBlacklist, setAiModel,
+    aiPermission, aiApproval, aiBlacklist,
+    setAiPermission, setAiApproval, setAiBlacklist,
     licenseKey: storedKey, licenseValid, licensePlan, licenseExpiry, deviceId,
     setLicenseKey, setLicenseStatus, setDeviceId,
   } = useAppStore()
@@ -1032,43 +1011,6 @@ function AiSection(): JSX.Element {
             <code className="text-[10px] font-mono text-muted-foreground/80 select-all">{deviceId.slice(0, 16)}…</code>
           </div>
         )}
-      </SettingsGroup>
-
-      {/* Model Selection */}
-      <SettingsGroup label="AI Model">
-        <div className="space-y-2">
-          {AI_MODELS.map((m) => (
-            <button
-              key={m.id}
-              onClick={async () => {
-                setAiModel(m.id)
-                await window.api.store.setSetting('ai.model', m.id)
-              }}
-              className={cn(
-                'w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all cursor-pointer',
-                aiModel === m.id
-                  ? 'border-primary/50 bg-primary/10'
-                  : 'border-border hover:border-border/80 hover:bg-accent/50'
-              )}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-semibold text-foreground">{m.name}</span>
-                  <span className={cn(
-                    'text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded',
-                    m.badge === 'Recommended'   && 'bg-primary/15 text-primary',
-                    m.badge === 'Most Powerful' && 'bg-amber-500/15 text-amber-500',
-                    m.badge === 'Fastest'       && 'bg-emerald-500/15 text-emerald-500',
-                  )}>
-                    {m.badge}
-                  </span>
-                  {aiModel === m.id && <Check className="w-3.5 h-3.5 text-primary ml-auto" />}
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{m.desc}</p>
-              </div>
-            </button>
-          ))}
-        </div>
       </SettingsGroup>
 
       {/* Permission Mode */}
