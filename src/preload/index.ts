@@ -136,15 +136,22 @@ const api = {
       ipcRenderer.invoke('history:clear', deviceType)
   },
 
+  // License management
+  license: {
+    get:        ()              => ipcRenderer.invoke('license:get'),
+    set:        (key: string)   => ipcRenderer.invoke('license:set', key),
+    verify:     ()              => ipcRenderer.invoke('license:verify'),
+    activate:   (key: string)   => ipcRenderer.invoke('license:activate', key),
+    getDeviceId: ()             => ipcRenderer.invoke('license:device-id'),
+  },
+
   // AI Copilot
   ai: {
-    chat:       (payload: unknown)                   => ipcRenderer.invoke('ai:chat', payload),
-    cancel:     ()                                   => ipcRenderer.send('ai:cancel'),
-    toolResult: (callId: string, output: string)     => ipcRenderer.invoke('ai:tool-result', callId, output),
-    setApiKey:      (key: string)                    => ipcRenderer.invoke('ai:set-api-key', key),
-    getApiKey:      ()                               => ipcRenderer.invoke('ai:get-api-key'),
-    resetBlacklist:  ()                               => ipcRenderer.invoke('ai:reset-blacklist'),
-    exportMarkdown:  (payload: unknown)               => ipcRenderer.invoke('ai:export-markdown', payload),
+    chat:          (payload: unknown)                   => ipcRenderer.invoke('ai:chat', payload),
+    cancel:        ()                                   => ipcRenderer.send('ai:cancel'),
+    toolResult:    (callId: string, output: string)     => ipcRenderer.invoke('ai:tool-result', callId, output),
+    resetBlacklist: ()                                  => ipcRenderer.invoke('ai:reset-blacklist'),
+    exportMarkdown: (payload: unknown)                  => ipcRenderer.invoke('ai:export-markdown', payload),
     onChunk:    (cb: (chunk: string) => void) => {
       const handler = (_: unknown, chunk: string) => cb(chunk)
       ipcRenderer.on('ai:chunk', handler)

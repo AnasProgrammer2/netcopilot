@@ -137,6 +137,17 @@ interface AppState {
 
   // AI Copilot
   aiPanelOpen:  boolean
+  // License state
+  licenseKey:    string
+  licenseValid:  boolean
+  licensePlan:   string
+  licenseExpiry: string | null
+  deviceId:      string
+
+  setLicenseKey:    (key: string) => void
+  setLicenseStatus: (status: { valid: boolean; plan: string; expiresAt: string | null }) => void
+  setDeviceId:      (id: string) => void
+
   aiPermission: AiPermission
   aiApproval:   AiApproval
   aiBlacklist:  string[]
@@ -169,6 +180,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeSessionId: null,
   terminalSettings: { ...DEFAULT_TERMINAL_SETTINGS },
   connectionSettings: { ...DEFAULT_CONNECTION_SETTINGS },
+
+  // License initial state
+  licenseKey:    '',
+  licenseValid:  false,
+  licensePlan:   '',
+  licenseExpiry: null,
+  deviceId:      '',
+
+  setLicenseKey:    (key) => set({ licenseKey: key }),
+  setLicenseStatus: (s)   => set({ licenseValid: s.valid, licensePlan: s.plan, licenseExpiry: s.expiresAt }),
+  setDeviceId:      (id)  => set({ deviceId: id }),
 
   // AI Copilot initial state
   aiPanelOpen:  false,
@@ -391,6 +413,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     const aiBlacklist   = Array.isArray(aiBlacklistRaw) ? aiBlacklistRaw as string[] : []
     const aiModel       = (await window.api.store.getSetting('ai.model')       as string | null) ?? 'claude-sonnet-4-5'
 
+    // Load license state
+    const licenseKey = await window.api.license.get()
+    const deviceId   = await window.api.license.getDeviceId()
+
     set({
       terminalSettings: { ...DEFAULT_TERMINAL_SETTINGS, ...ts },
       connectionSettings: { ...DEFAULT_CONNECTION_SETTINGS, ...cs },
@@ -399,7 +425,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       aiModel,
       aiApproval,
       aiBlacklist,
+      licenseKey: licenseKey ?? '',
+      deviceId,
     })
+
+    // Verify license in background (non-blocking)
+    if (licenseKey) {
+      window.api.license.verify().then((status) => {
+        set({ licenseValid: status.valid, licensePlan: status.plan, licenseExpiry: status.expiresAt })
+      }).catch(() => { /* network unavailable — don't block */ })
+    }
 
     applyAccentColor(accentColor)
     applyTheme(theme as 'dark' | 'light' | 'system')

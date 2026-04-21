@@ -860,67 +860,51 @@ const AI_MODELS = [
 
 // ─── AI Copilot Settings Section ─────────────────────────────────────────────
 function AiSection(): JSX.Element {
-  const { aiPermission, aiApproval, aiBlacklist, aiModel, setAiPermission, setAiApproval, setAiBlacklist, setAiModel } = useAppStore()
+  const {
+    aiPermission, aiApproval, aiBlacklist, aiModel,
+    setAiPermission, setAiApproval, setAiBlacklist, setAiModel,
+    licenseKey: storedKey, licenseValid, licensePlan, licenseExpiry, deviceId,
+    setLicenseKey, setLicenseStatus, setDeviceId,
+  } = useAppStore()
 
-  const [apiKey, setApiKey]         = useState('')
+  const [inputKey, setInputKey]     = useState('')
   const [showKey, setShowKey]       = useState(false)
-  const [keySaved, setKeySaved]     = useState(false)
-  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle')
-  const [testError, setTestError]   = useState('')
+  const [activating, setActivating] = useState(false)
+  const [activateMsg, setActivateMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [settingsSaved, setSettingsSaved] = useState(false)
   const [blacklistInput, setBlacklistInput] = useState(aiBlacklist.join(', '))
 
   useEffect(() => {
-    window.api.ai.getApiKey().then((k) => { if (k) setApiKey(k) })
-  }, [])
+    if (storedKey) setInputKey(storedKey)
+  }, [storedKey])
 
-  // Sync blacklist textarea whenever the store value changes (e.g. after loadSettings completes)
   useEffect(() => {
     setBlacklistInput(aiBlacklist.join(', '))
   }, [aiBlacklist])
 
-  const saveApiKey = async () => {
-    if (!apiKey.trim()) return
-    await window.api.ai.setApiKey(apiKey.trim())
-    // Also persist permission, approval, blacklist
-    await window.api.store.setSetting('ai.permission', aiPermission)
-    await window.api.store.setSetting('ai.approval',   aiApproval)
-    const list = blacklistInput.split(',').map(s => s.trim()).filter(Boolean)
-    await window.api.store.setSetting('ai.blacklist', list)
-    setAiBlacklist(list)
-    setKeySaved(true)
-    setTimeout(() => setKeySaved(false), 2500)
-  }
+  useEffect(() => {
+    window.api.license.getDeviceId().then(setDeviceId)
+  }, [setDeviceId])
 
-  const testApiKey = async () => {
-    const key = apiKey.trim()
-    if (!key) { setTestStatus('fail'); setTestError('Enter an API key first'); return }
-    setTestStatus('testing')
-    setTestError('')
+  const handleActivate = async () => {
+    const key = inputKey.trim().toUpperCase()
+    if (!key) { setActivateMsg({ ok: false, text: 'Enter a license key first.' }); return }
+    setActivating(true)
+    setActivateMsg(null)
     try {
-      // Send minimal chat to verify key — use a simple ping message
-      await window.api.ai.setApiKey(key) // save first so main process can use it
-      // Use a promise race with ai events
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Timeout — no response from API')), 15000)
-        const offDone  = window.api.ai.onDone(() => { clearTimeout(timeout); offDone(); offErr(); resolve() })
-        const offErr   = window.api.ai.onError((e) => { clearTimeout(timeout); offDone(); offErr(); reject(new Error(e)) })
-        window.api.ai.chat({
-          messages:        [{ role: 'user', content: 'Reply with exactly: ok' }],
-          terminalContext: '',
-          deviceType:      'generic',
-          host:            'test',
-          protocol:        'ssh',
-          permission:      'troubleshoot',
-          isProactive:     false,
-          model:           aiModel,
-        })
-      })
-      setTestStatus('ok')
+      const result = await window.api.license.activate(key)
+      if (result.valid) {
+        setLicenseKey(key)
+        setLicenseStatus({ valid: true, plan: result.plan, expiresAt: result.expiresAt })
+        setActivateMsg({ ok: true, text: `✓ Activated — plan: ${result.plan.toUpperCase()}` })
+      } else {
+        setActivateMsg({ ok: false, text: result.reason ?? 'Invalid license key.' })
+      }
     } catch (e: unknown) {
-      setTestStatus('fail')
-      setTestError(e instanceof Error ? e.message : String(e))
+      setActivateMsg({ ok: false, text: e instanceof Error ? e.message : 'Activation failed.' })
+    } finally {
+      setActivating(false)
     }
-    setTimeout(() => setTestStatus('idle'), 6000)
   }
 
   const saveOtherSettings = async () => {
@@ -929,19 +913,19 @@ function AiSection(): JSX.Element {
     const list = blacklistInput.split(',').map(s => s.trim()).filter(Boolean)
     await window.api.store.setSetting('ai.blacklist', list)
     setAiBlacklist(list)
-    setKeySaved(true)
-    setTimeout(() => setKeySaved(false), 2500)
+    setSettingsSaved(true)
+    setTimeout(() => setSettingsSaved(false), 2500)
   }
 
   const permissionOptions: { id: AiPermission; label: string; desc: string; icon: JSX.Element }[] = [
     {
-      id:   'troubleshoot',
+      id:    'troubleshoot',
       label: 'Troubleshoot',
       desc:  'Read-only commands only — show, ping, ls, ps, etc. Safe for monitoring.',
       icon:  <ShieldCheck className="w-4 h-4 text-amber-400" />,
     },
     {
-      id:   'full-access',
+      id:    'full-access',
       label: 'Full Access',
       desc:  'Any command including configuration changes. Use with caution.',
       icon:  <Wrench className="w-4 h-4 text-red-400" />,
@@ -950,19 +934,19 @@ function AiSection(): JSX.Element {
 
   const approvalOptions: { id: AiApproval; label: string; desc: string; icon: JSX.Element }[] = [
     {
-      id:   'ask',
+      id:    'ask',
       label: 'Ask before each command',
       desc:  'AI shows the command and waits for your approval before running.',
       icon:  <Sparkles className="w-4 h-4 text-primary" />,
     },
     {
-      id:   'auto',
+      id:    'auto',
       label: 'Auto-approve all',
       desc:  'AI executes commands immediately without asking. Fastest workflow.',
       icon:  <Zap className="w-4 h-4 text-emerald-400" />,
     },
     {
-      id:   'blacklist',
+      id:    'blacklist',
       label: 'Block specific patterns',
       desc:  'Auto-approve everything except commands matching your blacklist.',
       icon:  <Lock className="w-4 h-4 text-orange-400" />,
@@ -977,28 +961,42 @@ function AiSection(): JSX.Element {
         description="Configure ARIA — your AI-native network assistant."
       />
 
-      {/* API Key */}
-      <SettingsGroup label="Anthropic API Key">
+      {/* License Key */}
+      <SettingsGroup label="License Key">
+        {/* Status banner */}
+        <div className={cn(
+          'flex items-center gap-2 px-3 py-2 rounded-lg text-xs mb-3 border',
+          licenseValid
+            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+            : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+        )}>
+          {licenseValid
+            ? <><Check className="w-3.5 h-3.5 shrink-0" /> <span>Active · Plan: <strong>{licensePlan.toUpperCase()}</strong>{licenseExpiry ? ` · Expires ${new Date(licenseExpiry).toLocaleDateString()}` : ' · Lifetime'}</span></>
+            : <><Lock className="w-3.5 h-3.5 shrink-0" /> <span>No active license — ARIA is disabled</span></>
+          }
+        </div>
+
         <p className="text-xs text-muted-foreground mb-2">
-          Required to use ARIA. Your key is stored encrypted in the OS keychain.{' '}
+          Enter your NetCopilot license key to activate ARIA. Keys are stored encrypted in the OS keychain.{' '}
           <a
-            href="https://console.anthropic.com/settings/keys"
+            href="https://netcopilot.app/dashboard"
             target="_blank"
             rel="noreferrer"
             className="text-primary hover:underline"
-            onClick={(e) => { e.preventDefault(); window.open('https://console.anthropic.com/settings/keys') }}
+            onClick={(e) => { e.preventDefault(); window.open('https://netcopilot.app/dashboard') }}
           >
-            Get a key →
+            Get a license →
           </a>
         </p>
         <div className="flex gap-2">
           <div className="flex-1 relative">
             <input
               type={showKey ? 'text' : 'password'}
-              value={apiKey}
-              onChange={(e) => { setApiKey(e.target.value); setTestStatus('idle') }}
-              placeholder="sk-ant-..."
-              className={cn(inputCls, 'pr-9 font-mono text-xs')}
+              value={inputKey}
+              onChange={(e) => { setInputKey(e.target.value.toUpperCase()); setActivateMsg(null) }}
+              placeholder="NETC-XXXX-XXXX-XXXX"
+              className={cn(inputCls, 'pr-9 font-mono text-xs tracking-widest')}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleActivate() }}
             />
             <button
               onClick={() => setShowKey(v => !v)}
@@ -1008,29 +1006,31 @@ function AiSection(): JSX.Element {
             </button>
           </div>
           <button
-            onClick={saveApiKey}
-            className="px-3 py-2 rounded-md bg-primary/20 text-primary hover:bg-primary/30 text-xs font-medium transition-colors whitespace-nowrap"
-          >
-            {keySaved ? '✓ Saved' : 'Save'}
-          </button>
-          <button
-            onClick={testApiKey}
-            disabled={testStatus === 'testing'}
+            onClick={handleActivate}
+            disabled={activating}
             className={cn(
-              'px-3 py-2 rounded-md text-xs font-medium transition-colors whitespace-nowrap',
-              testStatus === 'ok'   && 'bg-emerald-500/15 text-emerald-400',
-              testStatus === 'fail' && 'bg-red-500/15 text-red-400',
-              testStatus === 'testing' && 'bg-muted text-muted-foreground cursor-wait',
-              (testStatus === 'idle') && 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-accent',
+              'px-4 py-2 rounded-md text-xs font-medium transition-colors whitespace-nowrap',
+              activating
+                ? 'bg-muted text-muted-foreground cursor-wait'
+                : 'bg-primary text-primary-foreground hover:bg-primary/90'
             )}
           >
-            {testStatus === 'testing' ? 'Testing…' : testStatus === 'ok' ? '✓ Connected' : testStatus === 'fail' ? '✗ Failed' : 'Test'}
+            {activating ? 'Activating…' : 'Activate'}
           </button>
         </div>
 
-        {/* Test error details */}
-        {testStatus === 'fail' && testError && (
-          <p className="text-xs text-red-400 mt-1.5 px-1 leading-relaxed">{testError}</p>
+        {activateMsg && (
+          <p className={cn('text-xs mt-1.5 px-1 leading-relaxed', activateMsg.ok ? 'text-emerald-400' : 'text-red-400')}>
+            {activateMsg.text}
+          </p>
+        )}
+
+        {/* Device fingerprint */}
+        {deviceId && (
+          <div className="mt-3 flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Device ID:</span>
+            <code className="text-[10px] font-mono text-muted-foreground/80 select-all">{deviceId.slice(0, 16)}…</code>
+          </div>
         )}
       </SettingsGroup>
 
@@ -1125,8 +1125,7 @@ function AiSection(): JSX.Element {
         </div>
       </SettingsGroup>
 
-      {/* Blacklist (only shown when blacklist mode is selected) */}
-      {/* Blacklist — always shown, not only in blacklist mode */}
+      {/* Blocked command patterns */}
       <SettingsGroup label="Blocked Command Patterns">
         <div className="flex items-start justify-between mb-2 gap-2">
           <p className="text-xs text-muted-foreground leading-relaxed flex-1">
@@ -1161,7 +1160,7 @@ function AiSection(): JSX.Element {
           onClick={saveOtherSettings}
           className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition-colors"
         >
-          {keySaved ? '✓ Settings Saved' : 'Save Settings'}
+          {settingsSaved ? '✓ Settings Saved' : 'Save Settings'}
         </button>
       </div>
     </div>
