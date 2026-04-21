@@ -483,7 +483,7 @@ export function setupAiHandlers(
 
     const licenseKey = await loadLicenseKey()
     if (!licenseKey) {
-      getWindow()?.webContents.send('ai:error', 'No license key configured. Add your license key in Settings → ARIA.')
+      getWindow()?.webContents.send('ai:error', 'No license key. Get yours at netcopilot.app/register then add it in Settings → ARIA.')
       getWindow()?.webContents.send('ai:done')
       return
     }
