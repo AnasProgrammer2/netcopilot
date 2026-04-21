@@ -25,7 +25,6 @@ interface ChatPayload {
   permission:      AiPermission
   isProactive:     boolean
   sessions?:       SessionInfo[]
-  model?:          string
 }
 
 interface AnthropicMessage {
@@ -270,7 +269,6 @@ interface TurnResult {
 async function callBackendTurn(
   systemPrompt: string,
   messages:     AnthropicMessage[],
-  model:        string,
   licenseKey:   string,
   onChunk:      (text: string) => void,
 ): Promise<TurnResult> {
@@ -280,7 +278,6 @@ async function callBackendTurn(
     system:     systemPrompt,
     messages,
     tools:      [CREATE_PLAN_TOOL, RUN_COMMAND_TOOL],
-    model,
     max_tokens: 8096,
   }
 
@@ -369,7 +366,6 @@ async function runAiLoop(
   getWindow:  () => BrowserWindow | null,
 ): Promise<void> {
   const systemPrompt = buildSystemPrompt(payload)
-  const model        = payload.model || 'claude-sonnet-4-5'
   let   messages     = trimMessages([...payload.messages] as AnthropicMessage[])
 
   _abortController = new AbortController()
@@ -384,7 +380,6 @@ async function runAiLoop(
       const turn = await callBackendTurn(
         systemPrompt,
         messages,
-        model,
         licenseKey,
         (text) => {
           if (!_abortController?.signal.aborted) {
