@@ -60,9 +60,41 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # ── macOS code signing ────────────────────────────────────────────────────
+      # Requires repository secrets:
+      #   APPLE_CERTIFICATE          — base64-encoded .p12 certificate
+      #   APPLE_CERTIFICATE_PASSWORD — password for the .p12
+      #   APPLE_TEAM_ID              — your Apple Developer Team ID
+      #   APPLE_ID                   — Apple ID for notarization
+      #   APPLE_APP_SPECIFIC_PASSWORD — app-specific password for notarization
+      - name: Import macOS signing certificate
+        if: matrix.platform == 'mac' && env.APPLE_CERTIFICATE != ''
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "temp-keychain-password" build.keychain
+          security import certificate.p12 -k build.keychain \
+            -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -s build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "temp-keychain-password" build.keychain
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: -s -k "temp-keychain-password" build.keychain
+          rm certificate.p12
+
       - name: Build & package
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+          # macOS signing (no-op if secrets absent)
+          APPLE_TEAM_ID:               ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_ID:                    ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.APPLE_CERTIFICATE != '' && 'true' || 'false' }}
+          # Windows signing (no-op if secrets absent)
+          WIN_CSC_LINK:         ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          # GitHub token for electron-updater publish
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build:${{ matrix.platform }}
 

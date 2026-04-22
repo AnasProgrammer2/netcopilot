@@ -11,6 +11,14 @@ import { setupLogHandlers } from './logger'
 import { setupMasterPasswordHandlers } from './masterPassword'
 import { setupAiHandlers } from './ai'
 import { setupLicenseHandlers } from './license'
+import { setupAutoUpdater } from './updater'
+import * as Sentry from '@sentry/electron/main'
+
+// ── Sentry crash reporting (set SENTRY_DSN env var to enable) ──────────────
+const SENTRY_DSN = process.env['SENTRY_DSN'] ?? ''
+if (SENTRY_DSN) {
+  Sentry.init({ dsn: SENTRY_DSN, environment: process.env['NODE_ENV'] ?? 'production' })
+}
 
 let mainWindow: BrowserWindow | null = null
 
@@ -108,66 +116,6 @@ app.whenReady().then(() => {
 
   ipcMain.handle('app:get-version', () => app.getVersion())
 
-  ipcMain.handle('app:check-update', async () => {
-    try {
-      // Step 1: get latest tag
-      const tagsRes = await fetch(
-        'https://api.github.com/repos/AnasProgrammer2/netcopilot/tags?per_page=1',
-        { headers: { 'User-Agent': 'netcopilot-app' } }
-      )
-      if (!tagsRes.ok) throw new Error(`Tags API ${tagsRes.status}`)
-      const tags = await tagsRes.json() as Array<{ name: string }>
-      if (!tags.length) throw new Error('No tags found')
-
-      const latestTag = tags[0].name
-      const latest    = latestTag.replace(/^v/, '')
-      const current   = app.getVersion()
-
-      if (latest === current) {
-        return { current, latest, hasUpdate: false, url: null }
-      }
-
-      // Step 2: fetch release assets for that tag to get the platform-specific download URL
-      let downloadUrl = `https://github.com/AnasProgrammer2/netcopilot/releases/tag/${latestTag}`
-      try {
-        const releaseRes = await fetch(
-          `https://api.github.com/repos/AnasProgrammer2/netcopilot/releases/tags/${latestTag}`,
-          { headers: { 'User-Agent': 'netcopilot-app' } }
-        )
-        if (releaseRes.ok) {
-          const release = await releaseRes.json() as { html_url: string; assets: Array<{ name: string; browser_download_url: string }> }
-          const assets  = release.assets ?? []
-          const plat    = process.platform   // darwin | win32 | linux
-          const arch    = process.arch       // arm64 | x64
-
-          let matched: { name: string; browser_download_url: string } | undefined
-
-          if (plat === 'darwin') {
-            // Prefer arch-matched .dmg, fall back to any .dmg
-            matched = assets.find(a => a.name.endsWith('.dmg') && a.name.includes(arch))
-                   ?? assets.find(a => a.name.endsWith('.dmg'))
-          } else if (plat === 'win32') {
-            // Prefer Setup .exe (not .blockmap)
-            matched = assets.find(a => a.name.includes('Setup') && a.name.endsWith('.exe'))
-                   ?? assets.find(a => a.name.endsWith('.exe') && !a.name.endsWith('.blockmap'))
-          } else if (plat === 'linux') {
-            matched = assets.find(a => a.name.endsWith('.AppImage'))
-                   ?? assets.find(a => a.name.endsWith('.deb'))
-          }
-
-          if (matched) downloadUrl = matched.browser_download_url
-          else downloadUrl = release.html_url  // fallback: release page
-        }
-      } catch {
-        // If release assets fetch fails, keep fallback URL
-      }
-
-      return { current, latest, hasUpdate: true, url: downloadUrl }
-    } catch (e) {
-      return { current: app.getVersion(), latest: null, hasUpdate: false, error: String(e) }
-    }
-  })
-
   setupStoreHandlers(ipcMain)
   setupSshHandlers(ipcMain, () => mainWindow)
   setupTelnetHandlers(ipcMain, () => mainWindow)
@@ -180,6 +128,7 @@ app.whenReady().then(() => {
   setupMasterPasswordHandlers(ipcMain)
 
   createWindow()
+  setupAutoUpdater(() => mainWindow)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

@@ -1,6 +1,6 @@
 {
   "name": "netcopilot",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "NetCopilot – AI-powered SSH/Telnet terminal for network engineers",
   "main": "./out/main/index.js",
   "author": {
@@ -30,6 +30,7 @@
     "@fontsource-variable/geist-mono": "^5.2.7",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
+    "@sentry/electron": "^7.11.0",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-search": "^0.16.0",
@@ -37,6 +38,8 @@
     "@xterm/xterm": "^6.0.0",
     "better-sqlite3-multiple-ciphers": "^12.9.0",
     "clsx": "^2.1.1",
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.8.3",
     "lucide-react": "^1.8.0",
     "nanoid": "^5.1.9",
     "node-machine-id": "^1.1.12",
@@ -80,6 +83,11 @@
     "appId": "com.netcopilot.app",
     "productName": "NetCopilot",
     "copyright": "Copyright © 2026 NetCopilot",
+    "publish": {
+      "provider": "github",
+      "owner": "AnasProgrammer2",
+      "repo": "netcopilot"
+    },
     "directories": {
       "buildResources": "resources",
       "output": "dist"
@@ -88,7 +96,8 @@
       "out/**/*"
     ],
     "asarUnpack": [
-      "node_modules/better-sqlite3/**/*"
+      "node_modules/better-sqlite3/**/*",
+      "node_modules/electron-updater/**/*"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
@@ -96,14 +105,19 @@
         "dmg",
         "zip"
       ],
-      "icon": "resources/icon.icns"
+      "icon": "resources/icon.icns",
+      "notarize": {
+        "teamId": "${APPLE_TEAM_ID}"
+      }
     },
     "win": {
       "target": [
         "nsis",
         "portable"
       ],
-      "icon": "resources/icon.ico"
+      "icon": "resources/icon.ico",
+      "certificateFile": "${WIN_CSC_LINK}",
+      "certificatePassword": "${WIN_CSC_KEY_PASSWORD}"
     },
     "linux": {
       "target": [

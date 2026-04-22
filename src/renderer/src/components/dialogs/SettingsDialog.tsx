@@ -696,9 +696,10 @@ function AboutSection() {
   const info = window.api?.appInfo
   const [appVersion, setAppVersion] = useState('—')
   const [updateState, setUpdateState] = useState<
-    'idle' | 'checking' | 'up-to-date' | 'available' | 'error'
+    'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'downloaded' | 'error'
   >('idle')
-  const [updateInfo, setUpdateInfo] = useState<{ latest: string; url: string } | null>(null)
+  const [updateVersion, setUpdateVersion] = useState<string | null>(null)
+  const [downloadProgress, setDownloadProgress] = useState(0)
 
   const platform = info?.platform === 'darwin' ? 'macOS'
     : info?.platform === 'win32' ? 'Windows'
@@ -707,24 +708,45 @@ function AboutSection() {
 
   useEffect(() => {
     window.api.appInfo.getVersion().then(setAppVersion).catch(() => {})
+
+    const offAvailable = window.api.updater.onUpdateAvailable((i) => {
+      setUpdateVersion(i.version)
+      setUpdateState('available')
+    })
+    const offProgress = window.api.updater.onDownloadProgress((p) => {
+      setDownloadProgress(p.percent)
+      setUpdateState('downloading')
+    })
+    const offDownloaded = window.api.updater.onUpdateDownloaded((i) => {
+      setUpdateVersion(i.version)
+      setUpdateState('downloaded')
+    })
+    return () => { offAvailable(); offProgress(); offDownloaded() }
   }, [])
 
   const handleCheckUpdate = async () => {
     setUpdateState('checking')
-    setUpdateInfo(null)
+    setUpdateVersion(null)
     try {
-      const res = await window.api.appInfo.checkUpdate()
-      if (res.error) {
+      const res = await window.api.updater.check()
+      if (!res.success || res.error) {
         setUpdateState('error')
-      } else if (res.hasUpdate && res.latest && res.url) {
+      } else if (res.updateInfo) {
         setUpdateState('available')
-        setUpdateInfo({ latest: res.latest, url: res.url })
+        setUpdateVersion(res.updateInfo.version)
       } else {
         setUpdateState('up-to-date')
       }
     } catch {
       setUpdateState('error')
     }
+  }
+
+  const handleDownload = async () => {
+    setUpdateState('downloading')
+    setDownloadProgress(0)
+    const res = await window.api.updater.download()
+    if (!res.success) setUpdateState('error')
   }
 
   const rows = [
@@ -772,7 +794,7 @@ function AboutSection() {
       <div className="w-full space-y-2">
         <button
           onClick={handleCheckUpdate}
-          disabled={updateState === 'checking'}
+          disabled={updateState === 'checking' || updateState === 'downloading'}
           className={cn(
             'w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer',
             'border border-border bg-card hover:bg-accent disabled:opacity-60 disabled:cursor-not-allowed'
@@ -782,7 +804,7 @@ function AboutSection() {
           {updateState === 'checking' ? 'Checking…' : 'Check for Updates'}
         </button>
 
-        {/* Result banner */}
+        {/* Result banners */}
         {updateState === 'up-to-date' && (
           <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-400">
             <Check className="w-4 h-4 shrink-0" />
@@ -790,21 +812,53 @@ function AboutSection() {
           </div>
         )}
 
-        {updateState === 'available' && updateInfo && (
+        {updateState === 'available' && updateVersion && (
           <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-primary/10 border border-primary/25">
             <div className="flex items-center gap-2 text-sm">
               <ArrowUpCircle className="w-4 h-4 text-primary shrink-0" />
               <span className="text-foreground">
-                <strong className="text-primary">v{updateInfo.latest}</strong> is available
+                <strong className="text-primary">v{updateVersion}</strong> is available
               </span>
             </div>
-            <a
-              href={updateInfo.url}
-              onClick={(e) => { e.preventDefault(); window.open(updateInfo.url) }}
+            <button
+              onClick={handleDownload}
               className="shrink-0 text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium cursor-pointer"
             >
               Download →
-            </a>
+            </button>
+          </div>
+        )}
+
+        {updateState === 'downloading' && (
+          <div className="space-y-1.5 px-3 py-2.5 rounded-lg bg-primary/10 border border-primary/25">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-foreground flex items-center gap-2">
+                <RefreshCw className="w-3.5 h-3.5 text-primary animate-spin" />
+                Downloading update…
+              </span>
+              <span className="text-primary font-mono text-xs">{Math.round(downloadProgress)}%</span>
+            </div>
+            <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-300"
+                style={{ width: `${downloadProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {updateState === 'downloaded' && (
+          <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+            <div className="flex items-center gap-2 text-sm text-emerald-400">
+              <Check className="w-4 h-4 shrink-0" />
+              <span>v{updateVersion} downloaded — restart to install</span>
+            </div>
+            <button
+              onClick={() => window.api.updater.install()}
+              className="shrink-0 text-xs px-3 py-1.5 rounded-md bg-emerald-500 text-white hover:bg-emerald-600 transition-colors font-medium"
+            >
+              Restart
+            </button>
           </div>
         )}
 

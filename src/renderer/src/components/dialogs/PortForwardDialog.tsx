@@ -30,14 +30,15 @@ export function PortForwardDialog({ open, onClose, sessionId }: Props): JSX.Elem
   if (!open) return null
 
   const saveNew = () => {
-    if (!form.localPort || !form.remoteHost || !form.remotePort || !session) return
+    const isDynamic = form.type === 'dynamic'
+    if (!form.localPort || (!isDynamic && (!form.remoteHost || !form.remotePort)) || !session) return
     savePortForwardRule({
       id:           nanoid(),
       connectionId: session.connectionId,
       type:         form.type ?? 'local',
       localPort:    form.localPort,
-      remoteHost:   form.remoteHost,
-      remotePort:   form.remotePort,
+      remoteHost:   isDynamic ? '' : (form.remoteHost ?? ''),
+      remotePort:   isDynamic ? 0  : (form.remotePort ?? 0),
       description:  form.description,
     })
     setAdding(false)
@@ -149,7 +150,7 @@ export function PortForwardDialog({ open, onClose, sessionId }: Props): JSX.Elem
                     className={inputCls}
                   >
                     <option value="local">Local (L)</option>
-                    <option value="dynamic" disabled>Dynamic / SOCKS (soon)</option>
+                    <option value="dynamic">Dynamic / SOCKS5 (D)</option>
                   </select>
                 </div>
                 <div>
@@ -173,6 +174,7 @@ export function PortForwardDialog({ open, onClose, sessionId }: Props): JSX.Elem
                     onChange={e => setForm(f => ({ ...f, remoteHost: e.target.value }))}
                     placeholder="192.168.1.1"
                     className={inputCls}
+                    disabled={form.type === 'dynamic'}
                   />
                 </div>
                 <div>
@@ -184,9 +186,15 @@ export function PortForwardDialog({ open, onClose, sessionId }: Props): JSX.Elem
                     onChange={e => setForm(f => ({ ...f, remotePort: parseInt(e.target.value) }))}
                     placeholder="80"
                     className={inputCls}
+                    disabled={form.type === 'dynamic'}
                   />
                 </div>
               </div>
+              {form.type === 'dynamic' && (
+                <p className="text-[11px] text-muted-foreground/60 bg-muted/40 rounded-lg px-3 py-2">
+                  SOCKS5 proxy — configure your browser or app to use <span className="font-mono text-primary">127.0.0.1:{form.localPort}</span> as a SOCKS5 proxy.
+                </p>
+              )}
 
               <div>
                 <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Description (optional)</label>
