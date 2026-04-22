@@ -1,7 +1,11 @@
-import { Settings, Zap, Network } from 'lucide-react'
+import { Settings, Zap, Network, HelpCircle } from 'lucide-react'
 import { useAppStore } from '../store'
 
-export function TitleBar(): JSX.Element {
+interface Props {
+  onShortcuts: () => void
+}
+
+export function TitleBar({ onShortcuts }: Props): JSX.Element {
   const { setSettingsOpen, setQuickConnectOpen, sessions } = useAppStore()
   const isMac = navigator.userAgent.includes('Mac')
   const activeSessions = sessions.filter(s => s.status === 'connected').length
@@ -36,6 +40,14 @@ export function TitleBar(): JSX.Element {
         >
           <Zap className="w-3.5 h-3.5" />
           <span>{isMac ? '⌘K' : 'Ctrl+K'}</span>
+        </button>
+
+        <button
+          onClick={onShortcuts}
+          className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          title="Keyboard Shortcuts (?)"
+        >
+          <HelpCircle className="w-4 h-4" />
         </button>
 
         <button
