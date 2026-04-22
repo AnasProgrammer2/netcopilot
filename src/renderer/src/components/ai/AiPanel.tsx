@@ -978,7 +978,7 @@ function BlacklistButton({ blacklist, onChange }: { blacklist: string[]; onChang
               spellCheck={false}
               className={cn(
                 'w-full font-mono text-[11px] leading-relaxed resize-none',
-                'bg-black/30 border border-white/10 rounded-lg px-2.5 py-2',
+                'bg-muted/80 border border-border/60 rounded-lg px-2.5 py-2',
                 'text-foreground/80 placeholder:text-muted-foreground/40',
                 'focus:outline-none focus:border-primary/40',
               )}
@@ -1052,7 +1052,7 @@ function PendingCommandBar({ show, messages, onApprove, onBlock }: PendingComman
           Action Required
         </span>
       </div>
-      <code className="block w-full text-xs font-mono bg-black/20 rounded px-2 py-1.5 text-foreground/90 break-all mb-1">
+      <code className="block w-full text-xs font-mono bg-muted/70 rounded px-2 py-1.5 text-foreground/90 break-all mb-1">
         {pendingCall.command}
       </code>
       {pendingCall.reason && (

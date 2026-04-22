@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState, useRef } from 'react'
 import { Lock } from 'lucide-react'
-import { Toaster } from 'sonner'
+import { Toaster, toast } from 'sonner'
 import { useAppStore } from './store'
 import { Sidebar } from './components/sidebar/Sidebar'
 import { TerminalArea } from './components/terminal/TerminalArea'
@@ -17,6 +17,7 @@ export default function App(): JSX.Element {
     sessions, activeSessionId,
     setQuickConnectOpen, setSettingsOpen, setAiPanelOpen, aiPanelOpen,
     setActiveSession, closeSession, setSplitSession, splitSessionId,
+    licenseValid,
   } = useAppStore()
   const [masterLocked, setMasterLocked] = useState<boolean | null>(null) // null = checking
   const [locked, setLocked] = useState(false)
@@ -95,6 +96,10 @@ export default function App(): JSX.Element {
       // ⌘Shift+A / Ctrl+Shift+A — Toggle ARIA panel
       else if (e.shiftKey && e.key === 'A') {
         e.preventDefault()
+        if (!aiPanelOpen && !licenseValid) {
+          toast.error('License key required', { description: 'Add your license key in Settings → ARIA to use the AI assistant.' })
+          return
+        }
         setAiPanelOpen(!aiPanelOpen)
       }
       // ⌘D / Ctrl+D — Toggle split view
@@ -118,7 +123,7 @@ export default function App(): JSX.Element {
     },
     [
       setQuickConnectOpen, setSettingsOpen, setAiPanelOpen, aiPanelOpen,
-      activeSessionId, splitSessionId, sessions,
+      activeSessionId, splitSessionId, sessions, licenseValid,
       closeSession, setSplitSession, setActiveSession,
     ]
   )
