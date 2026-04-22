@@ -108,6 +108,22 @@ app.whenReady().then(() => {
 
   ipcMain.handle('app:get-version', () => app.getVersion())
 
+  ipcMain.handle('app:check-update', async () => {
+    try {
+      const res = await fetch(
+        'https://api.github.com/repos/AnasProgrammer2/netcopilot/releases/latest',
+        { headers: { 'User-Agent': 'netcopilot-app' } }
+      )
+      if (!res.ok) throw new Error(`GitHub API ${res.status}`)
+      const data = await res.json() as { tag_name: string; html_url: string; name: string }
+      const latest  = data.tag_name.replace(/^v/, '')
+      const current = app.getVersion()
+      return { current, latest, hasUpdate: latest !== current, url: data.html_url }
+    } catch (e) {
+      return { current: app.getVersion(), latest: null, hasUpdate: false, error: String(e) }
+    }
+  })
+
   setupStoreHandlers(ipcMain)
   setupSshHandlers(ipcMain, () => mainWindow)
   setupTelnetHandlers(ipcMain, () => mainWindow)

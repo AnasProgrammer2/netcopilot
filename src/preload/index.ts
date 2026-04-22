@@ -94,6 +94,8 @@ const api = {
     },
     platform: process.platform,
     getVersion: (): Promise<string> => ipcRenderer.invoke('app:get-version'),
+    checkUpdate: (): Promise<{ current: string; latest: string | null; hasUpdate: boolean; url?: string; error?: string }> =>
+      ipcRenderer.invoke('app:check-update'),
   },
 
   // Serial

@@ -61,6 +61,7 @@ declare global {
         versions: { electron: string; node: string; chrome: string }
         platform: string
         getVersion(): Promise<string>
+        checkUpdate(): Promise<{ current: string; latest: string | null; hasUpdate: boolean; url?: string; error?: string }>
       }
       store: {
         getConnections(): Promise<Connection[]>
