@@ -1,9 +1,10 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { User, Eye, Copy, Check, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { cn } from '../../lib/utils'
 import { AiMessage as AiMessageType, AiToolCall } from '../../store'
 import { AiCommandBlock } from './AiCommandBlock'
@@ -67,7 +68,7 @@ export function AiMessage({ message, approval, blacklist, onApproveCommand, onBl
         )}
       >
         {isProactive && (
-          <span className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider block mb-1">
+          <span className="text-[11px] font-semibold text-muted-foreground/50 uppercase tracking-wider block mb-1">
             Auto Watch
           </span>
         )}
@@ -216,8 +217,21 @@ const LANG_MAP: Record<string, string> = {
   'txt': 'none',
 }
 
+function useIsLightMode(): boolean {
+  const [light, setLight] = useState(() => document.documentElement.classList.contains('light'))
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setLight(document.documentElement.classList.contains('light'))
+    })
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
+  return light
+}
+
 function CodeBlock({ code, className }: { code: string; className?: string }): JSX.Element {
   const [copied, setCopied] = useState(false)
+  const isLight = useIsLightMode()
 
   const rawLang = className?.replace('language-', '') ?? ''
   const language = LANG_MAP[rawLang] ?? rawLang
@@ -233,12 +247,12 @@ function CodeBlock({ code, className }: { code: string; className?: string }): J
     <div className="my-2 rounded-lg border border-border/60 overflow-hidden bg-muted/80 dark:bg-muted/50">
       {/* Header bar */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-muted border-b border-border/60">
-        <span className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-wider">
+        <span className="text-[11px] font-mono text-muted-foreground/60 uppercase tracking-wider">
           {rawLang || 'code'}
         </span>
         <button
           onClick={copy}
-          className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
         >
           {copied
             ? <><Check className="w-3 h-3 text-emerald-400" /><span className="text-emerald-400">Copied</span></>
@@ -250,7 +264,7 @@ function CodeBlock({ code, className }: { code: string; className?: string }): J
       {hasHighlight ? (
         <SyntaxHighlighter
           language={language}
-          style={vscDarkPlus}
+          style={isLight ? oneLight : vscDarkPlus}
           customStyle={{
             margin: 0, padding: '10px 12px',
             fontSize: '12px', lineHeight: '1.6',

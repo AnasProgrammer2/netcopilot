@@ -47,14 +47,14 @@ export function AiPlanBlock({ plan, msgId }: Props): JSX.Element {
             Investigation Plan
           </span>
           {!expanded && (
-            <span className="ml-2 text-[10px] text-muted-foreground">
+            <span className="ml-2 text-[11px] text-muted-foreground">
               {doneCount}/{plan.steps.length} steps
             </span>
           )}
         </div>
         {/* Progress fraction */}
         {expanded && aiAgentActive && (
-          <span className="text-[10px] font-mono text-primary/50 mr-1">
+          <span className="text-[11px] font-mono text-primary/50 mr-1">
             {doneCount}/{plan.steps.length}
           </span>
         )}
@@ -118,17 +118,17 @@ export function AiPlanBlock({ plan, msgId }: Props): JSX.Element {
             {isDone ? (
               <>
                 <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
-                <span className="text-[10px] text-emerald-500/70">Plan completed</span>
+                <span className="text-[11px] text-emerald-500/70">Plan completed</span>
               </>
             ) : aiAgentActive ? (
               <>
                 <Loader className="w-3 h-3 text-primary/50 animate-spin shrink-0" />
-                <span className="text-[10px] text-muted-foreground/60">Executing plan...</span>
+                <span className="text-[11px] text-muted-foreground/60">Executing plan...</span>
               </>
             ) : (
               <>
                 <Circle className="w-3 h-3 text-muted-foreground/30 shrink-0" />
-                <span className="text-[10px] text-muted-foreground/40">Pending</span>
+                <span className="text-[11px] text-muted-foreground/40">Pending</span>
               </>
             )}
           </div>

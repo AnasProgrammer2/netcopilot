@@ -400,11 +400,11 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 
         {/* License plan badge */}
         {licenseValid ? (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/20 leading-none hidden sm:inline shrink-0 uppercase tracking-wide">
+          <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/20 leading-none hidden sm:inline shrink-0 uppercase tracking-wide">
             {licensePlan || 'active'}
           </span>
         ) : (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-red-500/10 text-red-400 font-medium border border-red-500/20 leading-none hidden sm:inline shrink-0">
+          <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-red-500/10 text-red-400 font-medium border border-red-500/20 leading-none hidden sm:inline shrink-0">
             No License
           </span>
         )}
@@ -427,7 +427,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
           return (
             <div className="flex items-center gap-1 flex-1 min-w-0" title={`${activeSession.connection.name} — ${activeSession.connection.host} (${label})`}>
               <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', dot)} />
-              <span className={cn('text-[10px] font-medium truncate', color)}>
+              <span className={cn('text-[11px] font-medium truncate', color)}>
                 {activeSession.connection.name}
               </span>
             </div>
@@ -435,7 +435,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         })()}
         {/* Split View indicator */}
         {splitSession && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary/70 font-medium shrink-0">
+          <span className="text-[11px] px-1.5 py-0.5 rounded bg-primary/15 text-primary/70 font-medium shrink-0">
             ⇄ {splitSession.connection.name}
           </span>
         )}
@@ -445,7 +445,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         {(aiTokens.input > 0 || aiTokens.output > 0) && (
           <span
             title={`Input: ${aiTokens.input.toLocaleString()} · Output: ${aiTokens.output.toLocaleString()}`}
-            className="text-[10px] font-mono text-muted-foreground/50 select-none cursor-default"
+            className="text-[11px] font-mono text-muted-foreground/50 select-none cursor-default"
           >
             {formatTokens(aiTokens.input + aiTokens.output)}
           </span>
@@ -525,7 +525,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                 {/* Capability chips */}
                 <div className="flex flex-wrap gap-1.5 justify-center max-w-[220px]">
                   {['Diagnose issues', 'Read configs', 'Run commands', 'Plan changes'].map(cap => (
-                    <span key={cap} className="text-[10px] px-2 py-1 rounded-full bg-primary/8 border border-primary/15 text-primary/70 font-medium">
+                    <span key={cap} className="text-[11px] px-2 py-1 rounded-full bg-primary/8 border border-primary/15 text-primary/70 font-medium">
                       {cap}
                     </span>
                   ))}
@@ -638,7 +638,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                 >
                   Get a License →
                 </a>
-                <p className="text-[10px] text-muted-foreground/60 text-center">
+                <p className="text-[11px] text-muted-foreground/60 text-center">
                   Enter your key in Settings → ARIA
                 </p>
               </div>
@@ -743,7 +743,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                     )}
                   </div>
                 </div>
-                <p className="text-[10px] text-muted-foreground/40 mt-1.5 px-1">
+                <p className="text-[11px] text-muted-foreground/40 mt-1.5 px-1">
                   Enter to send · Shift+Enter for newline
                 </p>
               </>
@@ -943,7 +943,7 @@ function BlacklistButton({ blacklist, onChange }: { blacklist: string[]; onChang
         <ShieldAlert className="w-3 h-3" />
         <span>Block</span>
         {activeCount > 0 && (
-          <span className="text-[10px] opacity-70">({activeCount})</span>
+          <span className="text-[11px] opacity-70">({activeCount})</span>
         )}
       </button>
 
@@ -962,7 +962,7 @@ function BlacklistButton({ blacklist, onChange }: { blacklist: string[]; onChang
                 onChange(defaults)
               }}
               title="Reset to defaults"
-              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
             >
               <RotateCcw className="w-2.5 h-2.5" />
               Reset
@@ -988,7 +988,7 @@ function BlacklistButton({ blacklist, onChange }: { blacklist: string[]; onChang
 
           {/* Footer */}
           <div className="flex items-center justify-between px-3 py-2 border-t border-border/60">
-            <span className="text-[10px] text-muted-foreground/50">
+            <span className="text-[11px] text-muted-foreground/50">
               {draft.split('\n').filter(s => s.trim()).length} patterns
             </span>
             <button
@@ -1048,7 +1048,7 @@ function PendingCommandBar({ show, messages, onApprove, onBlock }: PendingComman
     <div className="border-t border-primary/20 bg-primary/5 px-3 py-2.5 shrink-0">
       <div className="flex items-center gap-1.5 mb-1.5">
         <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
-        <span className="text-[10px] font-semibold text-primary/70 uppercase tracking-wider">
+        <span className="text-[11px] font-semibold text-primary/70 uppercase tracking-wider">
           Action Required
         </span>
       </div>
