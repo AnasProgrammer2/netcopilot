@@ -5,9 +5,11 @@ import { useAppStore } from './store'
 import { Sidebar } from './components/sidebar/Sidebar'
 import { TerminalArea } from './components/terminal/TerminalArea'
 import { HomeScreen } from './components/home/HomeScreen'
+import { WelcomeScreen } from './components/WelcomeScreen'
 import { ConnectionDialog } from './components/dialogs/ConnectionDialog'
 import { QuickConnect } from './components/dialogs/QuickConnect'
 import { SettingsDialog } from './components/dialogs/SettingsDialog'
+import { ShortcutsDialog } from './components/dialogs/ShortcutsDialog'
 import { TitleBar } from './components/TitleBar'
 import { MasterPasswordLock } from './components/MasterPasswordLock'
 import { cn } from './lib/utils'
@@ -15,13 +17,14 @@ import { cn } from './lib/utils'
 export default function App(): JSX.Element {
   const {
     loadConnections, loadGroups, loadSshKeys, loadSettings,
-    sessions, activeSessionId,
+    connections, sessions, activeSessionId,
     setQuickConnectOpen, setSettingsOpen, setAiPanelOpen, aiPanelOpen,
     setActiveSession, closeSession, setSplitSession, splitSessionId,
     licenseValid,
   } = useAppStore()
-  const [masterLocked, setMasterLocked] = useState<boolean | null>(null) // null = checking
+  const [masterLocked, setMasterLocked] = useState<boolean | null>(null)
   const [locked, setLocked] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const lastActivityRef = useRef(Date.now())
   const autoLockMinsRef = useRef(0)
   const [updateBanner, setUpdateBanner] = useState<{
@@ -89,6 +92,16 @@ export default function App(): JSX.Element {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey
+
+      // ? — Keyboard shortcuts (only when not typing in an input)
+      if (e.key === '?' && !mod) {
+        const tag = (e.target as HTMLElement).tagName
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
+          setShortcutsOpen(true)
+        }
+        return
+      }
+
       if (!mod) return
 
       // ⌘K / Ctrl+K — Quick Connect
@@ -146,8 +159,7 @@ export default function App(): JSX.Element {
       setQuickConnectOpen, setSettingsOpen, setAiPanelOpen, aiPanelOpen,
       activeSessionId, splitSessionId, sessions, licenseValid,
       closeSession, setSplitSession, setActiveSession,
-    ]
-  )
+    ]  )
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
@@ -180,19 +192,25 @@ export default function App(): JSX.Element {
   return (
     <div className="flex flex-col h-screen w-screen bg-background text-foreground select-none overflow-hidden">
       <Toaster position="bottom-right" theme="dark" richColors closeButton />
-      <TitleBar />
+      <TitleBar onShortcuts={() => setShortcutsOpen(true)} />
 
       <div className="flex flex-1 overflow-hidden min-h-0">
         <Sidebar />
 
         <main className="flex-1 flex flex-col overflow-hidden min-h-0">
-          {sessions.length === 0 ? <HomeScreen /> : <TerminalArea />}
+          {sessions.length === 0
+            ? connections.length === 0
+              ? <WelcomeScreen />
+              : <HomeScreen />
+            : <TerminalArea />
+          }
         </main>
       </div>
 
       <ConnectionDialog />
       <QuickConnect />
       <SettingsDialog />
+      <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
       {/* Update notification banner */}
       {updateBanner && (

@@ -7,6 +7,12 @@ alwaysApply: true
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Commit Rules
+
+- **Never** include "made with Cursor", "Generated with Cursor", "Co-authored-by: Cursor", or any AI tool attribution in commit messages or code comments.
+- Commit messages must be clean, professional, and describe only the actual change.
+- Never add AI attribution footers, co-author lines, or tool signatures to any git commits.
+
 ## Commands
 
 ```bash
