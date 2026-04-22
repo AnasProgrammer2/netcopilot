@@ -94,6 +94,18 @@ app.whenReady().then(() => {
 
   nativeTheme.themeSource = 'dark'
 
+  // macOS "About" panel — show app icon + correct version
+  if (process.platform === 'darwin') {
+    const aboutIcon = nativeImage.createFromPath(join(__dirname, '../../resources/icon.png'))
+    app.setAboutPanelOptions({
+      applicationName: 'NetCopilot',
+      applicationVersion: app.getVersion(),
+      version: '',
+      iconPath: join(__dirname, '../../resources/icon.png'),
+      ...(aboutIcon.isEmpty() ? {} : { icon: aboutIcon }),
+    })
+  }
+
   ipcMain.handle('app:get-version', () => app.getVersion())
 
   setupStoreHandlers(ipcMain)
