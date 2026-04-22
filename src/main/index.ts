@@ -110,15 +110,19 @@ app.whenReady().then(() => {
 
   ipcMain.handle('app:check-update', async () => {
     try {
+      // Use tags API — always reflects latest pushed tag regardless of published release status
       const res = await fetch(
-        'https://api.github.com/repos/AnasProgrammer2/netcopilot/releases/latest',
+        'https://api.github.com/repos/AnasProgrammer2/netcopilot/tags?per_page=1',
         { headers: { 'User-Agent': 'netcopilot-app' } }
       )
       if (!res.ok) throw new Error(`GitHub API ${res.status}`)
-      const data = await res.json() as { tag_name: string; html_url: string; name: string }
-      const latest  = data.tag_name.replace(/^v/, '')
-      const current = app.getVersion()
-      return { current, latest, hasUpdate: latest !== current, url: data.html_url }
+      const tags = await res.json() as Array<{ name: string }>
+      if (!tags.length) throw new Error('No tags found')
+      const latestTag = tags[0].name
+      const latest    = latestTag.replace(/^v/, '')
+      const current   = app.getVersion()
+      const url       = `https://github.com/AnasProgrammer2/netcopilot/releases/tag/${latestTag}`
+      return { current, latest, hasUpdate: latest !== current, url }
     } catch (e) {
       return { current: app.getVersion(), latest: null, hasUpdate: false, error: String(e) }
     }
