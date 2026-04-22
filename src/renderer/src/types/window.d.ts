@@ -61,7 +61,17 @@ declare global {
         versions: { electron: string; node: string; chrome: string }
         platform: string
         getVersion(): Promise<string>
-        checkUpdate(): Promise<{ current: string; latest: string | null; hasUpdate: boolean; url?: string; error?: string }>
+      }
+      updater: {
+        check(): Promise<{ success: boolean; updateInfo?: { version: string } | null; error?: string }>
+        download(): Promise<{ success: boolean; error?: string }>
+        install(): void
+        openRelease(url: string): void
+        onUpdateAvailable(cb: (info: { version: string; releaseDate: string; releaseNotes: string | null }) => void): () => void
+        onUpdateNotAvailable(cb: () => void): () => void
+        onDownloadProgress(cb: (progress: { percent: number; bytesPerSecond: number; transferred: number; total: number }) => void): () => void
+        onUpdateDownloaded(cb: (info: { version: string }) => void): () => void
+        onError(cb: (message: string) => void): () => void
       }
       store: {
         getConnections(): Promise<Connection[]>

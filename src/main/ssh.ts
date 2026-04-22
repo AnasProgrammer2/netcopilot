@@ -31,6 +31,119 @@ interface ForwardServer {
 }
 const activeForwards = new Map<string, ForwardServer>() // key = forwardId
 
+// ── SOCKS proxy handler ───────────────────────────────────────────────────────
+
+function handleSocksConnection(sock: net.Socket, sshClient: Client): void {
+  sock.on('error', () => sock.destroy())
+
+  let buf = Buffer.alloc(0)
+
+  const onGreeting = (chunk: Buffer) => {
+    buf = Buffer.concat([buf, chunk])
+    if (buf.length < 2) return
+    sock.removeListener('data', onGreeting)
+
+    if (buf[0] === 0x04) {
+      handleSocks4(sock, sshClient, buf)
+    } else if (buf[0] === 0x05) {
+      sock.write(Buffer.from([0x05, 0x00])) // no auth
+      buf = Buffer.alloc(0)
+      handleSocks5Request(sock, sshClient)
+    } else {
+      sock.destroy()
+    }
+  }
+
+  sock.on('data', onGreeting)
+}
+
+function handleSocks5Request(sock: net.Socket, sshClient: Client): void {
+  let buf = Buffer.alloc(0)
+
+  const onRequest = (chunk: Buffer) => {
+    buf = Buffer.concat([buf, chunk])
+    if (buf.length < 4) return
+
+    if (buf[0] !== 0x05 || buf[1] !== 0x01) {
+      sock.write(Buffer.from([0x05, 0x07, 0x00, 0x01, 0, 0, 0, 0, 0, 0]))
+      sock.destroy()
+      return
+    }
+
+    const atyp = buf[3]
+    let host = ''
+    let port = 0
+    let end  = 0
+
+    if (atyp === 0x01) { // IPv4
+      if (buf.length < 10) return
+      host = `${buf[4]}.${buf[5]}.${buf[6]}.${buf[7]}`
+      port = buf.readUInt16BE(8)
+      end  = 10
+    } else if (atyp === 0x03) { // Domain
+      if (buf.length < 5) return
+      const len = buf[4]
+      if (buf.length < 5 + len + 2) return
+      host = buf.slice(5, 5 + len).toString()
+      port = buf.readUInt16BE(5 + len)
+      end  = 5 + len + 2
+    } else if (atyp === 0x04) { // IPv6
+      if (buf.length < 22) return
+      const parts: string[] = []
+      for (let i = 0; i < 16; i += 2) parts.push(buf.readUInt16BE(4 + i).toString(16))
+      host = parts.join(':')
+      port = buf.readUInt16BE(20)
+      end  = 22
+    } else {
+      sock.write(Buffer.from([0x05, 0x08, 0x00, 0x01, 0, 0, 0, 0, 0, 0]))
+      sock.destroy()
+      return
+    }
+
+    sock.removeListener('data', onRequest)
+    const remaining = buf.slice(end)
+
+    sshClient.forwardOut('127.0.0.1', 0, host, port, (err, stream) => {
+      if (err) {
+        sock.write(Buffer.from([0x05, 0x04, 0x00, 0x01, 0, 0, 0, 0, 0, 0]))
+        sock.destroy()
+        return
+      }
+      sock.write(Buffer.from([0x05, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0]))
+      if (remaining.length > 0) stream.write(remaining)
+      sock.pipe(stream)
+      stream.pipe(sock)
+      stream.on('close', () => sock.destroy())
+      sock.on('close', () => stream.destroy())
+    })
+  }
+
+  sock.on('data', onRequest)
+}
+
+function handleSocks4(sock: net.Socket, sshClient: Client, buf: Buffer): void {
+  if (buf.length < 9 || buf[1] !== 0x01) {
+    sock.write(Buffer.from([0x00, 0x5b, 0, 0, 0, 0, 0, 0]))
+    sock.destroy()
+    return
+  }
+  const port = buf.readUInt16BE(2)
+  const host = `${buf[4]}.${buf[5]}.${buf[6]}.${buf[7]}`
+
+  sshClient.forwardOut('127.0.0.1', 0, host, port, (err, stream) => {
+    if (err) {
+      sock.write(Buffer.from([0x00, 0x5b, 0, 0, 0, 0, 0, 0]))
+      sock.destroy()
+      return
+    }
+    sock.write(Buffer.from([0x00, 0x5a, 0, 0, 0, 0, 0, 0]))
+    sock.pipe(stream)
+    stream.pipe(sock)
+    stream.on('close', () => sock.destroy())
+    sock.on('close', () => stream.destroy())
+  })
+}
+
 export function setupSshHandlers(
   ipcMain: IpcMain,
   getWindow: () => BrowserWindow | null
@@ -243,8 +356,7 @@ export function setupSshHandlers(
         sock.on('error', () => sock.destroy())
 
         if (payload.type === 'dynamic') {
-          // Basic SOCKS4/5 not implemented — treat dynamic as error for now
-          sock.destroy()
+          handleSocksConnection(sock, session.client)
           return
         }
 
