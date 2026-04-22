@@ -693,13 +693,18 @@ function SecuritySection({ settings, update }: SectionProps) {
 // ─── Section: About ───────────────────────────────────────────────────────────
 function AboutSection() {
   const info = window.api?.appInfo
+  const [appVersion, setAppVersion] = useState('—')
   const platform = info?.platform === 'darwin' ? 'macOS'
     : info?.platform === 'win32' ? 'Windows'
     : info?.platform === 'linux' ? 'Linux'
     : navigator.platform
 
+  useEffect(() => {
+    window.api.appInfo.getVersion().then(setAppVersion).catch(() => {})
+  }, [])
+
   const rows = [
-    { label: 'Version',  value: '0.5.0' },
+    { label: 'Version',  value: appVersion },
     { label: 'Electron', value: info?.versions.electron ?? '—' },
     { label: 'Node.js',  value: info?.versions.node     ?? '—' },
     { label: 'Chrome',   value: info?.versions.chrome   ?? '—' },

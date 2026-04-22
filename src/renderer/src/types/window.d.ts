@@ -60,6 +60,7 @@ declare global {
       appInfo: {
         versions: { electron: string; node: string; chrome: string }
         platform: string
+        getVersion(): Promise<string>
       }
       store: {
         getConnections(): Promise<Connection[]>

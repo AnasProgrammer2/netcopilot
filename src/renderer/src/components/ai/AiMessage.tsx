@@ -122,7 +122,7 @@ function MarkdownContent({ content }: { content: string }): JSX.Element {
           if (inline) {
             return (
               <code
-                className="px-1.5 py-0.5 rounded bg-black/30 border border-white/10 font-mono text-[12px] text-primary/90"
+                className="px-1.5 py-0.5 rounded bg-muted border border-border/60 font-mono text-[12px] text-primary/90"
                 {...props}
               >
                 {code}
@@ -230,9 +230,9 @@ function CodeBlock({ code, className }: { code: string; className?: string }): J
   }
 
   return (
-    <div className="my-2 rounded-lg border border-white/10 overflow-hidden bg-black/40">
+    <div className="my-2 rounded-lg border border-border/60 overflow-hidden bg-muted/80 dark:bg-muted/50">
       {/* Header bar */}
-      <div className="flex items-center justify-between px-3 py-1.5 bg-black/30 border-b border-white/10">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-muted border-b border-border/60">
         <span className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-wider">
           {rawLang || 'code'}
         </span>
@@ -262,7 +262,7 @@ function CodeBlock({ code, className }: { code: string; className?: string }): J
           {code}
         </SyntaxHighlighter>
       ) : (
-        <pre className="px-3 py-2.5 overflow-x-auto text-[12px] leading-relaxed font-mono text-foreground/85 whitespace-pre">
+        <pre className="px-3 py-2.5 overflow-x-auto text-[12px] leading-relaxed font-mono text-foreground whitespace-pre">
           <code>{code}</code>
         </pre>
       )}

@@ -35,7 +35,7 @@ export function AiCommandBlock({ call, approval, blacklist, onApprove, onBlock }
   }[call.status]
 
   return (
-    <div className="mt-2 rounded-lg border border-primary/20 bg-black/30 overflow-hidden text-xs">
+    <div className="mt-2 rounded-lg border border-primary/20 bg-muted/60 overflow-hidden text-xs">
       {/* Header row */}
       <div className="flex items-center gap-2 px-3 py-2 bg-primary/10">
         <Terminal className="w-3 h-3 text-primary/60 shrink-0" />
@@ -89,7 +89,7 @@ export function AiCommandBlock({ call, approval, blacklist, onApprove, onBlock }
         <>
           <button
             onClick={() => setExpanded(v => !v)}
-            className="w-full text-left px-3 py-1 border-t border-border/40 text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+            className="w-full text-left px-3 py-1 border-t border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           >
             {expanded ? '▾ Hide output' : '▸ Show output'}
           </button>

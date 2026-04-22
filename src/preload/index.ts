@@ -92,7 +92,8 @@ const api = {
       node: process.versions.node,
       chrome: process.versions.chrome
     },
-    platform: process.platform
+    platform: process.platform,
+    getVersion: (): Promise<string> => ipcRenderer.invoke('app:get-version'),
   },
 
   // Serial

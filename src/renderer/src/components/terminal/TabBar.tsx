@@ -13,6 +13,7 @@ export function TabBar(): JSX.Element {
     sessions, activeSessionId, splitSessionId,
     setActiveSession, closeSession, setQuickConnectOpen, setSplitSession,
     aiPanelOpen, setAiPanelOpen, activeForwardIds,
+    licenseValid,
   } = useAppStore()
 
   const [splitMenuOpen,   setSplitMenuOpen]   = useState(false)
@@ -79,7 +80,13 @@ export function TabBar(): JSX.Element {
 
       {/* AI Copilot toggle */}
       <button
-        onClick={() => setAiPanelOpen(!aiPanelOpen)}
+        onClick={() => {
+          if (!aiPanelOpen && !licenseValid) {
+            toast.error('License key required', { description: 'Add your license key in Settings → ARIA to use the AI assistant.' })
+            return
+          }
+          setAiPanelOpen(!aiPanelOpen)
+        }}
         title={aiPanelOpen ? 'Close ARIA' : 'Open ARIA'}
         className={cn(
           'shrink-0 self-center flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors ml-auto',

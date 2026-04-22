@@ -94,6 +94,8 @@ app.whenReady().then(() => {
 
   nativeTheme.themeSource = 'dark'
 
+  ipcMain.handle('app:get-version', () => app.getVersion())
+
   setupStoreHandlers(ipcMain)
   setupSshHandlers(ipcMain, () => mainWindow)
   setupTelnetHandlers(ipcMain, () => mainWindow)
