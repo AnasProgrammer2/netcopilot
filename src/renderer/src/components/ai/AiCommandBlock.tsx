@@ -41,7 +41,7 @@ export function AiCommandBlock({ call, approval, blacklist, onApprove, onBlock }
         <Terminal className="w-3 h-3 text-primary/60 shrink-0" />
         <code className="flex-1 font-mono text-primary truncate">{call.command}</code>
         {targetSessionName && (
-          <span className="shrink-0 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px] font-medium">
+          <span className="shrink-0 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[11px] font-medium">
             → {targetSessionName}
           </span>
         )}
