@@ -3,7 +3,8 @@ import appIcon from '../../assets/icon.png'
 import {
   X, Monitor, Terminal, Network, Lock, Info, FileText,
   Sun, Moon, Laptop, Check, ChevronRight, FolderOpen,
-  Sparkles, Eye, EyeOff, ShieldCheck, Wrench, Zap
+  Sparkles, Eye, EyeOff, ShieldCheck, Wrench, Zap,
+  RefreshCw, ArrowUpCircle, AlertCircle
 } from 'lucide-react'
 import { useAppStore, AiPermission, AiApproval } from '../../store'
 import { cn } from '../../lib/utils'
@@ -694,6 +695,11 @@ function SecuritySection({ settings, update }: SectionProps) {
 function AboutSection() {
   const info = window.api?.appInfo
   const [appVersion, setAppVersion] = useState('—')
+  const [updateState, setUpdateState] = useState<
+    'idle' | 'checking' | 'up-to-date' | 'available' | 'error'
+  >('idle')
+  const [updateInfo, setUpdateInfo] = useState<{ latest: string; url: string } | null>(null)
+
   const platform = info?.platform === 'darwin' ? 'macOS'
     : info?.platform === 'win32' ? 'Windows'
     : info?.platform === 'linux' ? 'Linux'
@@ -702,6 +708,24 @@ function AboutSection() {
   useEffect(() => {
     window.api.appInfo.getVersion().then(setAppVersion).catch(() => {})
   }, [])
+
+  const handleCheckUpdate = async () => {
+    setUpdateState('checking')
+    setUpdateInfo(null)
+    try {
+      const res = await window.api.appInfo.checkUpdate()
+      if (res.error) {
+        setUpdateState('error')
+      } else if (res.hasUpdate && res.latest && res.url) {
+        setUpdateState('available')
+        setUpdateInfo({ latest: res.latest, url: res.url })
+      } else {
+        setUpdateState('up-to-date')
+      }
+    } catch {
+      setUpdateState('error')
+    }
+  }
 
   const rows = [
     { label: 'Version',  value: appVersion },
@@ -744,11 +768,60 @@ function AboutSection() {
         ))}
       </div>
 
+      {/* Check for Updates */}
+      <div className="w-full space-y-2">
+        <button
+          onClick={handleCheckUpdate}
+          disabled={updateState === 'checking'}
+          className={cn(
+            'w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer',
+            'border border-border bg-card hover:bg-accent disabled:opacity-60 disabled:cursor-not-allowed'
+          )}
+        >
+          <RefreshCw className={cn('w-4 h-4', updateState === 'checking' && 'animate-spin')} />
+          {updateState === 'checking' ? 'Checking…' : 'Check for Updates'}
+        </button>
+
+        {/* Result banner */}
+        {updateState === 'up-to-date' && (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-400">
+            <Check className="w-4 h-4 shrink-0" />
+            <span>You're on the latest version <strong>v{appVersion}</strong></span>
+          </div>
+        )}
+
+        {updateState === 'available' && updateInfo && (
+          <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-primary/10 border border-primary/25">
+            <div className="flex items-center gap-2 text-sm">
+              <ArrowUpCircle className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-foreground">
+                <strong className="text-primary">v{updateInfo.latest}</strong> is available
+              </span>
+            </div>
+            <a
+              href={updateInfo.url}
+              onClick={(e) => { e.preventDefault(); window.open(updateInfo.url) }}
+              className="shrink-0 text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium cursor-pointer"
+            >
+              Download →
+            </a>
+          </div>
+        )}
+
+        {updateState === 'error' && (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>Couldn't check for updates. Check your connection.</span>
+          </div>
+        )}
+      </div>
+
       <a
         href="https://github.com/AnasProgrammer2/netcopilot"
         target="_blank"
         rel="noreferrer"
-        className="text-xs text-primary hover:underline underline-offset-2"
+        onClick={(e) => { e.preventDefault(); window.open('https://github.com/AnasProgrammer2/netcopilot') }}
+        className="text-xs text-primary hover:underline underline-offset-2 cursor-pointer"
       >
         github.com/AnasProgrammer2/netcopilot
       </a>
