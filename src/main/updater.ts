@@ -6,7 +6,18 @@ autoUpdater.logger = log
 autoUpdater.autoDownload = false
 autoUpdater.autoInstallOnAppQuit = false
 
+const isDev = !!process.env['ELECTRON_RENDERER_URL']
+
 export function setupAutoUpdater(getWindow: () => BrowserWindow | null): void {
+  // In dev mode, register no-op handlers — app-update.yml doesn't exist in dev
+  if (isDev) {
+    ipcMain.handle('updater:check',       async () => ({ success: false, error: 'Not available in dev mode' }))
+    ipcMain.handle('updater:download',    async () => ({ success: false, error: 'Not available in dev mode' }))
+    ipcMain.handle('updater:install',     () => {})
+    ipcMain.handle('updater:open-release', (_e, url: string) => { shell.openExternal(url) })
+    return
+  }
+
   const send = (channel: string, ...args: unknown[]) => {
     getWindow()?.webContents.send(channel, ...args)
   }
