@@ -1,6 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, globalShortcut, nativeTheme, nativeImage } from 'electron'
 import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { setupStoreHandlers } from './store'
 import { setupSshHandlers } from './ssh'
 import { setupTelnetHandlers } from './telnet'
