@@ -69,10 +69,14 @@ jobs:
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2.3.2
         with:
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: false
           files: |
             dist/*.dmg
             dist/*.zip
             dist/*.exe
             dist/*.AppImage
             dist/*.deb
+            dist/*.yml
           token: ${{ secrets.GITHUB_TOKEN }}
