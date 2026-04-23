@@ -870,13 +870,13 @@ function AboutSection() {
       </div>
 
       <a
-        href="https://github.com/AnasProgrammer2/netcopilot"
+        href="https://netcopilot.app/"
         target="_blank"
         rel="noreferrer"
-        onClick={(e) => { e.preventDefault(); window.open('https://github.com/AnasProgrammer2/netcopilot') }}
+        onClick={(e) => { e.preventDefault(); window.open('https://netcopilot.app/') }}
         className="text-xs text-primary hover:underline underline-offset-2 cursor-pointer"
       >
-        github.com/AnasProgrammer2/netcopilot
+        netcopilot.app
       </a>
     </div>
   )
