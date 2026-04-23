@@ -634,7 +634,7 @@ async function callBackendTurn(
 ): Promise<TurnResult> {
   const body = {
     licenseKey,
-    deviceId:   getDeviceId(),
+    deviceId:   await getDeviceId(),
     system:     systemPrompt,
     messages,
     tools:      [CREATE_PLAN_TOOL, RUN_COMMAND_TOOL, RUN_COMMANDS_TOOL],
