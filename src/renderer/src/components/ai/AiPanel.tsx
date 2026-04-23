@@ -7,6 +7,7 @@ import { cn } from '../../lib/utils'
 import { AiMessage } from './AiMessage'
 import { Session } from '../../types'
 import { terminalRegistry } from '../../lib/terminalRegistry'
+import { detectDeviceType } from '../../lib/deviceDetector'
 import { DeviceType } from '../../types'
 
 // ── Quick Commands per device type ────────────────────────────────────────────
@@ -332,6 +333,14 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
     const ctx  = proactiveContext ?? getTerminalContext()
     const conn = activeSession?.connection
 
+    // Auto-detect device type from terminal context when set to 'auto'
+    let resolvedDeviceType = conn?.deviceType ?? 'generic'
+    if (resolvedDeviceType === 'auto') {
+      const rawCtx = terminalRegistry.get(activeSession?.id ?? '')?.getContext(200) ?? ''
+      const detected = detectDeviceType(rawCtx)
+      resolvedDeviceType = detected ?? 'generic'
+    }
+
     // Build history AFTER adding the user message (reads fresh state via getState())
     const history = buildMessages()
 
@@ -348,7 +357,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
     await window.api.ai.chat({
       messages,
       terminalContext: ctx,
-      deviceType:      conn?.deviceType ?? 'generic',
+      deviceType:      resolvedDeviceType,
       host:            conn?.host ?? 'unknown',
       protocol:        conn?.protocol ?? 'ssh',
       permission:      sessionPermission,
