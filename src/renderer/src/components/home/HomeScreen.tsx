@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react'
 import {
   Search, Plus, FolderPlus, Router, Server, Monitor, Usb,
-  ChevronRight, Zap, Terminal, Key, Download, Upload,
-  Wifi, WifiOff, Layers
+  ChevronRight, Zap, Terminal, ArrowRight,
+  Layers
 } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { Connection, ConnectionGroup, DeviceType } from '../../types'
@@ -100,58 +100,90 @@ function HostCard({ connection, isConnected, onConnect }: {
   const Icon   = getDeviceIcon(connection.deviceType, connection.protocol)
   const accent = getDeviceAccent(connection.deviceType, connection.protocol)
 
+  const host = connection.protocol === 'serial'
+    ? (connection.serialConfig?.path ?? connection.host)
+    : connection.host
+
+  const showPort = connection.protocol !== 'serial' && connection.port && connection.port !== 22
+
   return (
     <button
       onClick={onConnect}
       className={cn(
-        'relative flex items-center gap-3 p-3.5 rounded-xl border text-left group transition-all cursor-pointer overflow-hidden w-full',
+        'relative flex items-start gap-3 p-4 rounded-xl border text-left group transition-all cursor-pointer overflow-hidden w-full',
         isConnected
-          ? 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/40'
-          : 'border-border bg-card hover:bg-accent/60 hover:border-primary/25'
+          ? 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/50'
+          : 'border-border bg-card hover:bg-accent/40 hover:border-primary/20 hover:shadow-sm'
       )}
     >
+      {/* Left accent bar */}
+      <div
+        className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full opacity-70"
+        style={{ backgroundColor: isConnected ? '#22c55e' : accent }}
+      />
+
       {/* Device icon */}
       <div
-        className="relative w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+        className="relative w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ml-1"
         style={{ backgroundColor: `${accent}18` }}
       >
-        <Icon className="w-5 h-5" style={{ color: accent }} />
+        <Icon className="w-4 h-4" style={{ color: accent }} />
         {isConnected && (
-          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-card" />
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-card shadow-sm" />
         )}
       </div>
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-foreground truncate leading-tight">
+        {/* Name */}
+        <p className="text-sm font-semibold text-foreground truncate leading-tight group-hover:text-primary transition-colors">
           {connection.name || connection.host}
         </p>
-        <p className="text-xs text-muted-foreground truncate mt-0.5">
-          {connection.protocol === 'serial'
-            ? connection.serialConfig?.path ?? connection.host
-            : connection.host}
+
+        {/* Host + port */}
+        <p className="text-xs text-muted-foreground/70 truncate mt-0.5 font-mono">
+          {host}{showPort ? `:${connection.port}` : ''}
         </p>
-        <div className="flex items-center gap-1.5 mt-1.5">
+
+        {/* Badges row */}
+        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+          {/* Protocol badge */}
           <span
-            className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded font-medium"
+            className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded-md font-semibold tracking-wide"
             style={{ backgroundColor: `${accent}15`, color: accent }}
           >
             {connection.protocol}
           </span>
+
+          {/* Username */}
           {connection.username && (
-            <span className="text-[10px] text-muted-foreground/60 truncate">
+            <span className="text-[10px] text-muted-foreground/50 font-mono truncate max-w-[80px]">
               {connection.username}
             </span>
           )}
+
+          {/* Tags */}
+          {connection.tags?.slice(0, 2).map(tag => (
+            <span
+              key={tag}
+              className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted/80 text-muted-foreground/60 font-medium truncate max-w-[60px]"
+            >
+              {tag}
+            </span>
+          ))}
         </div>
       </div>
 
-      {/* Status icon */}
-      <div className="shrink-0">
-        {isConnected
-          ? <Wifi className="w-3.5 h-3.5 text-emerald-500" />
-          : <WifiOff className="w-3.5 h-3.5 text-muted-foreground/20 group-hover:text-muted-foreground/40 transition-colors" />
-        }
+      {/* Right side — status */}
+      <div className="shrink-0 flex flex-col items-end gap-1 self-center">
+        {isConnected ? (
+          <span className="flex items-center gap-1 text-[10px] text-emerald-500 font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            live
+          </span>
+        ) : (
+          <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/20 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+        )}
       </div>
     </button>
   )
@@ -162,13 +194,11 @@ export function HomeScreen(): JSX.Element {
   const {
     connections, groups, sessions,
     setConnectionDialogOpen,
-    openSession, setQuickConnectOpen,
-    exportConnections, importConnections
+    openSession, setQuickConnectOpen
   } = useAppStore()
 
   const [search,           setSearch]           = useState('')
   const [selectedGroup,    setSelectedGroup]    = useState<string | null>(null)
-  const [importMsg,        setImportMsg]        = useState<string | null>(null)
   const [groupDialogOpen,  setGroupDialogOpen]  = useState(false)
   const [sshKeyDialogOpen, setSshKeyDialogOpen] = useState(false)
 
@@ -201,15 +231,6 @@ export function HomeScreen(): JSX.Element {
 
   const ungrouped    = displayConns.filter(c => !c.groupId || !groupIds.has(c.groupId))
   const currentGroup = selectedGroup ? groups.find(g => g.id === selectedGroup) : null
-
-  const handleImport = async () => {
-    setImportMsg(null)
-    const count = await importConnections()
-    if (count === -1)     setImportMsg('Import failed — invalid file')
-    else if (count === 0) setImportMsg('No connections imported')
-    else                  setImportMsg(`Imported ${count} connection${count !== 1 ? 's' : ''}`)
-    setTimeout(() => setImportMsg(null), 3500)
-  }
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
@@ -372,42 +393,6 @@ export function HomeScreen(): JSX.Element {
           </div>
         )}
 
-        {/* ── Footer ──────────────────────────────────────────────────────── */}
-        {connections.length > 0 && (
-          <div className="flex items-center gap-1 pt-3 border-t border-border">
-            <button
-              onClick={exportConnections}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2.5 py-1.5 rounded-lg hover:bg-accent cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Export
-            </button>
-            <button
-              onClick={handleImport}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2.5 py-1.5 rounded-lg hover:bg-accent cursor-pointer"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              Import
-            </button>
-            <button
-              onClick={() => setSshKeyDialogOpen(true)}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2.5 py-1.5 rounded-lg hover:bg-accent cursor-pointer"
-            >
-              <Key className="w-3.5 h-3.5" />
-              SSH Keys
-            </button>
-            {importMsg && (
-              <span className={cn(
-                'text-xs px-2 py-1 rounded ml-2',
-                importMsg.startsWith('Imported')
-                  ? 'text-emerald-500 bg-emerald-500/10'
-                  : 'text-red-400 bg-red-400/10'
-              )}>
-                {importMsg}
-              </span>
-            )}
-          </div>
-        )}
       </div>
 
       {groupDialogOpen   && <GroupDialog  onClose={() => setGroupDialogOpen(false)} />}

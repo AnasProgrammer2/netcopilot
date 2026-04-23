@@ -5,7 +5,7 @@ import { nanoid } from 'nanoid'
 // ── AI Copilot types ─────────────────────────────────────────────────────────
 
 export type AiPermission = 'troubleshoot' | 'full-access'
-export type AiApproval   = 'ask' | 'auto' | 'blacklist'
+export type AiApproval   = 'ask' | 'auto'
 
 
 export interface AiToolCall {
