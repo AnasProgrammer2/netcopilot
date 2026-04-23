@@ -752,7 +752,7 @@ function AboutSection() {
 
   const rows = [
     { label: 'Version',   value: appVersion },
-    { label: 'Device ID', value: deviceId.slice(0, 12) + '…' },
+    { label: 'Device ID', value: deviceId },
     { label: 'Platform',  value: platform },
   ]
 
