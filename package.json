@@ -105,10 +105,7 @@
         "dmg",
         "zip"
       ],
-      "icon": "resources/icon.icns",
-      "notarize": {
-        "teamId": "${APPLE_TEAM_ID}"
-      }
+      "icon": "resources/icon.icns"
     },
     "win": {
       "target": [
