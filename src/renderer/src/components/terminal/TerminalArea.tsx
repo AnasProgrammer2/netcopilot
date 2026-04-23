@@ -4,7 +4,7 @@ import { TabBar } from './TabBar'
 import { TerminalTab } from './TerminalTab'
 import { AiPanel } from '../ai/AiPanel'
 import { HomeScreen } from '../home/HomeScreen'
-import { terminalRegistry } from '../../lib/terminalRegistry'
+import { terminalRegistry, buildStructuredContext, formatStructuredContext } from '../../lib/terminalRegistry'
 
 const AI_PANEL_DEFAULT_WIDTH = 340
 const AI_PANEL_MIN_WIDTH     = 260
@@ -39,14 +39,21 @@ export function TerminalArea(): JSX.Element {
   }, [aiWidth])
 
   // Callbacks for AiPanel — includes split session context when active
-  const getTerminalContext = useCallback((lines = 120) => {
+  const getTerminalContext = useCallback((lines = 150) => {
     if (!activeSessionId) return ''
-    const primary = terminalRegistry.get(activeSessionId)?.getContext(lines) ?? ''
-    if (!isSplit || !splitSessionId) return primary
-    const splitSession = sessions.find(s => s.id === splitSessionId)
-    const secondary = terminalRegistry.get(splitSessionId)?.getContext(lines) ?? ''
-    if (!secondary) return primary
-    return `=== ${activeSession?.connection.name ?? 'Primary'} ===\n${primary}\n\n=== ${splitSession?.connection.name ?? 'Secondary'} ===\n${secondary}`
+    const primaryRaw = terminalRegistry.get(activeSessionId)?.getContext(lines) ?? ''
+    const primaryCtx = buildStructuredContext(primaryRaw)
+    const primaryFormatted = formatStructuredContext(primaryCtx, activeSession?.connection.name)
+
+    if (!isSplit || !splitSessionId) return primaryFormatted
+
+    const splitSess = sessions.find(s => s.id === splitSessionId)
+    const secondaryRaw = terminalRegistry.get(splitSessionId)?.getContext(lines) ?? ''
+    if (!secondaryRaw) return primaryFormatted
+
+    const secondaryCtx = buildStructuredContext(secondaryRaw)
+    const secondaryFormatted = formatStructuredContext(secondaryCtx, splitSess?.connection.name)
+    return `=== PRIMARY SESSION ===\n${primaryFormatted}\n\n=== SPLIT SESSION ===\n${secondaryFormatted}`
   }, [activeSessionId, splitSessionId, isSplit, sessions, activeSession])
 
   const sendToTerminal = useCallback((data: string) => {

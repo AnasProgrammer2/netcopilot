@@ -74,10 +74,11 @@ const CREATE_PLAN_TOOL = {
 const RUN_COMMAND_TOOL = {
   name: 'run_command',
   description:
-    'Execute a command on a connected network device or server. ' +
-    'In troubleshoot mode: ONLY use read-only/display commands (show, display, ping, traceroute, ls, ps, df, cat, ip, ss, netstat, journalctl, hostname, uname, ifconfig, arp). ' +
-    'In full-access mode: any command is allowed including configuration changes. ' +
-    'When multiple sessions are open, use target_session to specify which device to run the command on.',
+    'Execute a single command on a connected network device or server. ' +
+    'In troubleshoot mode: ONLY use read-only/display commands. ' +
+    'In full-access mode: any command is allowed. ' +
+    'When multiple sessions are open, use target_session to specify which device. ' +
+    'For running 2-5 independent commands efficiently, prefer run_commands (batch) instead.',
   input_schema: {
     type: 'object' as const,
     properties: {
@@ -86,6 +87,36 @@ const RUN_COMMAND_TOOL = {
       target_session: { type: 'string', description: 'Session ID to run the command on. Omit to use the active session.' },
     },
     required: ['command', 'reason'],
+  },
+}
+
+const RUN_COMMANDS_TOOL = {
+  name: 'run_commands',
+  description:
+    'Execute 2-5 commands sequentially on a device and return ALL results at once. ' +
+    'Use this instead of multiple run_command calls when commands are independent (e.g. "show ip bgp summary" + "show ip route summary" + "show interfaces brief"). ' +
+    'Each command runs after the previous finishes. All outputs are collected and returned together. ' +
+    'This saves round-trips and is faster than calling run_command multiple times.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      commands: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            command: { type: 'string', description: 'Command to execute' },
+            reason:  { type: 'string', description: 'Why this command is needed' },
+          },
+          required: ['command', 'reason'],
+        },
+        minItems: 2,
+        maxItems: 5,
+        description: 'Array of commands to execute in order',
+      },
+      target_session: { type: 'string', description: 'Session ID. Omit for active session.' },
+    },
+    required: ['commands'],
   },
 }
 
@@ -505,12 +536,47 @@ ${payload.terminalContext || '(empty — session just started)'}
 `
 }
 
-// ── Simple context trim (no summarization needed — backend handles limits) ────
+// ── Smart conversation management ─────────────────────────────────────────────
 
-function trimMessages(messages: AnthropicMessage[], maxMessages = 40): AnthropicMessage[] {
+/**
+ * Instead of blindly trimming messages, compress the conversation:
+ * 1. Always keep the first user message (original intent)
+ * 2. Always keep the last N messages (recent context)
+ * 3. Summarize the middle section into a compact "conversation so far" block
+ */
+function compressConversation(messages: AnthropicMessage[], maxMessages = 40): AnthropicMessage[] {
   if (messages.length <= maxMessages) return messages
-  // Always keep the first message (user intent) and the last N-1
-  return [messages[0], ...messages.slice(-(maxMessages - 1))]
+
+  const keepRecent = Math.min(30, maxMessages - 2)
+  const first  = messages[0]
+  const recent = messages.slice(-keepRecent)
+  const middle = messages.slice(1, messages.length - keepRecent)
+
+  // Build a summary of the middle section
+  const summaryParts: string[] = []
+  for (const msg of middle) {
+    if (typeof msg.content === 'string' && msg.content.trim()) {
+      const role = msg.role === 'user' ? 'Engineer' : 'ARIA'
+      // Truncate long messages in the summary
+      const content = msg.content.length > 200
+        ? msg.content.slice(0, 200) + '...'
+        : msg.content
+      summaryParts.push(`[${role}]: ${content}`)
+    } else if (Array.isArray(msg.content)) {
+      // Tool use/result blocks — just note them
+      const hasToolUse    = (msg.content as Array<{type?: string}>).some(b => b.type === 'tool_use')
+      const hasToolResult = (msg.content as Array<{type?: string}>).some(b => b.type === 'tool_result')
+      if (hasToolUse) summaryParts.push('[ARIA ran commands]')
+      if (hasToolResult) summaryParts.push('[Command results received]')
+    }
+  }
+
+  const summaryMessage: AnthropicMessage = {
+    role:    'user',
+    content: `[CONVERSATION SUMMARY — ${middle.length} earlier messages compressed]\n${summaryParts.join('\n')}`,
+  }
+
+  return [first, summaryMessage, ...recent]
 }
 
 // ── SSE stream parser ─────────────────────────────────────────────────────────
@@ -571,7 +637,7 @@ async function callBackendTurn(
     deviceId:   getDeviceId(),
     system:     systemPrompt,
     messages,
-    tools:      [CREATE_PLAN_TOOL, RUN_COMMAND_TOOL],
+    tools:      [CREATE_PLAN_TOOL, RUN_COMMAND_TOOL, RUN_COMMANDS_TOOL],
     max_tokens: 8096,
   }
 
@@ -652,6 +718,21 @@ async function callBackendTurn(
   return { toolCalls, assistantContent: contentBlocks, inputTokens, outputTokens, stopReason, textCollected }
 }
 
+// ── Wait for tool result from renderer ────────────────────────────────────────
+
+function waitForToolResult(timeoutMs = 300_000): Promise<string> {
+  return new Promise<string>((resolve) => {
+    const timer = setTimeout(() => {
+      _pendingToolResolve = null
+      resolve('(no response — command was not approved or timed out)')
+    }, timeoutMs)
+    _pendingToolResolve = (out: string) => {
+      clearTimeout(timer)
+      resolve(out)
+    }
+  })
+}
+
 // ── Core agentic loop ────────────────────────────────────────────────────────
 
 async function runAiLoop(
@@ -660,7 +741,7 @@ async function runAiLoop(
   getWindow:  () => BrowserWindow | null,
 ): Promise<void> {
   const systemPrompt = buildSystemPrompt(payload)
-  let   messages     = trimMessages([...payload.messages] as AnthropicMessage[])
+  let   messages     = compressConversation([...payload.messages] as AnthropicMessage[])
 
   _abortController = new AbortController()
 
@@ -720,6 +801,37 @@ async function runAiLoop(
           continue
         }
 
+        // run_commands (batch): execute multiple commands sequentially, return all at once
+        if (toolBlock.name === 'run_commands') {
+          const batchInput = toolBlock.input as {
+            commands: Array<{ command: string; reason: string }>
+            target_session?: string
+          }
+
+          const allOutputs: string[] = []
+          for (const cmd of batchInput.commands) {
+            if (_abortController.signal.aborted) break
+
+            getWindow()?.webContents.send('ai:tool-call', {
+              id:            `${toolBlock.id}_${allOutputs.length}`,
+              command:       cmd.command,
+              reason:        cmd.reason,
+              targetSession: batchInput.target_session,
+            })
+
+            const output = await waitForToolResult()
+            allOutputs.push(`> ${cmd.command}\n${output}`)
+          }
+
+          const combined = allOutputs.join('\n\n')
+          toolResults.push({
+            type:        'tool_result',
+            tool_use_id: toolBlock.id,
+            content:     combined,
+          })
+          continue
+        }
+
         // run_command: send to renderer, wait for execution result
         const input = toolBlock.input as { command: string; reason: string; target_session?: string }
 
@@ -730,23 +842,25 @@ async function runAiLoop(
           targetSession: input.target_session,
         })
 
-        // Wait for tool result from renderer (up to 300s)
-        const output = await new Promise<string>((resolve) => {
-          const timer = setTimeout(() => {
-            _pendingToolResolve = null
-            resolve('(no response — command was not approved or timed out)')
-          }, 300_000)
-          _pendingToolResolve = (out: string) => {
-            clearTimeout(timer)
-            resolve(out)
-          }
-        })
+        const output = await waitForToolResult()
 
-        toolResults.push({
-          type:        'tool_result',
-          tool_use_id: toolBlock.id,
-          content:     output,
-        })
+        // Retry logic: if output looks empty/failed and command is read-only, add a hint
+        const looksEmpty = !output || output === '(no output)' || output.trim().length < 5
+        const retriable  = /^(show|display|get|ping|traceroute|ls|ps|df|ip\s|ss\s|netstat)/i.test(input.command.trim())
+
+        if (looksEmpty && retriable) {
+          toolResults.push({
+            type:        'tool_result',
+            tool_use_id: toolBlock.id,
+            content:     `${output}\n\n[SYSTEM NOTE: Command returned minimal/no output. Possible causes: (1) command syntax wrong for this device type, (2) device is still processing, (3) pager ate the output. Consider retrying with a vendor-appropriate variant of the command, or add a pipe filter.]`,
+          })
+        } else {
+          toolResults.push({
+            type:        'tool_result',
+            tool_use_id: toolBlock.id,
+            content:     output,
+          })
+        }
       }
 
       if (_abortController.signal.aborted) break
