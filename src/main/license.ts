@@ -1,5 +1,7 @@
 import { IpcMain } from 'electron'
-import { machineIdSync } from 'node-machine-id'
+import { machineId } from 'node-machine-id'
+import crypto from 'crypto'
+import os from 'os'
 import { getDb } from './db'
 
 const API_BASE = 'https://api.netcopilot.app'
@@ -8,21 +10,16 @@ const API_BASE = 'https://api.netcopilot.app'
 
 let _deviceId: string | null = null
 
-export function getDeviceId(): string {
-  if (!_deviceId) {
-    try {
-      _deviceId = machineIdSync(true) ?? 'unknown' // SHA-256 hashed machine ID
-    } catch {
-      // Fallback: generate from hostname + platform
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const crypto = require('crypto') as typeof import('crypto')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const os = require('os') as typeof import('os')
-      _deviceId = (crypto as typeof import('crypto'))
-        .createHash('sha256')
-        .update(`${os.hostname()}-${os.platform()}`)
-        .digest('hex')
-    }
+function fallbackDeviceId(): string {
+  return crypto.createHash('sha256').update(`${os.hostname()}-${os.platform()}-${os.userInfo().username}`).digest('hex')
+}
+
+export async function getDeviceId(): Promise<string> {
+  if (_deviceId) return _deviceId
+  try {
+    _deviceId = await machineId(true)
+  } catch {
+    _deviceId = fallbackDeviceId()
   }
   return _deviceId
 }
@@ -64,7 +61,7 @@ export interface LicenseStatus {
 }
 
 export async function verifyLicenseOnline(licenseKey: string): Promise<LicenseStatus> {
-  const deviceId = getDeviceId()
+  const deviceId = await getDeviceId()
   const res = await fetch(`${API_BASE}/api/license/verify`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -114,8 +111,8 @@ export function setupLicenseHandlers(ipcMain: IpcMain): void {
   })
 
   // Get device fingerprint
-  ipcMain.handle('license:device-id', () => {
-    return getDeviceId()
+  ipcMain.handle('license:device-id', async () => {
+    return await getDeviceId()
   })
 
   // Activate a new license key: save + verify
