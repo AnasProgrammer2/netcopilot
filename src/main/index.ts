@@ -73,7 +73,12 @@ function createWindow(): void {
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    try {
+      const parsed = new URL(details.url)
+      if (parsed.protocol === 'https:' || parsed.protocol === 'http:' || parsed.protocol === 'mailto:') {
+        shell.openExternal(details.url)
+      }
+    } catch { /* malformed URL — ignore */ }
     return { action: 'deny' }
   })
 

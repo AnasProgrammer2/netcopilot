@@ -188,10 +188,11 @@ function MarkdownContent({ content }: { content: string }): JSX.Element {
 
         // ── Links ──────────────────────────────────────────────────────────
         a({ children, href }) {
+          const isSafe = href && /^https?:\/\/|^mailto:/i.test(href)
           return (
             <a
-              href={href}
-              onClick={(e) => { e.preventDefault(); if (href) window.open(href) }}
+              href={isSafe ? href : undefined}
+              onClick={(e) => { e.preventDefault(); if (isSafe) window.open(href) }}
               className="text-primary hover:underline cursor-pointer"
             >
               {children}

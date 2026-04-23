@@ -92,10 +92,12 @@ export async function verifyLicenseOnline(licenseKey: string): Promise<LicenseSt
 // ── IPC Handlers ─────────────────────────────────────────────────────────────
 
 export function setupLicenseHandlers(ipcMain: IpcMain): void {
-  // Get current license key (masked)
+  // Get current license key (masked for UI display)
   ipcMain.handle('license:get', async () => {
     const key = await loadLicenseKey()
-    return key ?? null
+    if (!key) return null
+    if (key.length <= 8) return '****'
+    return key.slice(0, 4) + '****' + key.slice(-4)
   })
 
   // Save license key

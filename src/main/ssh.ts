@@ -327,7 +327,7 @@ export function setupSshHandlers(
   })
 
   ipcMain.handle('ssh:disconnect-all', () => {
-    for (const [id] of activeSessions) {
+    for (const id of [...activeSessions.keys()]) {
       teardownSession(id)
     }
     activeSessions.clear()
@@ -374,13 +374,13 @@ export function setupSshHandlers(
         )
       })
 
+      server.on('error', (err: NodeJS.ErrnoException) => {
+        resolve({ success: false, error: err.message })
+      })
+
       server.listen(payload.localPort, '127.0.0.1', () => {
         activeForwards.set(payload.forwardId, { server, sessionId: payload.sessionId })
         resolve({ success: true })
-      })
-
-      server.on('error', (err: NodeJS.ErrnoException) => {
-        resolve({ success: false, error: err.message })
       })
     })
   })
@@ -394,8 +394,9 @@ export function setupSshHandlers(
   })
 
   ipcMain.handle('ssh:forward-stop-session', (_, sessionId: string) => {
-    for (const [id, fwd] of activeForwards) {
-      if (fwd.sessionId === sessionId) {
+    for (const id of [...activeForwards.keys()]) {
+      const fwd = activeForwards.get(id)
+      if (fwd?.sessionId === sessionId) {
         fwd.server.close()
         activeForwards.delete(id)
       }

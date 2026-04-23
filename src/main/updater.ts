@@ -94,7 +94,12 @@ export function setupAutoUpdater(getWindow: () => BrowserWindow | null): void {
 
   // IPC: open release page in browser (fallback for unsigned builds)
   ipcMain.handle('updater:open-release', (_e, url: string) => {
-    shell.openExternal(url)
+    try {
+      const parsed = new URL(url)
+      if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+        shell.openExternal(url)
+      }
+    } catch { /* malformed URL — ignore */ }
   })
 
   // Auto-check on startup (production only, after 6s to not block launch)
