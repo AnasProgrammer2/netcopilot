@@ -116,8 +116,7 @@
         "portable"
       ],
       "icon": "resources/icon.ico",
-      "certificateFile": "${WIN_CSC_LINK}",
-      "certificatePassword": "${WIN_CSC_KEY_PASSWORD}"
+      "publisherName": "NetCopilot"
     },
     "linux": {
       "target": [
