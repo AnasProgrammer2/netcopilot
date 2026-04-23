@@ -66,14 +66,13 @@ Output files will be in the `dist/` folder.
 
 ### ARIA Setup (Required for AI features)
 
-ARIA requires an [Anthropic API key](https://console.anthropic.com/):
+ARIA requires a license key from [netcopilot.app](https://netcopilot.app/register):
 
 1. Open the app → Settings → ARIA
-2. Paste your API key
-3. Click **Test Connection** to verify
-4. Choose your preferred model (Sonnet, Opus, or Haiku)
+2. Paste your license key
+3. ARIA is ready — all AI requests are routed through the NetCopilot API
 
-Your API key is stored in the **OS keychain** — never on disk or in any file.
+Your license key is stored in the **OS keychain** — never on disk or in any file.
 
 ---
 
@@ -104,6 +103,42 @@ ARIA:
   MTU mismatch detected on Gi0/0/1. Recommended fix: ...
 ```
 
+### Per-Platform Mastery
+
+ARIA carries deep, vendor-specific knowledge for every supported platform — not generic advice. Each device type has a dedicated playbook with:
+
+- **Signature commands** — the exact commands a senior engineer would run first
+- **Common root causes** — the failure modes that actually happen in production
+- **Diagnostic flow** — the correct order to isolate the failing layer
+
+For example: on a Cisco ASA, ARIA starts with `packet-tracer` (the fastest way to identify why traffic is blocked). On FortiGate, it uses `diagnose debug flow`. On Palo Alto, `test security-policy-match`. These are not generic — they are the expert moves.
+
+### Batch Command Execution
+
+ARIA can execute 2-5 independent commands in a single round-trip using the `run_commands` tool. Instead of sending `show ip bgp summary`, waiting, then `show ip route`, waiting, then `show interfaces brief`, ARIA batches them all together — faster diagnosis, fewer round-trips.
+
+### Structured Terminal Context
+
+Every message to ARIA includes parsed terminal context — not raw text dumps:
+
+- **Detected hostname** from the terminal prompt
+- **Current prompt line** (Router#, user@host:~$, etc.)
+- **Last 5 commands and their outputs** — structured and labeled
+
+This means ARIA always knows exactly what you just ran and what the device responded.
+
+### Auto Device Detection
+
+When a connection is set to **Auto-detect**, ARIA analyzes the live terminal output to identify the device type before responding. This ensures the correct playbook is used from the very first message — no manual selection needed.
+
+### Smart Retry
+
+When a command returns empty or minimal output, ARIA automatically receives a hint about possible causes (wrong syntax for this device type, pager ate the output, etc.) and can retry with a vendor-appropriate variant.
+
+### Conversation Compression
+
+Long conversations are compressed intelligently — older messages are summarized into a compact block while preserving the original intent and recent context. This replaces naive message trimming and keeps ARIA's memory coherent across extended troubleshooting sessions.
+
 ### L4 Planning Mode
 
 For complex problems, ARIA generates a **visual investigation plan card** showing:
@@ -124,16 +159,12 @@ ARIA is aware of **all open terminal sessions simultaneously**:
 - Command blocks display a device badge so you always know where each command ran (→ SW1-Core)
 - Terminal context from both sessions is included in every analysis
 
-### Context-Aware from the Start
-
-Every ARIA conversation includes full session context: device type, hostname, IP, protocol, and all open sessions. ARIA's commands and recommendations are device-specific from the first message — no configuration needed.
-
 ### Permission Modes
 
 | Mode | What ARIA Can Do |
 |---|---|
-| **Troubleshoot** | Read-only diagnostics only — `show`, `display`, `ping`, `traceroute`, `ls`, `df`, etc. No config changes |
-| **Full Access** | Any command including configuration and remediation actions |
+| **Troubleshoot** | Read-only diagnostics only — `show`, `display`, `ping`, `traceroute`, `ls`, `df`, etc. No config changes. ARIA decides which commands are safe based on its knowledge of each platform. |
+| **Full Access** | Any command including configuration and remediation. ARIA warns before destructive operations and always provides the exact rollback command. |
 
 Mode is set globally in Settings and can be overridden **per conversation** from the chat toolbar.
 
@@ -143,20 +174,21 @@ Mode is set globally in Settings and can be overridden **per conversation** from
 |---|---|
 | **Ask** | ARIA shows every command and waits for your approval before running |
 | **Auto** | ARIA executes all commands immediately and uninterrupted |
-| **Block** | Auto-approves everything except patterns on your custom blacklist |
+
+### Blocked Command Patterns (Always-On Safety)
+
+NetCopilot ships with a default blacklist of dangerous commands: `reload`, `shutdown`, `rm -rf`, `format`, `write erase`, `delete flash`, and others. The blacklist is:
+
+- **Always enforced** — regardless of permission mode or approval setting
+- Stored persistently in the encrypted database
+- Customizable from the chat toolbar "Patterns" button
+- Resettable to defaults in one click
+
+When ARIA attempts a blocked command, the code **prevents execution entirely** and informs ARIA the command was blocked. This is a hard safety layer independent of AI judgment.
 
 ### Auto Watch
 
 When enabled, ARIA silently monitors your terminal output in real time. If it detects errors, misconfigurations, anomalies, or warnings, it alerts you immediately — without interrupting your work. Smart deduplication prevents repeated alerts for the same output.
-
-### Built-in Safety
-
-NetCopilot ships with a default blacklist of dangerous commands: `reload`, `shutdown`, `rm -rf`, `format`, `write erase`, `delete flash`, and others. The blacklist is:
-
-- Stored persistently in the encrypted database
-- Customizable per conversation from the chat toolbar
-- Resettable to defaults in one click
-- Always enforced — regardless of permission mode or approval setting
 
 ### ARIA Interface
 
@@ -174,33 +206,34 @@ NetCopilot ships with a default blacklist of dangerous commands: `reload`, `shut
 | **Session summary** | When closing a tab, ARIA delivers a recap of all commands it ran |
 | **Quick suggestions** | Device-aware command suggestions, blended with your personal command history |
 | **Smart History** | ARIA learns which commands you use most per device type and surfaces them first — highlighted in amber |
-| **Model selector** | Choose between Claude Sonnet, Opus, or Haiku from Settings → ARIA |
 | **Sequential execution** | Auto mode runs multiple commands one by one — no race conditions |
 
 ### ARIA Persona
 
-ARIA is built as a **specialized infrastructure expert**, not a general-purpose AI:
+ARIA is built as a **principal-grade infrastructure expert**, not a general-purpose AI:
 
-- Deep expertise in Cisco, Juniper, Arista, Palo Alto, FortiGate, MikroTik, Huawei, and more
+- 25+ years of multi-vendor operations experience across Tier-1 ISPs, hyperscale data centers, and enterprise networks
+- Deep expertise in Cisco, Juniper, Arista, Palo Alto, FortiGate, MikroTik, Nokia, Huawei, F5, and more
+- RFC-level protocol fluency (BGP extensions, MPLS/SRv6, EVPN, IKEv2, QUIC, TLS 1.3)
 - Strict operational scope — ARIA only handles network and infrastructure topics
 - Responds in the same language the engineer writes in (English, Arabic, or other)
-- API key stored in the OS keychain — never on disk or in any config file
 
 ### Certifications ARIA Masters
 
-Working with ARIA is like having a senior engineer with all of these certifications on your team:
+Working with ARIA is like having a principal engineer with all of these certifications on your team:
 
 | Vendor | Certifications |
 |--------|---------------|
-| **Cisco** | CCNA · CCNP (Enterprise, Security, Data Center, Service Provider) · CCIE (Enterprise Infrastructure, Security, Data Center, Service Provider, Wireless) |
-| **Juniper** | JNCIA · JNCIS · JNCIP · JNCIE (ENT, SP, SEC, DC) |
-| **Nokia** | NRS I · NRS II · SRA · SRX (Service Routing Expert) |
-| **Arista** | ACE-A · ACE-L2 · ACE-L3 · ACE-O |
-| **Palo Alto** | PCNSA · PCNSE |
-| **Fortinet** | NSE 4 · NSE 5 · NSE 6 · NSE 7 · NSE 8 |
-| **F5** | 101 · 201 · 301A · 301B (BIG-IP Administrator & Developer) |
-| **Linux / Cloud** | RHCE · LFCS · LFCE · AWS Solutions Architect · GCP Network Engineer · Azure Network Engineer |
-| **General** | CompTIA Network+ · Security+ · CASP+ · Wireshark WCNA |
+| **Cisco** | CCIE (Routing & Switching, Service Provider, Data Center, Security) · CCNP Enterprise · DevNet Pro |
+| **Juniper** | JNCIE-SP · JNCIE-ENT · JNCIE-DC · JNCIE-SEC |
+| **Nokia** | NRS II (SRA) · MPLS Expert |
+| **Arista** | ACE-Level 4 (highest) · CloudVision Expert |
+| **Palo Alto** | PCNSE · PCNSC · Prisma Cloud Specialist |
+| **Fortinet** | NSE 8 (highest) · FCSS Network Security |
+| **F5** | F5-CTS LTM · GTM · ASM · APM |
+| **Linux / Cloud** | RHCA · LFCE · AWS Solutions Architect Pro + Networking Specialty · Azure Network Engineer Expert · GCP Professional Network Engineer |
+| **Security** | CISSP · OSCP · GIAC GPEN · GCIH |
+| **DevOps** | CKA · CKAD · CKS · HashiCorp Terraform · Ansible Automation Platform |
 
 > ARIA combines the knowledge of all these certifications into one assistant — available instantly, in any language, at any hour.
 
@@ -236,6 +269,7 @@ New connections default to **Auto-detect** mode. After logging in, NetCopilot au
 2. **Probe fallback** — if the banner is ambiguous, sends `show version` and analyses the response
 3. **Auto-save** — updates the connection's device type permanently in the local database
 4. **Instant adaptation** — ARIA suggestions, syntax highlighting, and paging-disable commands all adjust automatically
+5. **ARIA integration** — when device type is "auto", ARIA also detects from live terminal output to select the correct platform playbook
 
 > Toast notification confirms detection: **"Device detected: Cisco IOS XE — 10.0.0.1"**
 
@@ -251,11 +285,13 @@ ARIA learns from your sessions:
 ### Terminal Features
 
 - In-terminal search with regex and case-sensitivity (⌘F)
+- Right-click context menu (Copy, Paste, Search, Clear)
 - Configurable font family, size, line height, cursor style, and scrollback buffer
 - Session logging — manual or auto-log on connect, with ANSI stripping and optional timestamps
 - Split view — two sessions side by side with independent terminals
 - Auto-reconnect on session drop — global default or per-connection override
-- Session reconnect button appears automatically when a connection drops
+- **Connection overlays** — visual spinner while connecting, disconnect overlay with reconnect button, error overlay with retry
+- Draggable sidebar with visual resize handle
 
 ### Port Forwarding (SSH Tunnels)
 
@@ -265,6 +301,10 @@ Create local port forwarding rules per connection — forward any local port to 
 - Start / stop each tunnel independently while connected
 - Live status badge in the tab bar shows number of active tunnels
 - Example: `localhost:5432 → db.internal:5432` through your SSH server
+
+### SOCKS Proxy (Dynamic Port Forwarding)
+
+Route traffic through your SSH connection as a SOCKS4/SOCKS5 proxy — useful for accessing internal networks, web interfaces, and services behind firewalls.
 
 ### Jump Host / Bastion Server
 
@@ -278,6 +318,7 @@ Connect to devices that are not directly reachable from your machine:
 ### Connection Management
 
 - Organized library with groups, colors, tags, and notes
+- **Tags filter** — filter connections by tag from the HomeScreen pills bar
 - **Quick Connect** (⌘K) — type `user@host:port` for an instant session without saving
 - Startup commands that run automatically after connecting
 - SSH key manager — store and reuse named keys across connections
@@ -295,12 +336,14 @@ Connect to devices that are not directly reachable from your machine:
 | `⌘⇧A` | Toggle ARIA panel |
 | `⌘1–9` | Switch to tab N |
 | `⌘F` | Search in terminal |
+| `?` | Help & Keyboard Shortcuts |
 
 ### Home Screen Dashboard
 
-- Visual grid of saved connections with device-type color coding
+- Visual grid of saved connections with device-type color coding and accent bars
 - Group cards with connection count and live session indicator
 - Real-time live sessions pill showing active device count
+- **Tags filter pills** — click any tag to filter, click again to clear
 - Device color system: Cisco → blue, Linux → green, Firewalls → orange, Junos/Arista → purple, Serial → amber
 
 ---
@@ -310,8 +353,9 @@ Connect to devices that are not directly reachable from your machine:
 | Layer | Protects | Technology |
 |---|---|---|
 | **Encrypted Database** | All connections, settings, and configuration | SQLCipher (AES-256) |
-| **OS Keychain** | Passwords, SSH keys, API keys, and the DB encryption key | Electron safeStorage |
+| **OS Keychain** | Passwords, SSH keys, license keys, and the DB encryption key | Electron safeStorage |
 | **Master Password** | App-level lock on startup | scrypt + timing-safe comparison |
+| **Command Blacklist** | Prevents dangerous commands from executing | Code-level enforcement, always-on |
 
 Credentials are never stored in plaintext. The database encryption key is generated on first launch, stored in the OS keychain, and never written to disk directly.
 
@@ -355,10 +399,10 @@ Contributions are welcome! Please open an issue first to discuss what you'd like
 This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
 
 This means:
-- ✅ Free to use, modify, and distribute
-- ✅ Commercial use allowed
-- ⚠️ Any modification or service built on top of this code **must also be open-sourced** under AGPL-3.0
-- ⚠️ Network use counts as distribution — SaaS products built on this must share their source
+- Free to use, modify, and distribute
+- Commercial use allowed
+- Any modification or service built on top of this code **must also be open-sourced** under AGPL-3.0
+- Network use counts as distribution — SaaS products built on this must share their source
 
 The author retains the right to offer commercial licenses for organizations that cannot comply with AGPL terms.
 
