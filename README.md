@@ -397,15 +397,20 @@ Contributions are welcome! Please open an issue first to discuss what you'd like
 
 ## License
 
-This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+This project is licensed under the **Business Source License 1.1 (BSL-1.1)**.
 
-This means:
-- Free to use, modify, and distribute
-- Commercial use allowed
-- Any modification or service built on top of this code **must also be open-sourced** under AGPL-3.0
-- Network use counts as distribution — SaaS products built on this must share their source
+| | |
+|---|---|
+| **View & learn** | Anyone can read the source code |
+| **Personal use** | Free — unlimited |
+| **Academic / research** | Free |
+| **Internal evaluation** | Free |
+| **Commercial use** | Requires a commercial license — contact support@netcopilot.app |
+| **Change Date** | January 1, 2029 — converts to Apache 2.0 |
 
-The author retains the right to offer commercial licenses for organizations that cannot comply with AGPL terms.
+**Why BSL?** The source code is fully visible so you can verify NetCopilot never exfiltrates your credentials, passwords, or SSH keys. BSL ensures no one can take this codebase and launch a competing commercial product without a license.
+
+For commercial licensing inquiries: [support@netcopilot.app](mailto:support@netcopilot.app)
 
 See the [LICENSE](./LICENSE) file for full details.
 
