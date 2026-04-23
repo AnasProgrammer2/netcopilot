@@ -63,7 +63,7 @@ declare global {
         getVersion(): Promise<string>
       }
       updater: {
-        check(): Promise<{ success: boolean; updateInfo?: { version: string } | null; error?: string }>
+        check(): Promise<{ success: boolean; updateAvailable?: boolean; updateInfo?: { version: string } | null; error?: string }>
         download(): Promise<{ success: boolean; error?: string }>
         install(): void
         openRelease(url: string): void
