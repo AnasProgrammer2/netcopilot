@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   X, BookOpen, Cpu, Keyboard,
-  ShieldCheck, Wrench, Sparkles, Zap, ShieldAlert,
+  ShieldCheck, Wrench, Zap, ShieldAlert,
   Terminal, Plus, Eye, PlayCircle, Network,
   ChevronRight,
 } from 'lucide-react'
