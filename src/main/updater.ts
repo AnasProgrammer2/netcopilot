@@ -56,7 +56,17 @@ export function setupAutoUpdater(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle('updater:check', async () => {
     try {
       const result = await autoUpdater.checkForUpdates()
-      return { success: true, updateInfo: result?.updateInfo ?? null }
+      if (!result?.updateInfo) return { success: true, updateAvailable: false }
+
+      const current = autoUpdater.currentVersion.format()
+      const remote  = result.updateInfo.version
+      const hasUpdate = remote !== current
+
+      return {
+        success: true,
+        updateAvailable: hasUpdate,
+        updateInfo: hasUpdate ? result.updateInfo : null,
+      }
     } catch (err) {
       return { success: false, error: String(err) }
     }
@@ -72,13 +82,13 @@ export function setupAutoUpdater(getWindow: () => BrowserWindow | null): void {
     }
   })
 
-  // IPC: quit and install (falls back to browser on macOS without code signing)
+  // IPC: quit and install (falls back to website download page on failure)
   ipcMain.handle('updater:install', async () => {
     try {
       autoUpdater.quitAndInstall(false, true)
     } catch (err) {
-      log.warn('quitAndInstall failed, opening release page:', err)
-      shell.openExternal(`https://github.com/AnasProgrammer2/netcopilot/releases/latest`)
+      log.warn('quitAndInstall failed, opening download page:', err)
+      shell.openExternal('https://netcopilot.app/#download')
     }
   })
 

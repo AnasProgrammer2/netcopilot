@@ -730,7 +730,7 @@ function AboutSection() {
       const res = await window.api.updater.check()
       if (!res.success || res.error) {
         setUpdateState('error')
-      } else if (res.updateInfo) {
+      } else if (res.updateAvailable && res.updateInfo) {
         setUpdateState('available')
         setUpdateVersion(res.updateInfo.version)
       } else {
