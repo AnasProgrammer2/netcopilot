@@ -87,12 +87,22 @@ jobs:
       # Set Windows signing env only when the cert secret is actually configured.
       # Passing an empty WIN_CSC_LINK causes electron-builder to resolve it as
       # a relative path (the workspace root), which breaks the build.
+      # Note: 'secrets' context cannot be used in step 'if:' expressions,
+      # so we pass secrets as env vars and check them inside the script.
       - name: Configure Windows code signing
-        if: matrix.platform == 'win' && secrets.WIN_CSC_LINK != ''
+        if: matrix.platform == 'win'
         shell: pwsh
+        env:
+          _WIN_CSC_LINK:         ${{ secrets.WIN_CSC_LINK }}
+          _WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
         run: |
-          echo "WIN_CSC_LINK=${{ secrets.WIN_CSC_LINK }}" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "WIN_CSC_KEY_PASSWORD=${{ secrets.WIN_CSC_KEY_PASSWORD }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+          if (-not [string]::IsNullOrEmpty($env:_WIN_CSC_LINK)) {
+            "WIN_CSC_LINK=$($env:_WIN_CSC_LINK)" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "WIN_CSC_KEY_PASSWORD=$($env:_WIN_CSC_KEY_PASSWORD)" | Out-File -FilePath $env:GITHUB_ENV -Append
+            Write-Host "Windows code signing configured."
+          } else {
+            Write-Host "No Windows certificate found — building unsigned."
+          }
 
       - name: Build & package
         env:
