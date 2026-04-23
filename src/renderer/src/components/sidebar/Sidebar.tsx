@@ -34,6 +34,7 @@ export function Sidebar(): JSX.Element {
 
   const [importMsg, setImportMsg] = useState<string | null>(null)
   const [sshKeyDialogOpen, setSshKeyDialogOpen] = useState(false)
+  const [resizing, setResizing] = useState(false)
 
   const [search, setSearch] = useState('')
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
@@ -44,6 +45,7 @@ export function Sidebar(): JSX.Element {
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     isResizing.current = true
+    setResizing(true)
     startX.current = e.clientX
     startWidth.current = sidebarWidth
 
@@ -55,6 +57,7 @@ export function Sidebar(): JSX.Element {
     }
     const onUp = () => {
       isResizing.current = false
+      setResizing(false)
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
@@ -249,8 +252,16 @@ export function Sidebar(): JSX.Element {
       {/* Resize handle */}
       <div
         onMouseDown={handleMouseDown}
-        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/30 transition-colors"
-      />
+        className={cn(
+          'absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize group flex items-center justify-center transition-colors',
+          resizing ? 'bg-primary/40' : 'hover:bg-primary/20'
+        )}
+      >
+        <div className={cn(
+          'w-0.5 h-8 rounded-full transition-all',
+          resizing ? 'bg-primary/70 opacity-100' : 'bg-border/60 opacity-0 group-hover:opacity-100'
+        )} />
+      </div>
 
       {groupDialog.open && (
         <GroupDialog

@@ -4,7 +4,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { SearchAddon } from '@xterm/addon-search'
 import '@xterm/xterm/css/xterm.css'
-import { Search, X, ChevronUp, ChevronDown } from 'lucide-react'
+import { Search, X, ChevronUp, ChevronDown, Copy, Clipboard, Eraser } from 'lucide-react'
 import { toast } from 'sonner'
 import { Session } from '../../types'
 import { useAppStore } from '../../store'
@@ -49,6 +49,9 @@ export function TerminalTab({ session }: Props): JSX.Element {
   const [searchCaseSens, setSearchCaseSens] = useState(false)
   const [searchRegex, setSearchRegex]       = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // ── Context menu state ────────────────────────────────────────────────────────
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
 
   const { setSessionStatus, setSessionLogging } = useAppStore()
 
@@ -127,6 +130,41 @@ export function TerminalTab({ session }: Props): JSX.Element {
     setSearchQuery('')
     termRef.current?.focus()
   }, [])
+
+  // ── Context menu handlers ─────────────────────────────────────────────────────
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setCtxMenu({ x: e.clientX, y: e.clientY })
+  }, [])
+
+  const ctxCopy = useCallback(() => {
+    const sel = termRef.current?.getSelection()
+    if (sel) navigator.clipboard.writeText(sel)
+    setCtxMenu(null)
+    termRef.current?.focus()
+  }, [])
+
+  const ctxPaste = useCallback(async () => {
+    setCtxMenu(null)
+    const text = await navigator.clipboard.readText()
+    if (!text) return
+    const proto = session.connection.protocol
+    if      (proto === 'ssh')    window.api.ssh.send(session.id, text)
+    else if (proto === 'serial') window.api.serial.send(session.id, text)
+    else                         window.api.telnet.send(session.id, text)
+    termRef.current?.focus()
+  }, [session.id, session.connection.protocol])
+
+  const ctxClear = useCallback(() => {
+    termRef.current?.clear()
+    setCtxMenu(null)
+    termRef.current?.focus()
+  }, [])
+
+  const ctxSearch = useCallback(() => {
+    setCtxMenu(null)
+    openSearch()
+  }, [openSearch])
 
   // ── Logging helpers ───────────────────────────────────────────────────────────
   const startLogging = async () => {
@@ -803,11 +841,101 @@ export function TerminalTab({ session }: Props): JSX.Element {
       </div>
 
       {/* Terminal */}
-      <div
-        ref={containerRef}
-        className="flex-1 w-full min-h-0 overflow-hidden bg-[#0B0718]"
-        style={{ fontVariantLigatures: 'none' }}
-      />
+      <div className="relative flex-1 w-full min-h-0 overflow-hidden">
+        <div
+          ref={containerRef}
+          onContextMenu={handleContextMenu}
+          className="w-full h-full bg-[#0B0718]"
+          style={{ fontVariantLigatures: 'none' }}
+        />
+
+        {/* Connecting overlay */}
+        {session.status === 'connecting' && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#0B0718]/90 backdrop-blur-sm gap-4">
+            <div className="relative">
+              <div className="w-12 h-12 rounded-full border-2 border-primary/20" />
+              <div className="absolute inset-0 w-12 h-12 rounded-full border-2 border-t-primary border-r-transparent border-b-transparent border-l-transparent animate-spin" />
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-sm font-medium text-foreground">Connecting…</span>
+              <span className="text-xs text-muted-foreground font-mono">
+                {session.connection.username ? `${session.connection.username}@` : ''}{session.connection.host}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Disconnected overlay */}
+        {session.status === 'disconnected' && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#0B0718]/90 backdrop-blur-sm gap-4">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+              <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 15.312a4.5 4.5 0 0 1-1.242-7.244l4.5-4.5a4.5 4.5 0 0 1 6.364 6.364l-1.757 1.757" />
+              </svg>
+            </div>
+            <div className="flex flex-col items-center gap-1.5">
+              <span className="text-sm font-medium text-foreground">Disconnected</span>
+              <span className="text-xs text-muted-foreground font-mono">
+                {session.connection.host}
+              </span>
+            </div>
+            {session.connection.autoReconnect ? (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
+                Reconnecting…
+              </div>
+            ) : (
+              <button
+                onClick={() => doConnectRef.current?.(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-border text-sm text-foreground hover:bg-accent transition-colors cursor-pointer"
+              >
+                Reconnect
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Error overlay */}
+        {session.status === 'error' && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#0B0718]/90 backdrop-blur-sm gap-4">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+              <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+            </div>
+            <div className="flex flex-col items-center gap-1.5">
+              <span className="text-sm font-medium text-foreground">Connection Error</span>
+              {session.error && (
+                <span className="text-xs text-muted-foreground font-mono max-w-xs text-center">{session.error}</span>
+              )}
+            </div>
+            <button
+              onClick={() => doConnectRef.current?.(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-border text-sm text-foreground hover:bg-accent transition-colors cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Context menu */}
+      {ctxMenu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => { setCtxMenu(null); termRef.current?.focus() }} />
+          <div
+            className="fixed z-50 bg-popover border border-border rounded-xl shadow-2xl py-1 w-44 overflow-hidden"
+            style={{ top: ctxMenu.y, left: ctxMenu.x }}
+          >
+            <CtxItem icon={Copy}      label="Copy"          onClick={ctxCopy}   hint="⌘C" />
+            <CtxItem icon={Clipboard} label="Paste"         onClick={ctxPaste}  hint="⌘V" />
+            <div className="h-px bg-border/60 my-1 mx-2" />
+            <CtxItem icon={Search}    label="Search"        onClick={ctxSearch} hint="⌘F" />
+            <CtxItem icon={Eraser}    label="Clear"         onClick={ctxClear}  />
+          </div>
+        </>
+      )}
 
       {promptState.visible && (
         <PasswordPrompt
@@ -818,5 +946,23 @@ export function TerminalTab({ session }: Props): JSX.Element {
         />
       )}
     </div>
+  )
+}
+
+function CtxItem({ icon: Icon, label, onClick, hint }: {
+  icon:     React.ComponentType<{ className?: string }>
+  label:    string
+  onClick:  () => void
+  hint?:    string
+}): JSX.Element {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors text-left cursor-pointer"
+    >
+      <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+      <span className="flex-1">{label}</span>
+      {hint && <span className="text-[11px] text-muted-foreground/50 font-mono">{hint}</span>}
+    </button>
   )
 }
