@@ -84,6 +84,16 @@ jobs:
             -S apple-tool:,apple:,codesign: -s -k "temp-keychain-password" build.keychain
           rm certificate.p12
 
+      # Set Windows signing env only when the cert secret is actually configured.
+      # Passing an empty WIN_CSC_LINK causes electron-builder to resolve it as
+      # a relative path (the workspace root), which breaks the build.
+      - name: Configure Windows code signing
+        if: matrix.platform == 'win' && secrets.WIN_CSC_LINK != ''
+        shell: pwsh
+        run: |
+          echo "WIN_CSC_LINK=${{ secrets.WIN_CSC_LINK }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "WIN_CSC_KEY_PASSWORD=${{ secrets.WIN_CSC_KEY_PASSWORD }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+
       - name: Build & package
         env:
           # macOS signing (no-op if secrets absent)
@@ -91,9 +101,6 @@ jobs:
           APPLE_ID:                    ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.APPLE_CERTIFICATE != '' && 'true' || 'false' }}
-          # Windows signing — skipped automatically when secrets are absent
-          WIN_CSC_LINK:         ${{ secrets.WIN_CSC_LINK }}
-          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
           # GitHub token for electron-updater publish
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build:${{ matrix.platform }}
