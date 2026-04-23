@@ -68,21 +68,30 @@ jobs:
       #   APPLE_ID                   — Apple ID for notarization
       #   APPLE_APP_SPECIFIC_PASSWORD — app-specific password for notarization
       - name: Import macOS signing certificate
-        if: matrix.platform == 'mac' && env.APPLE_CERTIFICATE != ''
+        if: matrix.platform == 'mac'
+        shell: bash
         env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          _APPLE_CERTIFICATE:          ${{ secrets.APPLE_CERTIFICATE }}
+          _APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
-          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
-          security create-keychain -p "temp-keychain-password" build.keychain
-          security import certificate.p12 -k build.keychain \
-            -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security list-keychains -s build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "temp-keychain-password" build.keychain
-          security set-key-partition-list \
-            -S apple-tool:,apple:,codesign: -s -k "temp-keychain-password" build.keychain
-          rm certificate.p12
+          if [ -n "$_APPLE_CERTIFICATE" ]; then
+            echo "$_APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+            security create-keychain -p "temp-keychain-password" build.keychain
+            security import certificate.p12 -k build.keychain \
+              -P "$_APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+            security list-keychains -s build.keychain
+            security default-keychain -s build.keychain
+            security unlock-keychain -p "temp-keychain-password" build.keychain
+            security set-key-partition-list \
+              -S apple-tool:,apple:,codesign: -s -k "temp-keychain-password" build.keychain
+            rm certificate.p12
+            echo "CSC_IDENTITY_AUTO_DISCOVERY=true" >> $GITHUB_ENV
+            echo "✓ Developer ID certificate imported — full signing enabled."
+          else
+            echo "CSC_IDENTITY=-"                    >> $GITHUB_ENV
+            echo "CSC_IDENTITY_AUTO_DISCOVERY=false" >> $GITHUB_ENV
+            echo "✓ No certificate — using ad-hoc signing."
+          fi
 
       # Set Windows signing env only when the cert secret is actually configured.
       # Passing an empty WIN_CSC_LINK causes electron-builder to resolve it as
@@ -106,11 +115,10 @@ jobs:
 
       - name: Build & package
         env:
-          # macOS signing (no-op if secrets absent)
+          # macOS signing — CSC_IDENTITY & CSC_IDENTITY_AUTO_DISCOVERY set by previous step
           APPLE_TEAM_ID:               ${{ secrets.APPLE_TEAM_ID }}
           APPLE_ID:                    ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.APPLE_CERTIFICATE != '' && 'true' || 'false' }}
           # GitHub token for electron-updater publish
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build:${{ matrix.platform }}
