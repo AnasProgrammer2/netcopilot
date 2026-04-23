@@ -9,7 +9,7 @@ import { WelcomeScreen } from './components/WelcomeScreen'
 import { ConnectionDialog } from './components/dialogs/ConnectionDialog'
 import { QuickConnect } from './components/dialogs/QuickConnect'
 import { SettingsDialog } from './components/dialogs/SettingsDialog'
-import { ShortcutsDialog } from './components/dialogs/ShortcutsDialog'
+import { HelpDialog } from './components/dialogs/HelpDialog'
 import { TitleBar } from './components/TitleBar'
 import { MasterPasswordLock } from './components/MasterPasswordLock'
 import { cn } from './lib/utils'
@@ -24,7 +24,8 @@ export default function App(): JSX.Element {
   } = useAppStore()
   const [masterLocked, setMasterLocked] = useState<boolean | null>(null)
   const [locked, setLocked] = useState(false)
-  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [helpOpen,    setHelpOpen]    = useState(false)
+  const [helpTab,     setHelpTab]     = useState<'start' | 'aria' | 'shortcuts'>('start')
   const lastActivityRef = useRef(Date.now())
   const autoLockMinsRef = useRef(0)
   const [updateBanner, setUpdateBanner] = useState<{
@@ -93,11 +94,12 @@ export default function App(): JSX.Element {
     (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey
 
-      // ? — Keyboard shortcuts (only when not typing in an input)
+      // ? — Help dialog (only when not typing in an input)
       if (e.key === '?' && !mod) {
         const tag = (e.target as HTMLElement).tagName
         if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
-          setShortcutsOpen(true)
+          setHelpTab('shortcuts')
+          setHelpOpen(true)
         }
         return
       }
@@ -192,7 +194,10 @@ export default function App(): JSX.Element {
   return (
     <div className="flex flex-col h-screen w-screen bg-background text-foreground select-none overflow-hidden">
       <Toaster position="bottom-right" theme="dark" richColors closeButton />
-      <TitleBar onShortcuts={() => setShortcutsOpen(true)} />
+      <TitleBar
+        onShortcuts={() => { setHelpTab('shortcuts'); setHelpOpen(true) }}
+        onWelcome={() => { setHelpTab('start'); setHelpOpen(true) }}
+      />
 
       <div className="flex flex-1 overflow-hidden min-h-0">
         <Sidebar />
@@ -210,7 +215,11 @@ export default function App(): JSX.Element {
       <ConnectionDialog />
       <QuickConnect />
       <SettingsDialog />
-      <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <HelpDialog
+        open={helpOpen}
+        initialTab={helpTab}
+        onClose={() => setHelpOpen(false)}
+      />
 
       {/* Update notification banner */}
       {updateBanner && (

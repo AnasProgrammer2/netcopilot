@@ -7,46 +7,46 @@
 
 @layer base {
   :root {
-    /* ── 80% neutral dark — easy on the eyes ──────── */
-    --background: 240 10% 7%;    /* #101014 — near-black, no purple fatigue */
-    --foreground: 240 10% 93%;   /* #ECEDF2 — soft white */
+    /* ── GitHub-Dark inspired — proven readability for devs ─── */
+    --background: 220 20% 9%;    /* #0D1117 — deep navy-black */
+    --foreground: 210 18% 92%;   /* #E6EDF3 — warm off-white */
 
-    --card: 240 10% 11%;         /* #18181E — elevated surface */
-    --card-foreground: 240 10% 93%;
+    --card: 220 18% 14%;         /* #161B22 — clearly lifted surface */
+    --card-foreground: 210 18% 92%;
 
-    --popover: 240 10% 11%;
-    --popover-foreground: 240 10% 93%;
+    --popover: 220 18% 14%;
+    --popover-foreground: 210 18% 92%;
 
-    /* ── 15% purple — accent only ──────────────────── */
+    /* ── Purple accent — kept for brand ────────────── */
     --primary: 258 90% 66%;      /* #8B5CF6 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 8% 15%;     /* #222228 */
-    --secondary-foreground: 240 8% 85%;
+    --secondary: 220 16% 18%;    /* #1C2130 — visible step above card */
+    --secondary-foreground: 210 14% 82%;
 
-    --muted: 240 8% 15%;
-    --muted-foreground: 240 8% 56%; /* #8B8B98 — readable neutral */
+    --muted: 220 16% 18%;        /* #1C2130 */
+    --muted-foreground: 215 14% 58%; /* #8B949E — comfortable gray */
 
-    --accent: 240 8% 18%;        /* #28282F */
-    --accent-foreground: 240 10% 93%;
+    --accent: 220 16% 22%;       /* #222C3A — hover/active state */
+    --accent-foreground: 210 18% 92%;
 
-    --destructive: 0 62% 48%;
+    --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 8% 20%;        /* #2E2E36 */
-    --input: 240 8% 20%;
+    --border: 220 14% 26%;       /* #30363D — visible, not harsh */
+    --input: 220 14% 26%;
     --ring: 258 90% 66%;
 
     --radius: 0.5rem;
 
-    /* ── Sidebar — slightly deeper than background ─── */
-    --sidebar-background: 240 10% 5%;   /* #0C0C0F */
-    --sidebar-foreground: 240 8% 80%;   /* #C8C8D0 — clear, comfortable */
+    /* ── Sidebar — clearly distinct from main area ─── */
+    --sidebar-background: 220 22% 7%;   /* #0A0D14 — deeper than bg */
+    --sidebar-foreground: 210 14% 75%;  /* #B4BCC8 — readable */
     --sidebar-primary: 258 90% 66%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 8% 13%;       /* #1E1E24 */
-    --sidebar-accent-foreground: 240 10% 93%;
-    --sidebar-border: 240 8% 16%;       /* #242429 */
+    --sidebar-accent: 220 18% 14%;      /* #161B22 — matches card */
+    --sidebar-accent-foreground: 210 18% 92%;
+    --sidebar-border: 220 16% 20%;      /* #222B38 */
     --sidebar-ring: 258 90% 66%;
   }
 }
@@ -75,25 +75,25 @@
 
 /* Light mode — applied via JS when theme = light */
 html.light {
-  --background: 0 0% 98%;
-  --foreground: 222 20% 10%;
-  --card: 0 0% 100%;
-  --card-foreground: 222 20% 10%;
+  --background: 0 0% 97%;           /* #F7F7F7 — warm near-white */
+  --foreground: 222 25% 12%;        /* #141822 — deep navy-black text */
+  --card: 0 0% 100%;                /* pure white cards */
+  --card-foreground: 222 25% 12%;
   --popover: 0 0% 100%;
-  --popover-foreground: 222 20% 10%;
-  --secondary: 220 14% 93%;
-  --secondary-foreground: 222 20% 20%;
-  --muted: 220 14% 93%;
-  --muted-foreground: 215 16% 40%;
-  --accent: 220 14% 90%;
-  --accent-foreground: 222 20% 10%;
-  --border: 220 14% 85%;
-  --input: 220 14% 85%;
-  --sidebar-background: 220 14% 95%;
-  --sidebar-foreground: 222 20% 25%;
-  --sidebar-accent: 220 14% 88%;
-  --sidebar-accent-foreground: 222 20% 10%;
-  --sidebar-border: 220 14% 82%;
+  --popover-foreground: 222 25% 12%;
+  --secondary: 220 16% 92%;         /* #E5E8F0 */
+  --secondary-foreground: 222 22% 22%;
+  --muted: 220 16% 92%;
+  --muted-foreground: 220 14% 38%;  /* #4D5568 — readable medium gray */
+  --accent: 220 18% 88%;            /* #DBE1EF — visible hover */
+  --accent-foreground: 222 25% 12%;
+  --border: 220 16% 82%;            /* #C8CEDD — clear borders */
+  --input: 220 16% 82%;
+  --sidebar-background: 220 20% 94%;  /* #EDF0F7 */
+  --sidebar-foreground: 222 22% 22%;  /* #2A3347 */
+  --sidebar-accent: 220 18% 88%;
+  --sidebar-accent-foreground: 222 25% 12%;
+  --sidebar-border: 220 16% 78%;      /* #C0C8DA */
 }
 
 /* ── Base fonts ────────────────────────────────────── */

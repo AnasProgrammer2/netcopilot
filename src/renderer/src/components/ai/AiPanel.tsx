@@ -188,7 +188,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         return
       }
 
-      if (currentApproval === 'auto' || currentApproval === 'blacklist') {
+      if (currentApproval === 'auto') {
         // Chain to queue so multiple auto-commands execute sequentially, not in parallel
         const msgId = targetMsg.id
         commandQueueRef.current = commandQueueRef.current.then(async () => {
@@ -694,7 +694,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                     {/* Divider */}
                     <span className="w-px h-3.5 bg-border/60 mx-0.5" />
 
-                    {/* Per-session blacklist */}
+                    {/* Per-session blacklist — always available as a safety guard */}
                     <BlacklistButton
                       blacklist={sessionBlacklist}
                       onChange={setSessionBlacklist}
@@ -879,16 +879,12 @@ function ApprovalSelector({ value, onChange }: { value: AiApproval; onChange: (v
       align="right"
       options={[
         {
-          id: 'ask',       label: 'Ask each time',    short: 'Ask',
+          id: 'ask',  label: 'Ask each time', short: 'Ask',
           dimColor: 'text-primary/60',    activeColor: 'text-primary',
         },
         {
-          id: 'auto',      label: 'Auto-approve',     short: 'Auto',
+          id: 'auto', label: 'Auto-approve',  short: 'Auto',
           dimColor: 'text-emerald-500/60', activeColor: 'text-emerald-400',
-        },
-        {
-          id: 'blacklist', label: 'Block patterns',   short: 'Block',
-          dimColor: 'text-orange-500/60', activeColor: 'text-orange-400',
         },
       ]}
     />
@@ -941,7 +937,7 @@ function BlacklistButton({ blacklist, onChange }: { blacklist: string[]; onChang
         )}
       >
         <ShieldAlert className="w-3 h-3" />
-        <span>Block</span>
+        <span>Patterns</span>
         {activeCount > 0 && (
           <span className="text-[11px] opacity-70">({activeCount})</span>
         )}
