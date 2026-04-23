@@ -753,9 +753,6 @@ function AboutSection() {
   const rows = [
     { label: 'Version',   value: appVersion },
     { label: 'Device ID', value: deviceId.slice(0, 12) + '…' },
-    { label: 'Electron',  value: info?.versions.electron ?? '—' },
-    { label: 'Node.js',   value: info?.versions.node     ?? '—' },
-    { label: 'Chrome',    value: info?.versions.chrome   ?? '—' },
     { label: 'Platform',  value: platform },
   ]
 
