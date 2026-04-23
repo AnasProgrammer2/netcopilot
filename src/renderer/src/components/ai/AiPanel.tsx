@@ -330,46 +330,48 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
     setAiStreaming(true)
     setAiAgentActive(true)
 
-    const ctx  = proactiveContext ?? getTerminalContext()
-    const conn = activeSession?.connection
+    try {
+      const ctx  = proactiveContext ?? getTerminalContext()
+      const conn = activeSession?.connection
 
-    // Auto-detect device type from terminal context when set to 'auto'
-    let resolvedDeviceType = conn?.deviceType ?? 'generic'
-    if (resolvedDeviceType === 'auto') {
-      const rawCtx = terminalRegistry.get(activeSession?.id ?? '')?.getContext(200) ?? ''
-      const detected = detectDeviceType(rawCtx)
-      resolvedDeviceType = detected ?? 'generic'
+      let resolvedDeviceType = conn?.deviceType ?? 'generic'
+      if (resolvedDeviceType === 'auto') {
+        const rawCtx = terminalRegistry.get(activeSession?.id ?? '')?.getContext(200) ?? ''
+        const detected = detectDeviceType(rawCtx)
+        resolvedDeviceType = detected ?? 'generic'
+      }
+
+      const history = buildMessages()
+
+      const messages = isProactive
+        ? history.concat([{ role: 'user', content: `[AUTO] Analyze this terminal output:\n${ctx}` }])
+        : history
+
+      if (messages.length === 0) {
+        finalizeAiStream()
+        return
+      }
+
+      await window.api.ai.chat({
+        messages,
+        terminalContext: ctx,
+        deviceType:      resolvedDeviceType,
+        host:            conn?.host ?? 'unknown',
+        protocol:        conn?.protocol ?? 'ssh',
+        permission:      sessionPermission,
+        isProactive,
+        sessions: allSessions?.map(s => ({
+          sessionId:  s.id,
+          name:       s.connection.name,
+          host:       s.connection.host,
+          deviceType: s.connection.deviceType ?? 'generic',
+          protocol:   s.connection.protocol ?? 'ssh',
+        })),
+      })
+    } catch {
+      setAiStreaming(false)
+      setAiAgentActive(false)
     }
-
-    // Build history AFTER adding the user message (reads fresh state via getState())
-    const history = buildMessages()
-
-    // For proactive: append the auto-analysis request
-    const messages = isProactive
-      ? history.concat([{ role: 'user', content: `[AUTO] Analyze this terminal output:\n${ctx}` }])
-      : history
-
-    if (messages.length === 0) {
-      finalizeAiStream()
-      return
-    }
-
-    await window.api.ai.chat({
-      messages,
-      terminalContext: ctx,
-      deviceType:      resolvedDeviceType,
-      host:            conn?.host ?? 'unknown',
-      protocol:        conn?.protocol ?? 'ssh',
-      permission:      sessionPermission,
-      isProactive,
-      sessions: allSessions?.map(s => ({
-        sessionId:  s.id,
-        name:       s.connection.name,
-        host:       s.connection.host,
-        deviceType: s.connection.deviceType ?? 'generic',
-        protocol:   s.connection.protocol ?? 'ssh',
-      })),
-    })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addAiMessage, setAiStreaming, finalizeAiStream, getTerminalContext, activeSession, sessionPermission])
 

@@ -896,7 +896,10 @@ export function setupAiHandlers(
       return
     }
 
-    runAiLoop(payload, licenseKey, getWindow).catch(() => { /* handled inside */ })
+    runAiLoop(payload, licenseKey, getWindow).catch((err) => {
+      getWindow()?.webContents.send('ai:error', `Unexpected error: ${String(err)}`)
+      getWindow()?.webContents.send('ai:done')
+    })
   })
 
   // Cancel current stream

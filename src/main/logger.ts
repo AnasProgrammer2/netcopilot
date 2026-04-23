@@ -32,13 +32,19 @@ export function setupLogHandlers(ipcMain: IpcMain, getWindow: () => BrowserWindo
   // Start logging to a specific path directly (no dialog) — used for auto-log
   ipcMain.handle('log:startAt', (_, filePath: string, sessionName: string) => {
     try {
-      mkdirSync(path.dirname(filePath), { recursive: true })
-      const existing = openLogs.get(filePath)
-      if (existing) { existing.end(); openLogs.delete(filePath) }
-      const stream = createWriteStream(filePath, { flags: 'a', encoding: 'utf8' })
-      openLogs.set(filePath, stream)
+      const resolved = path.resolve(filePath)
+      const allowedBase = app.getPath('documents')
+      if (!resolved.startsWith(allowedBase)) {
+        console.error('[logger] startAt blocked — path outside documents:', resolved)
+        return null
+      }
+      mkdirSync(path.dirname(resolved), { recursive: true })
+      const existing = openLogs.get(resolved)
+      if (existing) { existing.end(); openLogs.delete(resolved) }
+      const stream = createWriteStream(resolved, { flags: 'a', encoding: 'utf8' })
+      openLogs.set(resolved, stream)
       stream.write(`=== NetCopilot Log — ${sessionName} — ${new Date().toISOString()} ===\n`)
-      return filePath
+      return resolved
     } catch (e) {
       console.error('[logger] startAt failed:', e)
       return null

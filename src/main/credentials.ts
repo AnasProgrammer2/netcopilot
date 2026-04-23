@@ -7,6 +7,9 @@ function credKey(key: string): string {
 
 export function setupCredentialHandlers(ipcMain: IpcMain): void {
   ipcMain.handle('credentials:save', (_, key: string, value: string) => {
+    if (!safeStorage.isEncryptionAvailable()) {
+      return { success: false, error: 'OS encryption unavailable — cannot store credentials securely.' }
+    }
     try {
       const encrypted = safeStorage.encryptString(value)
       const encoded = encrypted.toString('base64')
@@ -14,12 +17,8 @@ export function setupCredentialHandlers(ipcMain: IpcMain): void {
         .prepare("INSERT INTO settings (key, value) VALUES (@key, @value) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
         .run({ key: credKey(key), value: JSON.stringify(encoded) })
       return { success: true }
-    } catch {
-      const encoded = Buffer.from(value).toString('base64')
-      getDb()
-        .prepare("INSERT INTO settings (key, value) VALUES (@key, @value) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
-        .run({ key: credKey(key), value: JSON.stringify(encoded) })
-      return { success: true }
+    } catch (err) {
+      return { success: false, error: `Encryption failed: ${String(err)}` }
     }
   })
 

@@ -126,6 +126,10 @@ export function setupStoreHandlers(ipcMain: IpcMain): void {
   })
 
   ipcMain.handle('store:set-setting', (_, key: string, value: unknown) => {
+    const reserved = ['license.key', 'masterPasswordHash', 'dbKey', 'migrated_v1']
+    if (reserved.some(r => key === r || key.startsWith('cred:'))) {
+      return false
+    }
     getDb().prepare(`
       INSERT INTO settings (key, value) VALUES (@key, @value)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value
