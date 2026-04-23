@@ -72,9 +72,14 @@ export function setupAutoUpdater(getWindow: () => BrowserWindow | null): void {
     }
   })
 
-  // IPC: quit and install
-  ipcMain.handle('updater:install', () => {
-    autoUpdater.quitAndInstall(false, true)
+  // IPC: quit and install (falls back to browser on macOS without code signing)
+  ipcMain.handle('updater:install', async () => {
+    try {
+      autoUpdater.quitAndInstall(false, true)
+    } catch (err) {
+      log.warn('quitAndInstall failed, opening release page:', err)
+      shell.openExternal(`https://github.com/AnasProgrammer2/netcopilot/releases/latest`)
+    }
   })
 
   // IPC: open release page in browser (fallback for unsigned builds)
