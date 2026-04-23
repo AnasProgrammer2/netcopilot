@@ -88,7 +88,7 @@ const NAV: { id: SettingsSection; label: string; icon: React.ComponentType<{ cla
   { id: 'connection', label: 'Connection', icon: Network   },
   { id: 'logging',    label: 'Logging',    icon: FileText  },
   { id: 'security',   label: 'Security',   icon: Lock      },
-  { id: 'ai',         label: 'ARIA',        icon: Sparkles  },
+  { id: 'ai',         label: 'ARIA (AI)',    icon: Sparkles  },
   { id: 'about',      label: 'About',      icon: Info      },
 ]
 
