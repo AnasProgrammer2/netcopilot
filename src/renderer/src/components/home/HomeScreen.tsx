@@ -199,22 +199,33 @@ export function HomeScreen(): JSX.Element {
 
   const [search,           setSearch]           = useState('')
   const [selectedGroup,    setSelectedGroup]    = useState<string | null>(null)
+  const [selectedTag,      setSelectedTag]      = useState<string | null>(null)
   const [groupDialogOpen,  setGroupDialogOpen]  = useState(false)
   const [sshKeyDialogOpen, setSshKeyDialogOpen] = useState(false)
 
   const connectedIds   = new Set(sessions.filter(s => s.status === 'connected').map(s => s.connectionId))
   const totalConnected = sessions.filter(s => s.status === 'connected').length
 
+  // All unique tags across connections
+  const allTags = useMemo(() => {
+    const set = new Set<string>()
+    connections.forEach(c => c.tags?.forEach(t => set.add(t)))
+    return [...set].sort()
+  }, [connections])
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return connections.filter(c =>
-      !q ||
-      c.name.toLowerCase().includes(q) ||
-      c.host.toLowerCase().includes(q) ||
-      c.username?.toLowerCase().includes(q) ||
-      c.tags.some(t => t.toLowerCase().includes(q))
-    )
-  }, [connections, search])
+    return connections.filter(c => {
+      if (selectedTag && !c.tags?.includes(selectedTag)) return false
+      return (
+        !q ||
+        c.name.toLowerCase().includes(q) ||
+        c.host.toLowerCase().includes(q) ||
+        c.username?.toLowerCase().includes(q) ||
+        c.tags.some(t => t.toLowerCase().includes(q))
+      )
+    })
+  }, [connections, search, selectedTag])
 
   const groupIds = new Set(groups.map(g => g.id))
 
@@ -274,6 +285,35 @@ export function HomeScreen(): JSX.Element {
           Quick
         </button>
       </div>
+
+      {/* ── Tags filter bar ─────────────────────────────────────────────────── */}
+      {allTags.length > 0 && (
+        <div className="flex items-center gap-1.5 px-5 py-2 border-b border-border/60 overflow-x-auto shrink-0 scrollbar-none">
+          <span className="text-[10px] text-muted-foreground/40 font-semibold uppercase tracking-wider shrink-0">Tags</span>
+          {allTags.map(tag => (
+            <button
+              key={tag}
+              onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+              className={cn(
+                'text-[11px] px-2.5 py-1 rounded-full border font-medium transition-all cursor-pointer shrink-0 whitespace-nowrap',
+                selectedTag === tag
+                  ? 'bg-primary/15 border-primary/40 text-primary'
+                  : 'bg-muted/40 border-border/60 text-muted-foreground hover:text-foreground hover:border-border'
+              )}
+            >
+              {tag}
+            </button>
+          ))}
+          {selectedTag && (
+            <button
+              onClick={() => setSelectedTag(null)}
+              className="text-[11px] px-2 py-1 rounded-full text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-pointer shrink-0"
+            >
+              Clear ×
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Content ────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
