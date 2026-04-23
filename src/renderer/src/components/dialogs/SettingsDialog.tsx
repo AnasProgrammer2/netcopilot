@@ -694,6 +694,7 @@ function SecuritySection({ settings, update }: SectionProps) {
 function AboutSection() {
   const info = window.api?.appInfo
   const [appVersion, setAppVersion] = useState('—')
+  const [deviceId, setDeviceId] = useState('—')
   const [updateState, setUpdateState] = useState<
     'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'downloaded' | 'error'
   >('idle')
@@ -707,6 +708,7 @@ function AboutSection() {
 
   useEffect(() => {
     window.api.appInfo.getVersion().then(setAppVersion).catch(() => {})
+    window.api.license.getDeviceId().then(setDeviceId).catch(() => {})
 
     const offAvailable = window.api.updater.onUpdateAvailable((i) => {
       setUpdateVersion(i.version)
@@ -749,11 +751,12 @@ function AboutSection() {
   }
 
   const rows = [
-    { label: 'Version',  value: appVersion },
-    { label: 'Electron', value: info?.versions.electron ?? '—' },
-    { label: 'Node.js',  value: info?.versions.node     ?? '—' },
-    { label: 'Chrome',   value: info?.versions.chrome   ?? '—' },
-    { label: 'Platform', value: platform },
+    { label: 'Version',   value: appVersion },
+    { label: 'Device ID', value: deviceId.slice(0, 12) + '…' },
+    { label: 'Electron',  value: info?.versions.electron ?? '—' },
+    { label: 'Node.js',   value: info?.versions.node     ?? '—' },
+    { label: 'Chrome',    value: info?.versions.chrome   ?? '—' },
+    { label: 'Platform',  value: platform },
   ]
 
   return (
