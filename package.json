@@ -1,6 +1,6 @@
 {
   "name": "netcopilot",
-  "version": "0.7.5",
+  "version": "0.7.6",
   "description": "NetCopilot – AI-powered SSH/Telnet terminal for network engineers",
   "main": "./out/main/index.js",
   "author": {
@@ -96,8 +96,8 @@
       "out/**/*"
     ],
     "asarUnpack": [
-      "node_modules/better-sqlite3/**/*",
-      "node_modules/electron-updater/**/*"
+      "node_modules/better-sqlite3-multiple-ciphers/**/*",
+      "node_modules/@serialport/bindings-cpp/**/*"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
