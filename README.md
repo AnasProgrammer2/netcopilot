@@ -66,11 +66,12 @@ Output files will be in the `dist/` folder.
 
 ### ARIA Setup (Required for AI features)
 
-ARIA requires a license key from [netcopilot.app](https://netcopilot.app/register):
+ARIA is **free during the beta period** — no payment required. Just register for a license key:
 
-1. Open the app → Settings → ARIA
-2. Paste your license key
-3. ARIA is ready — all AI requests are routed through the NetCopilot API
+1. Go to [netcopilot.app/register](https://netcopilot.app/register) and get your free key
+2. Open the app → Settings → ARIA
+3. Paste your license key
+4. ARIA is ready — all AI requests are routed through the NetCopilot API
 
 Your license key is stored in the **OS keychain** — never on disk or in any file.
 
