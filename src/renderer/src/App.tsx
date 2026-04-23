@@ -62,7 +62,10 @@ export default function App(): JSX.Element {
     const offDownloaded = window.api.updater.onUpdateDownloaded(() => {
       setUpdateBanner((prev) => prev ? { ...prev, downloaded: true, downloading: false, progress: 100 } : prev)
     })
-    return () => { offAvailable(); offProgress(); offDownloaded() }
+    const offError = window.api.updater.onError(() => {
+      setUpdateBanner((prev) => prev ? { ...prev, downloading: false } : prev)
+    })
+    return () => { offAvailable(); offProgress(); offDownloaded(); offError() }
   }, [])
 
   // Auto-lock idle timer
