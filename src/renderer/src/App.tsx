@@ -12,7 +12,7 @@ import { SettingsDialog } from './components/dialogs/SettingsDialog'
 import { HelpDialog } from './components/dialogs/HelpDialog'
 import { TitleBar } from './components/TitleBar'
 import { MasterPasswordLock } from './components/MasterPasswordLock'
-import { cn } from './lib/utils'
+import { cn, getInstallerUrl } from './lib/utils'
 
 export default function App(): JSX.Element {
   const {
@@ -30,9 +30,6 @@ export default function App(): JSX.Element {
   const autoLockMinsRef = useRef(0)
   const [updateBanner, setUpdateBanner] = useState<{
     version: string
-    downloaded: boolean
-    downloading: boolean
-    progress: number
   } | null>(null)
 
   // Check master password on startup
@@ -51,21 +48,12 @@ export default function App(): JSX.Element {
     }
   }, [masterLocked])
 
-  // Listen for auto-updater events from main process
+  // Listen for auto-updater "update available" event
   useEffect(() => {
     const offAvailable = window.api.updater.onUpdateAvailable((info) => {
-      setUpdateBanner({ version: info.version, downloaded: false, downloading: false, progress: 0 })
+      setUpdateBanner({ version: info.version })
     })
-    const offProgress = window.api.updater.onDownloadProgress((p) => {
-      setUpdateBanner((prev) => prev ? { ...prev, downloading: true, progress: p.percent } : prev)
-    })
-    const offDownloaded = window.api.updater.onUpdateDownloaded(() => {
-      setUpdateBanner((prev) => prev ? { ...prev, downloaded: true, downloading: false, progress: 100 } : prev)
-    })
-    const offError = window.api.updater.onError(() => {
-      setUpdateBanner((prev) => prev ? { ...prev, downloading: false } : prev)
-    })
-    return () => { offAvailable(); offProgress(); offDownloaded(); offError() }
+    return () => { offAvailable() }
   }, [])
 
   // Auto-lock idle timer
@@ -231,7 +219,6 @@ export default function App(): JSX.Element {
           'bg-background/95 backdrop-blur-sm shadow-2xl shadow-black/40',
           'flex flex-col gap-3 p-4'
         )}>
-          {/* Header */}
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
@@ -239,13 +226,7 @@ export default function App(): JSX.Element {
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground">Update Available</p>
-                <p className="text-xs text-muted-foreground">
-                  {updateBanner.downloaded
-                    ? 'Ready to install'
-                    : updateBanner.downloading
-                      ? `Downloading… ${updateBanner.progress}%`
-                      : `v${updateBanner.version} is ready`}
-                </p>
+                <p className="text-xs text-muted-foreground">v{updateBanner.version} is ready</p>
               </div>
             </div>
             <button
@@ -256,49 +237,24 @@ export default function App(): JSX.Element {
             </button>
           </div>
 
-          {/* Download progress bar */}
-          {updateBanner.downloading && (
-            <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-all duration-300"
-                style={{ width: `${updateBanner.progress}%` }}
-              />
-            </div>
-          )}
-
-          {/* Actions */}
-          {!updateBanner.downloading && (
-            <div className="flex gap-2">
-              {updateBanner.downloaded ? (
-                <button
-                  onClick={() => window.api.updater.install()}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
-                >
-                  <ArrowUpCircle className="w-3.5 h-3.5" />
-                  Restart &amp; Install
-                </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    setUpdateBanner((prev) => prev ? { ...prev, downloading: true } : prev)
-                    window.api.updater.download().catch(() => {
-                      setUpdateBanner((prev) => prev ? { ...prev, downloading: false } : prev)
-                    })
-                  }}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
-                >
-                  <ArrowUpCircle className="w-3.5 h-3.5" />
-                  Download Update
-                </button>
-              )}
-              <button
-                onClick={() => setUpdateBanner(null)}
-                className="flex-1 px-3 py-2 rounded-lg bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80 transition-colors"
-              >
-                Later
-              </button>
-            </div>
-          )}
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                window.api.updater.openRelease(getInstallerUrl(updateBanner.version))
+                setUpdateBanner(null)
+              }}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors cursor-pointer"
+            >
+              <ArrowUpCircle className="w-3.5 h-3.5" />
+              Download Update
+            </button>
+            <button
+              onClick={() => setUpdateBanner(null)}
+              className="flex-1 px-3 py-2 rounded-lg bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80 transition-colors cursor-pointer"
+            >
+              Later
+            </button>
+          </div>
         </div>
       )}
 

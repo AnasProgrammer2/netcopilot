@@ -92,6 +92,7 @@ const api = {
       chrome: process.versions.chrome
     },
     platform: process.platform,
+    arch: process.arch,
     getVersion: (): Promise<string> => ipcRenderer.invoke('app:get-version'),
   },
 
@@ -108,31 +109,14 @@ const api = {
     },
   },
 
-  // Auto-updater
+  // Auto-updater (check only — downloads open in browser)
   updater: {
     check:       () => ipcRenderer.invoke('updater:check'),
-    download:    () => ipcRenderer.invoke('updater:download'),
-    install:     () => ipcRenderer.invoke('updater:install'),
     openRelease: (url: string) => ipcRenderer.invoke('updater:open-release', url),
     onUpdateAvailable: (cb: (info: { version: string; releaseDate: string; releaseNotes: string | null }) => void) => {
       const handler = (_: unknown, info: { version: string; releaseDate: string; releaseNotes: string | null }) => cb(info)
       ipcRenderer.on('updater:update-available', handler)
       return () => ipcRenderer.removeListener('updater:update-available', handler)
-    },
-    onUpdateNotAvailable: (cb: () => void) => {
-      const handler = () => cb()
-      ipcRenderer.on('updater:update-not-available', handler)
-      return () => ipcRenderer.removeListener('updater:update-not-available', handler)
-    },
-    onDownloadProgress: (cb: (progress: { percent: number; bytesPerSecond: number; transferred: number; total: number }) => void) => {
-      const handler = (_: unknown, p: { percent: number; bytesPerSecond: number; transferred: number; total: number }) => cb(p)
-      ipcRenderer.on('updater:download-progress', handler)
-      return () => ipcRenderer.removeListener('updater:download-progress', handler)
-    },
-    onUpdateDownloaded: (cb: (info: { version: string }) => void) => {
-      const handler = (_: unknown, info: { version: string }) => cb(info)
-      ipcRenderer.on('updater:update-downloaded', handler)
-      return () => ipcRenderer.removeListener('updater:update-downloaded', handler)
     },
     onError: (cb: (message: string) => void) => {
       const handler = (_: unknown, message: string) => cb(message)
