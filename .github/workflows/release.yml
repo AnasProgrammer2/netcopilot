@@ -8,35 +8,48 @@ on:
 permissions:
   contents: write
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
+  # Create the GitHub Release first so build jobs don't race each other
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   build:
+    needs: create-release
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest       # Apple Silicon (arm64)
+          - os: macos-latest
             platform: mac
             arch: arm64
-          - os: macos-13           # Intel (x64)
+            build_cmd: npm run build && electron-builder --mac --arm64
+          - os: macos-latest
             platform: mac
             arch: x64
-          - os: windows-latest     # Windows x64
+            build_cmd: npm run build && electron-builder --mac --x64
+          - os: windows-latest
             platform: win
-          - os: ubuntu-latest      # Linux x64
+            build_cmd: npm run build:win
+          - os: ubuntu-latest
             platform: linux
+            build_cmd: npm run build:linux
 
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.os }} ${{ matrix.arch || '' }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
@@ -115,19 +128,15 @@ jobs:
 
       - name: Build & package
         env:
-          # macOS signing — CSC_IDENTITY & CSC_IDENTITY_AUTO_DISCOVERY set by previous step
           APPLE_TEAM_ID:               ${{ secrets.APPLE_TEAM_ID }}
           APPLE_ID:                    ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          # GitHub token for electron-updater publish
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run build:${{ matrix.platform }}
+        run: ${{ matrix.build_cmd }}
 
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2.3.2
+        uses: softprops/action-gh-release@v3
         with:
-          draft: false
-          prerelease: false
           fail_on_unmatched_files: false
           files: |
             dist/*.dmg
