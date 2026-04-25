@@ -249,7 +249,7 @@ Output files in `dist/`.
 | Frontend | React 19, Tailwind CSS, Zustand |
 | Terminal | xterm.js 6 |
 | Database | SQLite (SQLCipher AES-256) via better-sqlite3 |
-| AI | Claude Sonnet 4.5 (Anthropic SDK) |
+| AI Backend | NetCopilot API |
 | Protocols | ssh2, serialport, raw TCP (Telnet) |
 
 ---
