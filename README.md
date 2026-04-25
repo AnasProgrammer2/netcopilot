@@ -1,12 +1,3 @@
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/1c8ef1f9-525b-489c-a8f3-9ce75d878abd" alt="NetCopilot" width="600" />
-</p>
-
-
-
-https://github.com/user-attachments/assets/1be0a1d5-f7a2-45c8-b667-1f49f356d0f3
-
-
 <h1 align="center">NetCopilot</h1>
 
 <p align="center">
@@ -30,6 +21,14 @@ https://github.com/user-attachments/assets/1be0a1d5-f7a2-45c8-b667-1f49f356d0f3
 NetCopilot is not just a terminal — it is an **AI agent** that connects to your network devices, understands your infrastructure, and acts autonomously to diagnose, troubleshoot, and fix problems.
 
 At its core is **ARIA** (Autonomous Real-time Infrastructure Agent): a real agentic system that plans investigations, executes commands, reads output, and delivers structured recommendations — all without leaving your terminal. You describe the problem; ARIA handles the rest.
+
+### See It in Action
+
+<p align="center">
+  <a href="https://github.com/user-attachments/assets/1be0a1d5-f7a2-45c8-b667-1f49f356d0f3">
+    <img src="https://github.com/user-attachments/assets/1be0a1d5-f7a2-45c8-b667-1f49f356d0f3" alt="NetCopilot Demo" width="100%" />
+  </a>
+</p>
 
 ---
 
