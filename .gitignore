@@ -10,5 +10,7 @@ dist/
 *.sqlite
 *.sqlite3
 
-# UI/UX Pro Max skill (local dev tool)
-.cursor/skills/
+# AI tool config (local dev tools)
+CLAUDE.md
+.claude/
+.cursor/
