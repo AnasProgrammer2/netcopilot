@@ -24,11 +24,7 @@ At its core is **ARIA** (Autonomous Real-time Infrastructure Agent): a real agen
 
 ### See It in Action
 
-<p align="center">
-  <a href="https://github.com/user-attachments/assets/1be0a1d5-f7a2-45c8-b667-1f49f356d0f3">
-    <img src="https://github.com/user-attachments/assets/1be0a1d5-f7a2-45c8-b667-1f49f356d0f3" alt="NetCopilot Demo" width="100%" />
-  </a>
-</p>
+https://github.com/user-attachments/assets/1be0a1d5-f7a2-45c8-b667-1f49f356d0f3
 
 ---
 
