@@ -1,6 +1,6 @@
 {
   "name": "netcopilot",
-  "version": "0.7.15",
+  "version": "0.7.16",
   "description": "NetCopilot – AI-powered SSH/Telnet terminal for network engineers",
   "main": "./out/main/index.js",
   "author": {
@@ -86,7 +86,8 @@
     "publish": {
       "provider": "github",
       "owner": "AnasProgrammer2",
-      "repo": "netcopilot"
+      "repo": "netcopilot",
+      "releaseType": "release"
     },
     "directories": {
       "buildResources": "resources",
