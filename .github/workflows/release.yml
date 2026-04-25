@@ -29,11 +29,11 @@ jobs:
           - os: macos-latest
             platform: mac
             arch: arm64
-            build_cmd: npm run build && electron-builder --mac --arm64
+            build_cmd: npm run build && npx electron-builder --mac --arm64
           - os: macos-latest
             platform: mac
             arch: x64
-            build_cmd: npm run build && electron-builder --mac --x64
+            build_cmd: npm run build && npx electron-builder --mac --x64
           - os: windows-latest
             platform: win
             build_cmd: npm run build:win
