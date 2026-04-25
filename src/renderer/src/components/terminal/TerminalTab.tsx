@@ -555,7 +555,8 @@ export function TerminalTab({ session }: Props): JSX.Element {
               const resolved = detected ?? 'generic'
               if (!mountedRef.current) return
 
-              // Persist to DB
+              highlighterRef.current = new TerminalHighlighter(resolved)
+
               const updated = { ...conn, deviceType: resolved, updatedAt: Date.now() }
               await window.api.store.saveConnection(updated)
               useAppStore.getState().saveConnection(updated)

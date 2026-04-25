@@ -1,4 +1,4 @@
-import { Settings, Zap, Network, HelpCircle, BookOpen, Keyboard } from 'lucide-react'
+import { Settings, Zap, Network, HelpCircle, BookOpen, Keyboard, Minus, Square, X, Copy } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useAppStore } from '../store'
 
@@ -12,7 +12,14 @@ export function TitleBar({ onShortcuts, onWelcome }: Props): JSX.Element {
   const isMac = navigator.userAgent.includes('Mac')
   const activeSessions = sessions.filter(s => s.status === 'connected').length
   const [helpOpen, setHelpOpen] = useState(false)
+  const [isMaximized, setIsMaximized] = useState(false)
   const helpRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (isMac) return
+    window.api.window.isMaximized().then(setIsMaximized)
+    return window.api.window.onMaximizedChange(setIsMaximized)
+  }, [isMac])
 
   useEffect(() => {
     if (!helpOpen) return
@@ -26,7 +33,7 @@ export function TitleBar({ onShortcuts, onWelcome }: Props): JSX.Element {
   return (
     <div
       className="drag-region h-11 flex items-center justify-between border-b border-border bg-sidebar shrink-0"
-      style={{ paddingLeft: isMac ? '80px' : '16px', paddingRight: '12px' }}
+      style={{ paddingLeft: isMac ? '80px' : '16px', paddingRight: isMac ? '12px' : '0px' }}
     >
       {/* Logo */}
       <div className="flex items-center gap-2 no-drag">
@@ -100,6 +107,36 @@ export function TitleBar({ onShortcuts, onWelcome }: Props): JSX.Element {
           <Settings className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Window controls — Windows/Linux only */}
+      {!isMac && (
+        <div className="flex items-center no-drag ml-2">
+          <button
+            onClick={() => window.api.window.minimize()}
+            className="w-11 h-11 flex items-center justify-center text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors"
+            title="Minimize"
+          >
+            <Minus className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => window.api.window.maximize()}
+            className="w-11 h-11 flex items-center justify-center text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors"
+            title={isMaximized ? 'Restore' : 'Maximize'}
+          >
+            {isMaximized
+              ? <Copy className="w-3.5 h-3.5 rotate-180" />
+              : <Square className="w-3 h-3" />
+            }
+          </button>
+          <button
+            onClick={() => window.api.window.close()}
+            className="w-11 h-11 flex items-center justify-center text-muted-foreground hover:bg-red-500 hover:text-white transition-colors"
+            title="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }

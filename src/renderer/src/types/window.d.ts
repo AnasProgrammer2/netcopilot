@@ -164,6 +164,13 @@ declare global {
       onError(cb: (error: string) => void): () => void
       onPlan(cb: (plan: { objective: string; steps: string[] }) => void): () => void
     }
+    window: {
+      minimize(): Promise<void>
+      maximize(): Promise<void>
+      close(): Promise<void>
+      isMaximized(): Promise<boolean>
+      onMaximizedChange(cb: (maximized: boolean) => void): () => void
+    }
   }
 }
 }

@@ -118,6 +118,8 @@ export function setupStoreHandlers(ipcMain: IpcMain): void {
   // ── Settings ────────────────────────────────────────────────────────────────
 
   ipcMain.handle('store:get-setting', (_, key: string) => {
+    const forbidden = ['license.key', 'masterPasswordHash', 'dbKey']
+    if (forbidden.includes(key) || key.startsWith('cred:')) return undefined
     const row = getDb()
       .prepare('SELECT value FROM settings WHERE key = ?')
       .get(key) as { value: string } | undefined

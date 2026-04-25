@@ -21,6 +21,14 @@ function teardownSession(sessionId: string): void {
     try { session.jumpClient.end() } catch { /* already closed */ }
   }
   activeSessions.delete(sessionId)
+
+  // Close any port forwards tied to this session
+  for (const [id, fwd] of activeForwards) {
+    if (fwd.sessionId === sessionId) {
+      fwd.server.close()
+      activeForwards.delete(id)
+    }
+  }
 }
 
 const activeSessions   = new Map<string, ActiveSession>()
