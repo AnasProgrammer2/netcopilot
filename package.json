@@ -1,6 +1,6 @@
 {
   "name": "netcopilot",
-  "version": "0.7.18",
+  "version": "0.7.19",
   "description": "NetCopilot – AI-powered SSH/Telnet terminal for network engineers",
   "main": "./out/main/index.js",
   "author": {

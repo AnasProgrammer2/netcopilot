@@ -7,7 +7,7 @@ import {
   RefreshCw, ArrowUpCircle, AlertCircle
 } from 'lucide-react'
 import { useAppStore, AiPermission, AiApproval } from '../../store'
-import { cn } from '../../lib/utils'
+import { cn, getInstallerUrl } from '../../lib/utils'
 
 // ─── Settings data model ────────────────────────────────────────────────────
 interface AppSettings {
@@ -699,7 +699,6 @@ function AboutSection() {
     'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'downloaded' | 'error'
   >('idle')
   const [updateVersion, setUpdateVersion] = useState<string | null>(null)
-  const [downloadProgress, setDownloadProgress] = useState(0)
 
   const platform = info?.platform === 'darwin' ? 'macOS'
     : info?.platform === 'win32' ? 'Windows'
@@ -714,15 +713,7 @@ function AboutSection() {
       setUpdateVersion(i.version)
       setUpdateState('available')
     })
-    const offProgress = window.api.updater.onDownloadProgress((p) => {
-      setDownloadProgress(p.percent)
-      setUpdateState('downloading')
-    })
-    const offDownloaded = window.api.updater.onUpdateDownloaded((i) => {
-      setUpdateVersion(i.version)
-      setUpdateState('downloaded')
-    })
-    return () => { offAvailable(); offProgress(); offDownloaded() }
+    return () => { offAvailable() }
   }, [])
 
   const handleCheckUpdate = async () => {
@@ -741,13 +732,6 @@ function AboutSection() {
     } catch {
       setUpdateState('error')
     }
-  }
-
-  const handleDownload = async () => {
-    setUpdateState('downloading')
-    setDownloadProgress(0)
-    const res = await window.api.updater.download()
-    if (!res.success) setUpdateState('error')
   }
 
   const rows = [
@@ -793,7 +777,7 @@ function AboutSection() {
       <div className="w-full space-y-2">
         <button
           onClick={handleCheckUpdate}
-          disabled={updateState === 'checking' || updateState === 'downloading'}
+          disabled={updateState === 'checking'}
           className={cn(
             'w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer',
             'border border-border bg-card hover:bg-accent disabled:opacity-60 disabled:cursor-not-allowed'
@@ -820,43 +804,10 @@ function AboutSection() {
               </span>
             </div>
             <button
-              onClick={handleDownload}
+              onClick={() => window.api.updater.openRelease(getInstallerUrl(updateVersion))}
               className="shrink-0 text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium cursor-pointer"
             >
               Download →
-            </button>
-          </div>
-        )}
-
-        {updateState === 'downloading' && (
-          <div className="space-y-1.5 px-3 py-2.5 rounded-lg bg-primary/10 border border-primary/25">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-foreground flex items-center gap-2">
-                <RefreshCw className="w-3.5 h-3.5 text-primary animate-spin" />
-                Downloading update…
-              </span>
-              <span className="text-primary font-mono text-xs">{Math.round(downloadProgress)}%</span>
-            </div>
-            <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-all duration-300"
-                style={{ width: `${downloadProgress}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {updateState === 'downloaded' && (
-          <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-            <div className="flex items-center gap-2 text-sm text-emerald-400">
-              <Check className="w-4 h-4 shrink-0" />
-              <span>v{updateVersion} downloaded — restart to install</span>
-            </div>
-            <button
-              onClick={() => window.api.updater.install()}
-              className="shrink-0 text-xs px-3 py-1.5 rounded-md bg-emerald-500 text-white hover:bg-emerald-600 transition-colors font-medium"
-            >
-              Restart
             </button>
           </div>
         )}

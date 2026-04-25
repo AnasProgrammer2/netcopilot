@@ -60,17 +60,13 @@ declare global {
       appInfo: {
         versions: { electron: string; node: string; chrome: string }
         platform: string
+        arch: string
         getVersion(): Promise<string>
       }
       updater: {
         check(): Promise<{ success: boolean; updateAvailable?: boolean; updateInfo?: { version: string } | null; error?: string }>
-        download(): Promise<{ success: boolean; error?: string }>
-        install(): void
         openRelease(url: string): void
         onUpdateAvailable(cb: (info: { version: string; releaseDate: string; releaseNotes: string | null }) => void): () => void
-        onUpdateNotAvailable(cb: () => void): () => void
-        onDownloadProgress(cb: (progress: { percent: number; bytesPerSecond: number; transferred: number; total: number }) => void): () => void
-        onUpdateDownloaded(cb: (info: { version: string }) => void): () => void
         onError(cb: (message: string) => void): () => void
       }
       store: {
