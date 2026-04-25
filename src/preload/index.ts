@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
 
 const api = {
   // Store
@@ -94,6 +93,19 @@ const api = {
     },
     platform: process.platform,
     getVersion: (): Promise<string> => ipcRenderer.invoke('app:get-version'),
+  },
+
+  // Window controls (custom titlebar for Windows/Linux)
+  window: {
+    minimize:    () => ipcRenderer.invoke('window:minimize'),
+    maximize:    () => ipcRenderer.invoke('window:maximize'),
+    close:       () => ipcRenderer.invoke('window:close'),
+    isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
+    onMaximizedChange: (cb: (maximized: boolean) => void) => {
+      const handler = (_: unknown, maximized: boolean) => cb(maximized)
+      ipcRenderer.on('window:maximized-change', handler)
+      return () => ipcRenderer.removeListener('window:maximized-change', handler)
+    },
   },
 
   // Auto-updater
@@ -216,14 +228,11 @@ const api = {
 
 if (process.contextIsolated) {
   try {
-    contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
   } catch (error) {
     console.error(error)
   }
 } else {
-  // @ts-ignore
-  window.electron = electronAPI
   // @ts-ignore
   window.api = api
 }

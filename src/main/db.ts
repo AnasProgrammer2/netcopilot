@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3-multiple-ciphers'
-import { app } from 'electron'
+import { app, safeStorage } from 'electron'
 import path from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { Connection, ConnectionGroup, SSHKey } from '../types/shared'
@@ -187,7 +187,12 @@ function migrateFromJson(db: Database.Database): void {
               "INSERT OR IGNORE INTO settings (key, value) VALUES (@key, @value)"
             )
             for (const [k, v] of Object.entries(credData.credentials ?? {})) {
-              insertCred.run({ key: `cred:${k}`, value: JSON.stringify(v) })
+              if (safeStorage.isEncryptionAvailable()) {
+                const encrypted = safeStorage.encryptString(v)
+                insertCred.run({ key: `cred:${k}`, value: JSON.stringify(encrypted.toString('base64')) })
+              } else {
+                insertCred.run({ key: `cred:${k}`, value: JSON.stringify(v) })
+              }
             }
           } catch {/* ignore credential migration errors */}
         }

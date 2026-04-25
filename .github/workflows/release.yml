@@ -28,21 +28,16 @@ jobs:
         include:
           - os: macos-latest
             platform: mac
-            arch: arm64
-            build_cmd: npm run build && npx electron-builder --mac --arm64
-          - os: macos-latest
-            platform: mac
-            arch: x64
-            build_cmd: npm run build && npx electron-builder --mac --x64
+            build_cmd: npm run build && npx electron-builder --mac --x64 --arm64 --publish always
           - os: windows-latest
             platform: win
-            build_cmd: npm run build:win
+            build_cmd: npm run build && npx electron-builder --win --publish always
           - os: ubuntu-latest
             platform: linux
-            build_cmd: npm run build:linux
+            build_cmd: npm run build && npx electron-builder --linux --publish always
 
     runs-on: ${{ matrix.os }}
-    name: ${{ matrix.os }} ${{ matrix.arch || '' }}
+    name: ${{ matrix.os }}
 
     steps:
       - name: Checkout
@@ -126,23 +121,10 @@ jobs:
             Write-Host "No Windows certificate found — building unsigned."
           }
 
-      - name: Build & package
+      - name: Build, package & publish
         env:
           APPLE_TEAM_ID:               ${{ secrets.APPLE_TEAM_ID }}
           APPLE_ID:                    ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ${{ matrix.build_cmd }}
-
-      - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          fail_on_unmatched_files: false
-          files: |
-            dist/*.dmg
-            dist/*.zip
-            dist/*.exe
-            dist/*.AppImage
-            dist/*.deb
-            dist/*.yml
-          token: ${{ secrets.GITHUB_TOKEN }}

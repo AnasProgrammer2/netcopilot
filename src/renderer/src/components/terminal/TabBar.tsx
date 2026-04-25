@@ -54,15 +54,17 @@ export function TabBar(): JSX.Element {
           onActivate={() => setActiveSession(session.id)}
           onClose={() => {
             if (session.id === splitSessionId) setSplitSession(null)
-            // Generate session summary from ARIA messages before closing
-            const { aiMessages } = useAppStore.getState()
-            const cmds = aiMessages.filter(m => m.toolCalls?.length).flatMap(m => m.toolCalls ?? []).filter(t => t.status === 'done')
-            if (cmds.length > 0) {
-              const names = [...new Set(cmds.map(t => t.command.split(' ').slice(0, 3).join(' ')))].slice(0, 3)
-              toast.info(`Session closed — ${session.connection.name}`, {
-                description: `ARIA ran ${cmds.length} command${cmds.length > 1 ? 's' : ''}: ${names.join(', ')}${cmds.length > 3 ? '…' : ''}`,
-                duration: 5000,
-              })
+            // Only summarize AI messages when closing the active session (aiMessages is global)
+            if (session.id === activeSessionId) {
+              const { aiMessages } = useAppStore.getState()
+              const cmds = aiMessages.filter(m => m.toolCalls?.length).flatMap(m => m.toolCalls ?? []).filter(t => t.status === 'done')
+              if (cmds.length > 0) {
+                const names = [...new Set(cmds.map(t => t.command.split(' ').slice(0, 3).join(' ')))].slice(0, 3)
+                toast.info(`Session closed — ${session.connection.name}`, {
+                  description: `ARIA ran ${cmds.length} command${cmds.length > 1 ? 's' : ''}: ${names.join(', ')}${cmds.length > 3 ? '…' : ''}`,
+                  duration: 5000,
+                })
+              }
             }
             closeSession(session.id)
           }}

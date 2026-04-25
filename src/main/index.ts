@@ -53,6 +53,13 @@ function createWindow(): void {
     mainWindow?.show()
   })
 
+  mainWindow.on('maximize', () => {
+    mainWindow?.webContents.send('window:maximized-change', true)
+  })
+  mainWindow.on('unmaximize', () => {
+    mainWindow?.webContents.send('window:maximized-change', false)
+  })
+
   // Zoom in/out/reset via Cmd+= / Cmd+- / Cmd+0
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown') return
@@ -120,6 +127,15 @@ app.whenReady().then(() => {
   }
 
   ipcMain.handle('app:get-version', () => app.getVersion())
+
+  // Window controls for custom titlebar (Windows/Linux)
+  ipcMain.handle('window:minimize', () => mainWindow?.minimize())
+  ipcMain.handle('window:maximize', () => {
+    if (mainWindow?.isMaximized()) mainWindow.unmaximize()
+    else mainWindow?.maximize()
+  })
+  ipcMain.handle('window:close', () => mainWindow?.close())
+  ipcMain.handle('window:is-maximized', () => mainWindow?.isMaximized() ?? false)
 
   setupStoreHandlers(ipcMain)
   setupSshHandlers(ipcMain, () => mainWindow)
