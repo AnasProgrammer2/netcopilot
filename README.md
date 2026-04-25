@@ -2,6 +2,11 @@
   <img src="https://github.com/user-attachments/assets/1c8ef1f9-525b-489c-a8f3-9ce75d878abd" alt="NetCopilot" width="600" />
 </p>
 
+
+
+https://github.com/user-attachments/assets/1be0a1d5-f7a2-45c8-b667-1f49f356d0f3
+
+
 <h1 align="center">NetCopilot</h1>
 
 <p align="center">
