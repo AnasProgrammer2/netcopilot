@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown, Sparkles, RefreshCw, Globe } from 'lucide-react'
+import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown, Sparkles, RefreshCw, Globe, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import { terminalRegistry } from '../../lib/terminalRegistry'
 import { useAppStore } from '../../store'
@@ -229,14 +229,17 @@ function Tab({ session, isActive, isSplit, onActivate, onClose }: TabProps): JSX
         </>
       )}
 
-      <span className={cn('w-1.5 h-1.5 rounded-full shrink-0 transition-colors', statusDot)} />
+      {session.type === 'sftp'
+        ? <FolderOpen className="w-3 h-3 shrink-0 text-amber-400" />
+        : <span className={cn('w-1.5 h-1.5 rounded-full shrink-0 transition-colors', statusDot)} />
+      }
 
       <span className="text-xs font-medium truncate flex-1 leading-none">
-        {session.connection.name}
+        {session.type === 'sftp' ? `SFTP · ${session.connection.name}` : session.connection.name}
       </span>
 
-      {/* Reconnect button — only when disconnected or error */}
-      {(session.status === 'disconnected' || session.status === 'error') && (
+      {/* Reconnect button — only when disconnected or error (terminal sessions only) */}
+      {session.type !== 'sftp' && (session.status === 'disconnected' || session.status === 'error') && (
         <button
           onClick={(e) => { e.stopPropagation(); terminalRegistry.get(session.id)?.reconnect() }}
           title="Reconnect"

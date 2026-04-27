@@ -74,9 +74,19 @@ export interface Session {
   connectionId: string
   connection: Connection
   status: 'connecting' | 'connected' | 'disconnected' | 'error'
+  type?: 'terminal' | 'sftp'
   error?: string
   connectedAt?: number
   loggingPath?: string | null
+}
+
+export interface SftpFileEntry {
+  name: string
+  path: string
+  size: number
+  isDirectory: boolean
+  modifyTime: number
+  permissions: number
 }
 
 export interface JumpHostConfig {

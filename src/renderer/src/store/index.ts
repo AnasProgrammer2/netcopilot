@@ -101,6 +101,7 @@ interface AppState {
 
   // Actions - Sessions
   openSession: (connection: Connection) => string
+  openSftpSession: (connection: Connection) => string
   closeSession: (sessionId: string) => void
   setSessionStatus: (sessionId: string, status: Session['status'], error?: string) => void
   setActiveSession: (sessionId: string | null) => void
@@ -336,6 +337,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     return sessionId
   },
 
+  openSftpSession: (connection) => {
+    const sessionId = nanoid()
+    const session: Session = {
+      id: sessionId,
+      connectionId: connection.id,
+      connection,
+      status: 'connecting',
+      type: 'sftp',
+    }
+    set((state) => ({
+      sessions: [...state.sessions, session],
+      activeSessionId: sessionId,
+    }))
+    return sessionId
+  },
+
   closeSession: (sessionId) => {
     set((state) => {
       const sessions = state.sessions.filter((s) => s.id !== sessionId)
@@ -406,7 +423,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const sidebarWidth  = (await window.api.store.getSetting('sidebarWidth')  as number | null) ?? 260
     const accentColor   = (await window.api.store.getSetting('accentColor')   as string | null) ?? '#8b5cf6'
-    const theme         = (await window.api.store.getSetting('theme')          as string | null) ?? 'dark'
+    const theme         = (await window.api.store.getSetting('theme')          as string | null) ?? 'light'
     const aiPermission  = (await window.api.store.getSetting('ai.permission')  as AiPermission | null) ?? 'troubleshoot'
     const aiApproval    = (await window.api.store.getSetting('ai.approval')    as AiApproval | null)   ?? 'ask'
     const aiBlacklistRaw = await window.api.store.getSetting('ai.blacklist')

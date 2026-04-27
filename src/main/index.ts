@@ -10,6 +10,7 @@ import { setupFileDialogHandlers } from './fileDialog'
 import { setupLogHandlers } from './logger'
 import { setupMasterPasswordHandlers } from './masterPassword'
 import { setupAiHandlers } from './ai'
+import { setupSftpHandlers } from './sftp'
 import { setupLicenseHandlers } from './license'
 import { setupAutoUpdater } from './updater'
 import * as Sentry from '@sentry/electron/main'
@@ -112,7 +113,7 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  nativeTheme.themeSource = 'dark'
+  nativeTheme.themeSource = 'light'
 
   // macOS "About" panel — show app icon + correct version
   if (process.platform === 'darwin') {
@@ -139,6 +140,7 @@ app.whenReady().then(() => {
 
   setupStoreHandlers(ipcMain)
   setupSshHandlers(ipcMain, () => mainWindow)
+  setupSftpHandlers(ipcMain, () => mainWindow)
   setupTelnetHandlers(ipcMain, () => mainWindow)
   setupAiHandlers(ipcMain, () => mainWindow)
   setupLicenseHandlers(ipcMain)

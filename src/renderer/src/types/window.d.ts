@@ -1,4 +1,4 @@
-import { Connection, ConnectionGroup, SSHKey } from '.'
+import { Connection, ConnectionGroup, SSHKey, SftpFileEntry } from '.'
 
 interface JumpHostPayload {
   host: string
@@ -111,6 +111,22 @@ declare global {
         forwardStop(forwardId: string): Promise<boolean>
         forwardStopSession(sessionId: string): Promise<boolean>
         onData(cb: (sessionId: string, data: string) => void): () => void
+        onClosed(cb: (sessionId: string) => void): () => void
+      }
+      sftp: {
+        connect(payload: {
+          sessionId: string; host: string; port: number; username: string
+          password?: string; privateKey?: string; passphrase?: string
+        }): Promise<{ success: boolean; error?: string }>
+        home(sessionId: string): Promise<{ success: boolean; path?: string; error?: string }>
+        list(sessionId: string, remotePath: string): Promise<{ success: boolean; entries?: SftpFileEntry[]; error?: string }>
+        download(sessionId: string, remotePaths: string[]): Promise<{ success: boolean; canceled?: boolean; localDir?: string; error?: string }>
+        upload(sessionId: string, remotePath: string): Promise<{ success: boolean; canceled?: boolean; error?: string }>
+        delete(sessionId: string, remotePath: string, isDirectory: boolean): Promise<{ success: boolean; error?: string }>
+        rename(sessionId: string, oldPath: string, newPath: string): Promise<{ success: boolean; error?: string }>
+        mkdir(sessionId: string, remotePath: string): Promise<{ success: boolean; error?: string }>
+        disconnect(sessionId: string): Promise<boolean>
+        onProgress(cb: (sessionId: string, filePath: string, transferred: number, total: number) => void): () => void
         onClosed(cb: (sessionId: string) => void): () => void
       }
       telnet: {
