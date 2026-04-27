@@ -893,6 +893,17 @@ export function TerminalTab({ session }: Props): JSX.Element {
               {cmd}
             </button>
           ))}
+          <button
+            onClick={() => {
+              const rawDt = session.connection.deviceType ?? 'generic'
+              const dt    = rawDt === 'auto' ? 'generic' : rawDt
+              window.api.history.clear(dt).then(() => setSmartCommands([]))
+            }}
+            title="Clear command history"
+            className="shrink-0 ml-auto px-1.5 py-0.5 rounded text-[10px] text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent transition-colors"
+          >
+            ×
+          </button>
         </div>
       )}
 

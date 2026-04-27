@@ -142,12 +142,16 @@ export function setupStoreHandlers(ipcMain: IpcMain): void {
   // ── Command History ──────────────────────────────────────────────────────────
 
   ipcMain.handle('history:record', (_, deviceType: string, command: string) => {
+    const cmd = command.trim()
+    // Reject natural-language sentences: more than 6 words or contains a question mark
+    const wordCount = cmd.split(/\s+/).length
+    if (wordCount > 6 || cmd.includes('?') || cmd.length > 120) return false
     getDb().prepare(`
       INSERT INTO command_history (device_type, command, count, last_used)
       VALUES (@device_type, @command, 1, @now)
       ON CONFLICT(device_type, command)
       DO UPDATE SET count = count + 1, last_used = @now
-    `).run({ device_type: deviceType, command, now: Date.now() })
+    `).run({ device_type: deviceType, command: cmd, now: Date.now() })
     return true
   })
 
