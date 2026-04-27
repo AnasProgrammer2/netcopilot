@@ -13,8 +13,10 @@ export function TabBar(): JSX.Element {
     sessions, activeSessionId, splitSessionId,
     setActiveSession, closeSession, setQuickConnectOpen, setSplitSession,
     aiPanelOpen, setAiPanelOpen, activeForwardIds,
-    licenseValid,
+    licenseValid, errorAlertSessionId, setErrorAlert,
   } = useAppStore()
+
+  const hasErrorAlert = errorAlertSessionId === activeSessionId
 
   const [splitMenuOpen,   setSplitMenuOpen]   = useState(false)
   const [forwardOpen,     setForwardOpen]     = useState(false)
@@ -87,16 +89,22 @@ export function TabBar(): JSX.Element {
             toast.error('License key required', { description: 'Add your license key in Settings → ARIA to use the AI assistant.' })
             return
           }
+          if (hasErrorAlert) setErrorAlert(null)
           setAiPanelOpen(!aiPanelOpen)
         }}
-        title={aiPanelOpen ? 'Close ARIA' : 'Open ARIA'}
+        title={hasErrorAlert ? 'ARIA detected an error — click to analyze' : aiPanelOpen ? 'Close ARIA' : 'Open ARIA'}
         className={cn(
-          'shrink-0 self-center flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors ml-auto',
+          'shrink-0 self-center relative flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors ml-auto',
           aiPanelOpen
             ? 'text-primary bg-primary/15 hover:bg-primary/25'
-            : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+            : hasErrorAlert
+              ? 'text-red-400 bg-red-500/10 hover:bg-red-500/20'
+              : 'text-muted-foreground hover:text-foreground hover:bg-accent'
         )}
       >
+        {hasErrorAlert && (
+          <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+        )}
         <Sparkles className="w-3.5 h-3.5" />
         <span className="hidden sm:inline">ARIA AI</span>
       </button>

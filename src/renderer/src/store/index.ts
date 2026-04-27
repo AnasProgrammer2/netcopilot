@@ -136,6 +136,10 @@ interface AppState {
   // Session logging (path stored per session so TabBar can show indicator)
   setSessionLogging: (sessionId: string, path: string | null) => void
 
+  // Error alert badge — set when ARIA detects an error in any session
+  errorAlertSessionId: string | null
+  setErrorAlert: (sessionId: string | null) => void
+
   // AI Copilot
   aiPanelOpen:  boolean
   // License state
@@ -192,6 +196,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLicenseKey:    (key) => set({ licenseKey: key }),
   setLicenseStatus: (s)   => set({ licenseValid: s.valid, licensePlan: s.plan, licenseExpiry: s.expiresAt }),
   setDeviceId:      (id)  => set({ deviceId: id }),
+
+  errorAlertSessionId: null,
+  setErrorAlert: (sessionId) => set({ errorAlertSessionId: sessionId }),
 
   // AI Copilot initial state
   aiPanelOpen:  false,
