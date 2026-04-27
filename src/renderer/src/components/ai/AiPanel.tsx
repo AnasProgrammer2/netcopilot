@@ -318,13 +318,6 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 
     if (!isProactive) {
       addAiMessage({ id: nanoid(), role: 'user', content: text })
-      // Smart History: persist command keyed by device type (resolve 'auto' to 'generic')
-      const rawDt = activeSession?.connection.deviceType ?? 'generic'
-      const deviceType = rawDt === 'auto' ? 'generic' : rawDt
-      window.api.history.record(deviceType, text.trim())
-        .then(() => window.api.history.get(deviceType, 12))
-        .then((rows) => setHistoryCommands(rows.map(r => r.command)))
-        .catch(() => {/* ignore */})
     }
 
     setAiStreaming(true)
