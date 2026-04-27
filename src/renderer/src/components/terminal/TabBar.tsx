@@ -7,6 +7,7 @@ import { useAppStore } from '../../store'
 import { Session } from '../../types'
 import { cn } from '../../lib/utils'
 import { PortForwardDialog } from '../dialogs/PortForwardDialog'
+import { SessionSummaryDialog, SessionSummaryData } from '../ai/SessionSummaryDialog'
 
 export function TabBar(): JSX.Element {
   const {
@@ -20,6 +21,7 @@ export function TabBar(): JSX.Element {
 
   const [splitMenuOpen,   setSplitMenuOpen]   = useState(false)
   const [forwardOpen,     setForwardOpen]     = useState(false)
+  const [summaryData,     setSummaryData]     = useState<SessionSummaryData | null>(null)
   const splitMenuRef  = useRef<HTMLDivElement>(null)
   const splitBtnRef   = useRef<HTMLButtonElement>(null)
   const [splitMenuPos, setSplitMenuPos] = useState({ top: 0, left: 0 })
@@ -46,6 +48,7 @@ export function TabBar(): JSX.Element {
   const canSplit = sessions.length >= 2
 
   return (
+    <>
     <div className="flex items-end border-b border-border bg-sidebar overflow-x-auto shrink-0 h-10 gap-px pl-1">
       {sessions.map((session) => (
         <Tab
@@ -56,16 +59,22 @@ export function TabBar(): JSX.Element {
           onActivate={() => setActiveSession(session.id)}
           onClose={() => {
             if (session.id === splitSessionId) setSplitSession(null)
-            // Only summarize AI messages when closing the active session (aiMessages is global)
-            if (session.id === activeSessionId) {
-              const { aiMessages } = useAppStore.getState()
-              const cmds = aiMessages.filter(m => m.toolCalls?.length).flatMap(m => m.toolCalls ?? []).filter(t => t.status === 'done')
+            // Read fresh state from Zustand (avoids stale closure values)
+            const freshState = useAppStore.getState()
+            if (session.id === freshState.activeSessionId) {
+              const cmds = freshState.aiMessages
+                .filter(m => m.toolCalls?.length)
+                .flatMap(m => m.toolCalls ?? [])
               if (cmds.length > 0) {
-                const names = [...new Set(cmds.map(t => t.command.split(' ').slice(0, 3).join(' ')))].slice(0, 3)
-                toast.info(`Session closed — ${session.connection.name}`, {
-                  description: `ARIA ran ${cmds.length} command${cmds.length > 1 ? 's' : ''}: ${names.join(', ')}${cmds.length > 3 ? '…' : ''}`,
-                  duration: 5000,
+                setSummaryData({
+                  sessionName: session.connection.name,
+                  host:        session.connection.host ?? '',
+                  commands:    cmds,
+                  messages:    freshState.aiMessages.map(m => ({ role: m.role, content: m.content })),
                 })
+                // Give React time to mount the dialog before the store clears aiMessages
+                setTimeout(() => closeSession(session.id), 0)
+                return
               }
             }
             closeSession(session.id)
@@ -198,6 +207,16 @@ export function TabBar(): JSX.Element {
         )}
       </div>
     </div>
+
+    {/* Session Summary Dialog — shown when closing a session with AI activity */}
+    {summaryData && createPortal(
+      <SessionSummaryDialog
+        data={summaryData}
+        onClose={() => setSummaryData(null)}
+      />,
+      document.body
+    )}
+    </>
   )
 }
 

@@ -42,13 +42,13 @@ export function AiMessage({ message, approval, blacklist, onApproveCommand, onBl
   }
 
   return (
-    <div className={cn('flex gap-2.5 px-3 py-2 group', (isUser || isRtl) && !isProactive ? 'flex-row-reverse' : '')}>
+    <div className={cn('flex gap-2.5 px-3 py-1.5 group', (isUser || isRtl) && !isProactive ? 'flex-row-reverse' : '')}>
       {/* Avatar */}
       <div className={cn(
         'w-6 h-6 rounded-full shrink-0 flex items-center justify-center mt-1',
-        isUser      ? 'bg-primary/20 text-primary'
-        : isProactive ? 'bg-muted text-muted-foreground'
-        :               'bg-primary/15 text-primary'
+        isUser      ? 'bg-primary/25 text-primary ring-1 ring-primary/20'
+        : isProactive ? 'bg-muted/80 text-muted-foreground'
+        :               'bg-gradient-to-br from-primary/30 to-primary/10 text-primary ring-1 ring-primary/15'
       )}>
         {isUser ? <User className="w-3 h-3" />
           : isProactive ? <Eye className="w-3 h-3" />
@@ -59,12 +59,12 @@ export function AiMessage({ message, approval, blacklist, onApproveCommand, onBl
       <div
         dir={dir}
         className={cn(
-          'flex-1 min-w-0 rounded-xl px-3 py-2.5 text-sm leading-relaxed relative',
+          'flex-1 min-w-0 rounded-2xl px-3 py-2.5 text-sm leading-relaxed relative',
           isUser
-            ? 'bg-primary/15 text-foreground ml-10'
+            ? 'bg-primary/12 text-foreground ml-8 border border-primary/15'
             : isProactive
-              ? 'bg-muted/30 text-muted-foreground text-xs italic'
-              : 'bg-card/60 text-foreground'
+              ? 'bg-muted/20 text-muted-foreground text-xs italic border border-border/30'
+              : 'bg-card/50 text-foreground border border-border/40'
         )}
       >
         {isProactive && (
