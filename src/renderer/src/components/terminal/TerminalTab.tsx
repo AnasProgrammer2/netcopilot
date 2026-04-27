@@ -54,7 +54,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
   // ── Context menu state ────────────────────────────────────────────────────────
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
 
-  const { setSessionStatus, setSessionLogging } = useAppStore()
+  const { setSessionStatus, setSessionLogging, setErrorAlert } = useAppStore()
 
   // Derive logging state from the session's loggingPath (store is source of truth)
   const logging = !!session.loggingPath
@@ -253,6 +253,56 @@ export function TerminalTab({ session }: Props): JSX.Element {
       off?.()
     }
   }, [session.id, session.connection.protocol])
+
+  // ── Error Alert — always-on detector (panel open or closed) ──────────────────
+  useEffect(() => {
+    const ERROR_PATTERNS = [
+      /^%\s*(Error|Invalid|Incomplete|Ambiguous|Bad|Unknown)/im,  // Cisco IOS
+      /\bcommand not found\b/i,
+      /\bpermission denied\b/i,
+      /\bno route to host\b/i,
+      /\bconnection refused\b/i,
+      /\bdestination host unreachable\b/i,
+      /\bnetwork unreachable\b/i,
+      /\btimed? out\b/i,
+      /\boperation timed out\b/i,
+      /\bfatal error\b/i,
+      /\bsegmentation fault\b/i,
+      /^error:/im,
+      /\bFailed to\b/i,
+    ]
+    const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').trim()
+
+    let buf = ''
+    let timer: ReturnType<typeof setTimeout> | null = null
+
+    const proto = session.connection.protocol
+    const onData = (_sid: string, data: string) => {
+      if (_sid !== session.id) return
+      buf += data
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => {
+        const plain = stripAnsi(buf)
+        buf = ''
+        if (!plain || plain.length < 5) return
+        const { aiPanelOpen, aiStreaming } = useAppStore.getState()
+        if (aiPanelOpen || aiStreaming) return  // panel already open, no need for badge
+        if (ERROR_PATTERNS.some((p) => p.test(plain))) {
+          setErrorAlert(session.id)
+        }
+      }, 800)
+    }
+
+    let off: (() => void) | undefined
+    if      (proto === 'ssh')    off = window.api.ssh.onData(onData)
+    else if (proto === 'telnet') off = window.api.telnet.onData(onData)
+    else if (proto === 'serial') off = window.api.serial.onData(onData)
+
+    return () => {
+      if (timer) clearTimeout(timer)
+      off?.()
+    }
+  }, [session.id, session.connection.protocol, setErrorAlert])
 
   // ── 1. Init terminal ─────────────────────────────────────────────────────────
   useEffect(() => {
