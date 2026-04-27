@@ -8,7 +8,8 @@
 #   make update v=minor  # bump minor (0.7.3 → 0.8.0)
 #   make update v=major  # bump major (0.7.3 → 1.0.0)
 
-v ?= patch
+v     ?= patch
+notes ?=
 
 update:
 	@echo "→ Bumping $(v) version..."
@@ -22,16 +23,7 @@ update:
 	git push origin v$$VERSION; \
 	echo ""; \
 	echo "✓ Released v$$VERSION — GitHub Actions is building now."; \
-	echo ""; \
-	printf "📝 Release notes (اكتب، Enter مرتين للإنهاء):\n> "; \
-	NOTES=""; \
-	while IFS= read -r line; do \
-		[ -z "$$line" ] && break; \
-		NOTES="$$NOTES$$line\n"; \
-	done; \
-	if [ -n "$$NOTES" ]; then \
-		gh release edit "v$$VERSION" --notes "$$( printf "$$NOTES" )"; \
+	if [ -n "$(notes)" ]; then \
+		gh release edit "v$$VERSION" --notes "$(notes)"; \
 		echo "✓ Release notes updated."; \
-	else \
-		echo "— No notes added."; \
 	fi
