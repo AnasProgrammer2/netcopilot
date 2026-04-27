@@ -2,6 +2,7 @@ import { useRef, useState, useCallback } from 'react'
 import { useAppStore } from '../../store'
 import { TabBar } from './TabBar'
 import { TerminalTab } from './TerminalTab'
+import { SftpBrowser } from '../sftp/SftpBrowser'
 import { AiPanel } from '../ai/AiPanel'
 import { HomeScreen } from '../home/HomeScreen'
 import { terminalRegistry, buildStructuredContext, formatStructuredContext } from '../../lib/terminalRegistry'
@@ -83,10 +84,17 @@ export function TerminalArea(): JSX.Element {
         <div className="flex-1 relative overflow-hidden flex flex-col min-w-0 min-h-0">
           <div className="flex-1 relative overflow-hidden flex min-h-0">
             {sessions.map((session) => {
-              const isActive   = session.id === activeSessionId
+              const isActive    = session.id === activeSessionId
               const isSplitPane = isSplit && session.id === splitSessionId
+              const isSftp      = session.type === 'sftp'
+
+              const content = isSftp
+                ? <SftpBrowser key={session.id} session={session} />
+                : <TerminalTab session={session} />
 
               if (!isActive && !isSplitPane) {
+                // SFTP tabs unmount cleanly — no need to keep hidden DOM node
+                if (isSftp) return null
                 return (
                   <div key={session.id} className="hidden">
                     <TerminalTab session={session} />
@@ -100,14 +108,14 @@ export function TerminalArea(): JSX.Element {
                     key={session.id}
                     className={`flex-1 overflow-hidden${isActive && !isSplitPane ? ' border-r border-border' : ''}`}
                   >
-                    <TerminalTab session={session} />
+                    {content}
                   </div>
                 )
               }
 
               return (
                 <div key={session.id} className="absolute inset-0">
-                  <TerminalTab session={session} />
+                  {content}
                 </div>
               )
             })}

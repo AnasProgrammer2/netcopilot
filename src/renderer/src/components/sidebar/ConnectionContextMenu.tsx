@@ -1,16 +1,17 @@
 import { useEffect, useRef } from 'react'
-import { Play, Pencil, Trash2, Copy } from 'lucide-react'
+import { Play, Pencil, Trash2, Copy, FolderOpen } from 'lucide-react'
 
 interface Props {
   position: { x: number; y: number }
   onClose: () => void
   onConnect: () => void
+  onOpenSftp: () => void
   onEdit: () => void
   onDelete: () => void
   onDuplicate: () => void
 }
 
-export function ConnectionContextMenu({ position, onClose, onConnect, onEdit, onDelete, onDuplicate }: Props): JSX.Element {
+export function ConnectionContextMenu({ position, onClose, onConnect, onOpenSftp, onEdit, onDelete, onDuplicate }: Props): JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -53,6 +54,7 @@ export function ConnectionContextMenu({ position, onClose, onConnect, onEdit, on
       style={style}
     >
       <Item icon={Play} label="Connect" onClick={onConnect} />
+      <Item icon={FolderOpen} label="Open SFTP Browser" onClick={onOpenSftp} />
       <Item icon={Copy} label="Duplicate" onClick={onDuplicate} />
       <div className="my-1 border-t border-border" />
       <Item icon={Pencil} label="Edit" onClick={onEdit} />

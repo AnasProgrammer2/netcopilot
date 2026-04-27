@@ -175,6 +175,30 @@ const api = {
     getDeviceId: ()             => ipcRenderer.invoke('license:device-id'),
   },
 
+  // SFTP
+  sftp: {
+    connect: (payload: unknown) => ipcRenderer.invoke('sftp:connect', payload),
+    home:     (sessionId: string) => ipcRenderer.invoke('sftp:home', sessionId),
+    list:     (sessionId: string, remotePath: string) => ipcRenderer.invoke('sftp:list', sessionId, remotePath),
+    download: (sessionId: string, remotePaths: string[]) => ipcRenderer.invoke('sftp:download', sessionId, remotePaths),
+    upload:   (sessionId: string, remotePath: string) => ipcRenderer.invoke('sftp:upload', sessionId, remotePath),
+    delete:   (sessionId: string, remotePath: string, isDirectory: boolean) => ipcRenderer.invoke('sftp:delete', sessionId, remotePath, isDirectory),
+    rename:   (sessionId: string, oldPath: string, newPath: string) => ipcRenderer.invoke('sftp:rename', sessionId, oldPath, newPath),
+    mkdir:    (sessionId: string, remotePath: string) => ipcRenderer.invoke('sftp:mkdir', sessionId, remotePath),
+    disconnect: (sessionId: string) => ipcRenderer.invoke('sftp:disconnect', sessionId),
+    onProgress: (cb: (sessionId: string, filePath: string, transferred: number, total: number) => void) => {
+      const handler = (_: unknown, sessionId: string, filePath: string, transferred: number, total: number) =>
+        cb(sessionId, filePath, transferred, total)
+      ipcRenderer.on('sftp:progress', handler)
+      return () => ipcRenderer.removeListener('sftp:progress', handler)
+    },
+    onClosed: (cb: (sessionId: string) => void) => {
+      const handler = (_: unknown, sessionId: string) => cb(sessionId)
+      ipcRenderer.on('sftp:closed', handler)
+      return () => ipcRenderer.removeListener('sftp:closed', handler)
+    },
+  },
+
   // AI Copilot
   ai: {
     chat:          (payload: unknown)                   => ipcRenderer.invoke('ai:chat', payload),
