@@ -50,6 +50,10 @@ export function TerminalTab({ session }: Props): JSX.Element {
   const [searchRegex, setSearchRegex]       = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
+  // ── Smart Commands ────────────────────────────────────────────────────────────
+  const [smartCommands, setSmartCommands] = useState<string[]>([])
+  const inputLineRef = useRef('')  // tracks current user input line
+
   // ── Context menu state ────────────────────────────────────────────────────────
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
 
@@ -339,11 +343,39 @@ export function TerminalTab({ session }: Props): JSX.Element {
     })
 
     term.onData((data) => {
+      // ── Smart Command tracking ────────────────────────────────────────────
+      if (data === '\r' || data === '\n') {
+        const cmd = inputLineRef.current.trim()
+        inputLineRef.current = ''
+        if (cmd.length > 1) {
+          const rawDt = session.connection.deviceType ?? 'generic'
+          const dt    = rawDt === 'auto' ? 'generic' : rawDt
+          window.api.history.record(dt, cmd)
+            .then(() => window.api.history.get(dt, 8))
+            .then((rows) => setSmartCommands(rows.map((r) => r.command)))
+            .catch(() => {})
+        }
+      } else if (data === '\x7f') {
+        inputLineRef.current = inputLineRef.current.slice(0, -1)
+      } else if (data === '\x03' || data === '\x15') {
+        inputLineRef.current = ''
+      } else if (data.length === 1 && data.charCodeAt(0) >= 32) {
+        inputLineRef.current += data
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
       const proto = session.connection.protocol
       if      (proto === 'ssh')    window.api.ssh.send(session.id, data)
       else if (proto === 'serial') window.api.serial.send(session.id, data)
       else                         window.api.telnet.send(session.id, data)
     })
+
+    // Load top commands for this device type on mount
+    const rawDt = session.connection.deviceType ?? 'generic'
+    const dt    = rawDt === 'auto' ? 'generic' : rawDt
+    window.api.history.get(dt, 8)
+      .then((rows) => setSmartCommands(rows.map((r) => r.command)))
+      .catch(() => {})
 
     const target = session.connection.protocol === 'serial'
       ? (session.connection.serialConfig?.path ?? session.connection.host)
@@ -840,6 +872,29 @@ export function TerminalTab({ session }: Props): JSX.Element {
           )}
         </div>
       </div>
+
+      {/* Smart Commands bar */}
+      {smartCommands.length > 0 && session.status === 'connected' && (
+        <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border/30 bg-background/60 shrink-0 overflow-x-auto scrollbar-none">
+          {smartCommands.map((cmd) => (
+            <button
+              key={cmd}
+              onClick={() => {
+                const proto = session.connection.protocol
+                const data  = cmd + '\r'
+                if      (proto === 'ssh')    window.api.ssh.send(session.id, data)
+                else if (proto === 'serial') window.api.serial.send(session.id, data)
+                else                         window.api.telnet.send(session.id, data)
+                termRef.current?.focus()
+              }}
+              title={cmd}
+              className="shrink-0 px-2 py-0.5 rounded-md text-[11px] font-mono text-muted-foreground hover:text-foreground bg-accent/50 hover:bg-accent border border-border/40 transition-colors truncate max-w-[180px]"
+            >
+              {cmd}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Terminal */}
       <div className="relative flex-1 w-full min-h-0 overflow-hidden">
