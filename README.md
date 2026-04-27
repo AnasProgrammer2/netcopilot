@@ -109,9 +109,11 @@ ARIA carries deep, vendor-specific knowledge for every supported platform — no
 | **Auto** | Executes all commands immediately |
 | **Blocked Patterns** | `reload`, `rm -rf`, `write erase`, etc. — always enforced regardless of mode |
 
-### Auto Watch
+### Auto Watch & Error Alert Badge
 
 When enabled, ARIA silently monitors your terminal output in real time. If it detects errors, misconfigurations, or anomalies — it alerts you immediately without interrupting your work.
+
+Even when the AI panel is **closed**, a pulsing red badge appears on the ARIA button the moment an error pattern is detected (`%Error`, `command not found`, `connection refused`, etc.). Click it to open ARIA and analyze the issue instantly.
 
 ### ARIA Setup
 
@@ -146,6 +148,14 @@ Your license key is stored in the **OS keychain** — never on disk or in any fi
 | Load Balancers | F5 BIG-IP TMOS |
 | Servers | Linux / Unix, Windows Server |
 | Generic | Any SSH/Telnet/Serial device |
+
+### SFTP Browser
+
+- Visual file manager that opens as a dedicated tab alongside your terminal sessions
+- Browse remote directories, upload, download, rename, delete files and folders
+- Create new directories with a single click
+- Access via right-click context menu or the 3-dot (⋯) hover menu on any SSH connection
+- Progress indicator for file transfers
 
 ### Terminal
 
@@ -256,7 +266,14 @@ Output files in `dist/`.
 
 ## Roadmap
 
-- [ ] SFTP browser for visual file transfer
+### Released
+- [x] **SFTP Browser** — visual file transfer (browse, upload, download, rename, delete, mkdir) via right-click or sidebar context menu
+- [x] **ARIA Error Alert Badge** — pulsing red badge on the ARIA button when an error is detected in the terminal, even while the AI panel is closed
+- [x] **Session Summary Dialog** — closing a tab with AI activity shows a full summary of commands run, stats, and ARIA's last response
+- [x] **Thinking… / Running… indicators** — live feedback while ARIA is waiting for the first token or executing between tool calls
+- [x] **Port Forwarding** — local, remote, and dynamic (SOCKS) tunnels per connection with live status
+
+### Planned
 - [ ] Command snippets library
 - [ ] Persistent ARIA memory across sessions
 - [ ] Network topology map from ARIA discoveries
