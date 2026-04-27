@@ -395,10 +395,11 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
   return (
     <div className="flex flex-col h-full min-h-0 border-l border-border bg-background">
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border shrink-0">
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/60 shrink-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent">
         {/* ARIA logo */}
-        <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-br from-primary/30 to-primary/10 shrink-0">
+        <div className="relative flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-primary/40 to-primary/10 shrink-0 shadow-sm">
           <Sparkles className="w-3.5 h-3.5 text-primary" />
+          <span className="absolute inset-0 rounded-lg ring-1 ring-primary/20" />
         </div>
         <span className="text-sm font-bold text-foreground tracking-tight">ARIA</span>
 
@@ -489,12 +490,15 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       {/* No session notice */}
       {!activeSession && (
         <div className="flex flex-col items-center justify-center flex-1 gap-4 p-6 text-center">
-          <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-muted/50 border border-border">
-            <AlertCircle className="w-5 h-5 text-muted-foreground/50" />
+          <div className="relative">
+            <div className="absolute inset-0 rounded-2xl bg-muted/30 blur-xl scale-150" />
+            <div className="relative flex items-center justify-center w-12 h-12 rounded-2xl bg-muted/60 border border-border/60">
+              <AlertCircle className="w-5 h-5 text-muted-foreground/40" />
+            </div>
           </div>
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-foreground/70">No active session</p>
-            <p className="text-xs text-muted-foreground/60 max-w-[180px] leading-relaxed">
+          <div className="space-y-1.5">
+            <p className="text-sm font-semibold text-foreground/60">No active session</p>
+            <p className="text-xs text-muted-foreground/50 max-w-[170px] leading-relaxed">
               Connect to a device to start chatting with ARIA
             </p>
           </div>
@@ -509,28 +513,33 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
               <div className="flex flex-col items-center justify-center h-full gap-5 px-5 py-8 text-center">
                 {/* Glowing icon */}
                 <div className="relative">
-                  <div className="absolute inset-0 rounded-2xl bg-primary/20 blur-xl scale-150" />
-                  <div className="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/25 to-primary/5 border border-primary/20">
-                    <Sparkles className="w-6 h-6 text-primary" />
+                  <div className="absolute inset-0 rounded-3xl bg-primary/25 blur-2xl scale-[1.8]" />
+                  <div className="relative flex items-center justify-center w-16 h-16 rounded-3xl bg-gradient-to-br from-primary/30 to-primary/5 border border-primary/25 shadow-lg shadow-primary/10">
+                    <Sparkles className="w-7 h-7 text-primary drop-shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
                   </div>
                 </div>
 
                 {/* Heading */}
-                <div className="space-y-1.5">
-                  <p className="text-sm font-semibold text-foreground">
+                <div className="space-y-2">
+                  <p className="text-base font-bold text-foreground tracking-tight">
                     Hi, I'm ARIA
                   </p>
-                  <p className="text-xs text-muted-foreground/70 leading-relaxed max-w-[200px]">
-                    Your AI network engineer.<br/>
-                    Connected to <span className="font-semibold text-foreground/60">{activeSession.connection.name}</span>.
+                  <p className="text-xs text-muted-foreground/60 leading-relaxed max-w-[190px]">
+                    AI agent for <span className="font-semibold text-foreground/70">{activeSession.connection.name}</span>.
+                    Describe a problem and I'll investigate it.
                   </p>
                 </div>
 
                 {/* Capability chips */}
                 <div className="flex flex-wrap gap-1.5 justify-center max-w-[220px]">
-                  {['Diagnose issues', 'Read configs', 'Run commands', 'Plan changes'].map(cap => (
-                    <span key={cap} className="text-[11px] px-2 py-1 rounded-full bg-primary/8 border border-primary/15 text-primary/70 font-medium">
-                      {cap}
+                  {[
+                    { label: 'Diagnose', icon: '🔍' },
+                    { label: 'Configs',  icon: '📋' },
+                    { label: 'Commands', icon: '⚡' },
+                    { label: 'Plan',     icon: '🗺️' },
+                  ].map(cap => (
+                    <span key={cap.label} className="text-[11px] px-2.5 py-1 rounded-full bg-primary/8 border border-primary/15 text-primary/75 font-medium flex items-center gap-1">
+                      <span>{cap.icon}</span>{cap.label}
                     </span>
                   ))}
                 </div>
@@ -548,16 +557,37 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
               />
             ))}
 
-            {/* Thinking indicator — shown when agent is active but not streaming text */}
+            {/* Waiting for first token — last message is user and we're streaming */}
+            {(() => {
+              const lastMsg = aiMessages[aiMessages.length - 1]
+              const isWaitingForFirstToken = aiStreaming && (lastMsg?.role === 'user' || lastMsg?.role === 'auto')
+              if (!isWaitingForFirstToken) return null
+              return (
+                <div className="flex items-center gap-2.5 px-3 py-2">
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-3.5 h-3.5 text-primary animate-spin" style={{ animationDuration: '2s' }} />
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-card/80 border border-border/40 shadow-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '120ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '240ms' }} />
+                    <span className="text-[11px] text-muted-foreground/60 font-medium ml-1">Thinking…</span>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Thinking indicator — between tool calls (agent active, not streaming) */}
             {aiAgentActive && !aiStreaming && (
               <div className="flex items-center gap-2.5 px-3 py-2">
-                <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                  <Sparkles className="w-3 h-3 text-primary" />
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                  <Sparkles className="w-3.5 h-3.5 text-primary animate-pulse" />
                 </div>
-                <div className="flex items-center gap-1 px-3 py-2 rounded-xl bg-card/60">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-card/80 border border-border/40 shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '120ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '240ms' }} />
+                  <span className="text-[11px] text-muted-foreground/60 font-medium ml-1">Running…</span>
                 </div>
               </div>
             )}
@@ -604,17 +634,19 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                       }}
                       title={historySet.has(cmd) ? 'From your history' : undefined}
                       className={cn(
-                        'shrink-0 text-[11px] px-3 py-1.5 rounded-full flex items-center gap-1',
+                        'shrink-0 text-[11px] px-2.5 py-1 rounded-lg flex items-center gap-1.5',
                         historySet.has(cmd)
-                          ? 'bg-amber-500/8 border border-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/15 hover:border-amber-500/35'
-                          : 'bg-primary/6 border border-primary/15 text-primary/70 hover:bg-primary/12 hover:border-primary/30 hover:text-primary',
+                          ? 'bg-amber-500/10 border border-amber-500/25 text-amber-500 hover:bg-amber-500/18 hover:border-amber-500/40'
+                          : 'bg-muted/60 border border-border/60 text-muted-foreground hover:bg-primary/10 hover:border-primary/25 hover:text-primary',
                         'transition-all whitespace-nowrap font-medium'
                       )}
                     >
-                      {historySet.has(cmd) && (
-                        <svg className="w-2.5 h-2.5 shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      {historySet.has(cmd) ? (
+                        <svg className="w-2.5 h-2.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                         </svg>
+                      ) : (
+                        <Sparkles className="w-2.5 h-2.5 shrink-0 opacity-50" />
                       )}
                       {cmd}
                     </button>
@@ -625,7 +657,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
           })()}
 
           {/* Input box */}
-          <div className="border-t border-border px-3 pt-2 pb-2 shrink-0">
+          <div className="border-t border-border/60 px-3 pt-2 pb-2 shrink-0 bg-gradient-to-t from-background to-transparent">
             {!licenseValid ? (
               /* ── No License Gate ── */
               <div className="flex flex-col items-center gap-3 py-4 px-3 rounded-xl border border-red-500/20 bg-red-500/5">
@@ -648,7 +680,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
               </div>
             ) : (
               <>
-                <div className="bg-card/60 border border-border rounded-xl">
+                <div className="bg-card/70 border border-border/70 rounded-xl shadow-sm transition-all focus-within:border-primary/40 focus-within:shadow-[0_0_0_3px_rgba(139,92,246,0.08)]">
                   {/* Text area row */}
                   <div className="flex items-end gap-2 px-3 pt-2.5 pb-1">
                     <textarea
@@ -740,7 +772,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                         onClick={handleSubmit}
                         disabled={!input.trim()}
                         title="Send (Enter)"
-                        className="shrink-0 p-1.5 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        className="shrink-0 p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/85 disabled:opacity-25 disabled:cursor-not-allowed transition-all shadow-sm shadow-primary/20"
                       >
                         <Send className="w-3.5 h-3.5" />
                       </button>
