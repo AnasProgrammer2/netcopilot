@@ -20,4 +20,18 @@ update:
 	git push; \
 	git tag v$$VERSION; \
 	git push origin v$$VERSION; \
-	echo "✓ Released v$$VERSION — GitHub Actions is building now."
+	echo ""; \
+	echo "✓ Released v$$VERSION — GitHub Actions is building now."; \
+	echo ""; \
+	printf "📝 Release notes (اكتب، Enter مرتين للإنهاء):\n> "; \
+	NOTES=""; \
+	while IFS= read -r line; do \
+		[ -z "$$line" ] && break; \
+		NOTES="$$NOTES$$line\n"; \
+	done; \
+	if [ -n "$$NOTES" ]; then \
+		gh release edit "v$$VERSION" --notes "$$( printf "$$NOTES" )"; \
+		echo "✓ Release notes updated."; \
+	else \
+		echo "— No notes added."; \
+	fi
