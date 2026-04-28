@@ -676,6 +676,10 @@ export function TerminalTab({ session }: Props): JSX.Element {
         const msg = (err as { error?: string })?.error || 'Connection failed'
         setSessionStatus(session.id, 'error', msg)
         termRef.current?.write(`\r\n\x1b[31mError: ${msg}\x1b[0m\r\n`)
+        notifyIfBackground(
+          `${session.connection.name} failed`,
+          msg
+        )
         if (session.connection.autoReconnect) scheduleReconnect()
       } finally {
         connectingRef.current = false
@@ -738,10 +742,22 @@ export function TerminalTab({ session }: Props): JSX.Element {
       }
     }
 
+    const notifyIfBackground = (title: string, body: string) => {
+      const { activeSessionId } = useAppStore.getState()
+      if (session.id === activeSessionId) return
+      if (Notification.permission === 'granted') {
+        new Notification(title, { body, silent: false })
+      }
+    }
+
     const onClosed = (sid: string) => {
       if (sid !== session.id) return
       setSessionStatus(session.id, 'disconnected')
       termRef.current?.write('\r\n\x1b[33mConnection closed\x1b[0m\r\n')
+      notifyIfBackground(
+        `${session.connection.name} disconnected`,
+        `${session.connection.host} · Connection closed`
+      )
       if (!cancelled && session.connection.autoReconnect) scheduleReconnect()
     }
 
@@ -760,6 +776,10 @@ export function TerminalTab({ session }: Props): JSX.Element {
         if (sid !== session.id) return
         setSessionStatus(session.id, 'error', err)
         termRef.current?.write(`\r\n\x1b[31mSerial error: ${err}\x1b[0m\r\n`)
+        notifyIfBackground(
+          `${session.connection.name} error`,
+          err
+        )
         if (!cancelled && session.connection.autoReconnect) scheduleReconnect()
       })
     } else {

@@ -32,6 +32,13 @@ export default function App(): JSX.Element {
     version: string
   } | null>(null)
 
+  // Request notification permission on startup
+  useEffect(() => {
+    if (Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }, [])
+
   // Check master password on startup
   useEffect(() => {
     window.api.auth.hasMasterPassword().then((has) => {
