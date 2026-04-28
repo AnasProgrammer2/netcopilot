@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { Connection, ConnectionGroup, SSHKey, Session, PortForwardRule } from '../types'
 import { nanoid } from 'nanoid'
+import { encryptData, decryptData } from '../lib/cryptoUtils'
 
 // ── AI Copilot types ─────────────────────────────────────────────────────────
 
@@ -108,14 +109,18 @@ interface AppState {
   setSessionStatus: (sessionId: string, status: Session['status'], error?: string) => void
   setActiveSession: (sessionId: string | null) => void
   updateLastConnected: (connectionId: string) => void
+  renameSession: (sessionId: string, label: string) => void
+  pinSession:    (sessionId: string) => void
+  unpinSession:  (sessionId: string) => void
+  duplicateSession: (sessionId: string) => void
 
   // Actions - Settings
   loadSettings: () => Promise<void>
   applySettings: (patch: Record<string, unknown>) => void
 
   // Actions - Import / Export
-  exportConnections: () => Promise<boolean>
-  importConnections: () => Promise<number>
+  exportConnections: (password?: string) => Promise<boolean>
+  importConnections: (password?: string) => Promise<number>
 
   // Actions - UI
   setSidebarWidth: (width: number) => void
@@ -160,7 +165,6 @@ interface AppState {
   aiPermission: AiPermission
   aiApproval:   AiApproval
   aiBlacklist:  string[]
-  aiModel:      string
   aiMessages:   AiMessage[]
   aiStreaming:  boolean
   aiAgentActive: boolean
@@ -170,7 +174,6 @@ interface AppState {
   setAiPermission:   (p: AiPermission) => void
   setAiApproval:     (a: AiApproval) => void
   setAiBlacklist:    (list: string[]) => void
-  setAiModel:        (model: string) => void
   addAiMessage:      (msg: AiMessage) => void
   addAiPlan:         (plan: AiPlan) => void
   appendAiChunk:     (chunk: string) => void
@@ -211,7 +214,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   aiPermission: 'troubleshoot',
   aiApproval:   'ask',
   aiBlacklist:  [],
-  aiModel:      'claude-sonnet-4-5',
   aiMessages:   [],
   aiStreaming:  false,
   aiAgentActive: false,
@@ -441,7 +443,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     const aiApproval    = (await window.api.store.getSetting('ai.approval')    as AiApproval | null)   ?? 'ask'
     const aiBlacklistRaw = await window.api.store.getSetting('ai.blacklist')
     const aiBlacklist   = Array.isArray(aiBlacklistRaw) ? aiBlacklistRaw as string[] : []
-    const aiModel       = (await window.api.store.getSetting('ai.model')       as string | null) ?? 'claude-sonnet-4-5'
 
     // Load license state
     const licenseKey = await window.api.license.get()
@@ -452,7 +453,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       connectionSettings: { ...DEFAULT_CONNECTION_SETTINGS, ...cs },
       sidebarWidth,
       aiPermission,
-      aiModel,
       aiApproval,
       aiBlacklist,
       licenseKey: licenseKey ?? '',
@@ -492,20 +492,33 @@ export const useAppStore = create<AppState>((set, get) => ({
     if ('theme'        in patch) applyTheme(patch.theme as 'dark' | 'light' | 'system')
   },
 
-  exportConnections: async () => {
+  exportConnections: async (password?: string) => {
     const { connections, groups } = get()
-    const payload = {
-      version: 1,
+    const payload: Record<string, unknown> = {
+      version: 2,
       exportedAt: new Date().toISOString(),
       connections,
-      groups
+      groups,
     }
+
+    if (password) {
+      // Collect all credentials for each connection
+      const credMap: Record<string, string> = {}
+      for (const conn of connections) {
+        const pw  = await window.api.credentials.get(`${conn.id}:password`)
+        const usr = await window.api.credentials.get(`${conn.id}:username`)
+        if (pw)  credMap[`${conn.id}:password`]  = pw
+        if (usr) credMap[`${conn.id}:username`]  = usr
+      }
+      payload.credentials = await encryptData(JSON.stringify(credMap), password)
+    }
+
     const filename = `netcopilot-${new Date().toISOString().slice(0, 10)}.json`
     const result = await window.api.file.export(JSON.stringify(payload, null, 2), filename)
     return result.success
   },
 
-  importConnections: async () => {
+  importConnections: async (password?: string) => {
     const content = await window.api.file.import()
     if (!content) return 0
     // Reject files over 10 MB to guard against DoS / malformed input
@@ -514,7 +527,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const parsed = JSON.parse(content)
       // Basic schema guard: must be a plain object (not array, null, etc.)
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return -1
-      const data = parsed as { connections?: unknown[]; groups?: unknown[] }
+      const data = parsed as { connections?: unknown[]; groups?: unknown[]; credentials?: string }
       // Only accept array-shaped fields; ignore unknown keys
       const incoming: Connection[]      = (Array.isArray(data.connections) ? data.connections : []) as Connection[]
       const inGroups: ConnectionGroup[] = (Array.isArray(data.groups)      ? data.groups      : []) as ConnectionGroup[]
@@ -527,17 +540,42 @@ export const useAppStore = create<AppState>((set, get) => ({
         await window.api.store.saveGroup({ ...g, id: newId })
       }
 
+      // ID remap table for credentials
+      const connIdMap = new Map<string, string>()
+
       let count = 0
       for (const conn of incoming) {
+        const newId      = nanoid()
         const newGroupId = conn.groupId ? (groupIdMap.get(conn.groupId) ?? undefined) : undefined
+        connIdMap.set(conn.id, newId)
         await window.api.store.saveConnection({
           ...conn,
-          id: nanoid(),
+          id: newId,
           groupId: newGroupId,
           createdAt: Date.now(),
           updatedAt: Date.now()
         })
         count++
+      }
+
+      // Restore credentials if the file was exported with a password
+      if (data.credentials && password) {
+        try {
+          const credJson = await decryptData(data.credentials, password)
+          const credMap  = JSON.parse(credJson) as Record<string, string>
+          for (const [oldKey, value] of Object.entries(credMap)) {
+            // oldKey is like "<old-conn-id>:password"
+            const colonIdx = oldKey.indexOf(':')
+            const oldId    = oldKey.slice(0, colonIdx)
+            const suffix   = oldKey.slice(colonIdx)       // e.g. ":password"
+            const newId    = connIdMap.get(oldId)
+            if (newId) {
+              await window.api.credentials.save(`${newId}${suffix}`, value)
+            }
+          }
+        } catch {
+          // Wrong password or corrupted — connections are still imported, credentials skipped
+        }
       }
 
       await get().loadConnections()
@@ -553,7 +591,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAiPermission: (p) => set({ aiPermission: p }),
   setAiApproval:   (a) => set({ aiApproval: a }),
   setAiBlacklist:  (list) => set({ aiBlacklist: list }),
-  setAiModel:      (model) => set({ aiModel: model }),
   setAiStreaming:   (v) => set({ aiStreaming: v }),
   setAiAgentActive: (v) => set({ aiAgentActive: v }),
   clearAiMessages: () => set({ aiMessages: [], aiTokens: { input: 0, output: 0 }, aiAgentActive: false }),
@@ -627,6 +664,33 @@ export const useAppStore = create<AppState>((set, get) => ({
         s.id === sessionId ? { ...s, loggingPath: path } : s
       )
     })),
+
+  renameSession: (sessionId, label) =>
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === sessionId ? { ...s, label } : s
+      )
+    })),
+
+  pinSession: (sessionId) =>
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === sessionId ? { ...s, pinned: true } : s
+      )
+    })),
+
+  unpinSession: (sessionId) =>
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === sessionId ? { ...s, pinned: false } : s
+      )
+    })),
+
+  duplicateSession: (sessionId) => {
+    const { sessions, openSession } = get()
+    const session = sessions.find((s) => s.id === sessionId)
+    if (session) openSession(session.connection)
+  },
 
   // ── Port Forwarding ──────────────────────────────────────────────────────────
 

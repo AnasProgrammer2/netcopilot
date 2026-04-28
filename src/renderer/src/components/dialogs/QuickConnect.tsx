@@ -149,6 +149,13 @@ export function QuickConnect(): JSX.Element {
             <p className="text-center text-sm text-muted-foreground py-10">No connections found</p>
           )}
 
+          {/* Section label */}
+          {items.length > 0 && (
+            <p className="px-4 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
+              {!query ? 'Recent' : 'Results'}
+            </p>
+          )}
+
           {items.map((item, idx) => (
             <button
               key={idx}

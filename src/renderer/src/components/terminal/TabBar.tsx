@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown, Sparkles, RefreshCw, Globe, FolderOpen, Palette } from 'lucide-react'
+import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown, Sparkles, RefreshCw, Globe, FolderOpen, Palette, Pin, PinOff, Copy, XCircle, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { terminalRegistry } from '../../lib/terminalRegistry'
 import { useAppStore } from '../../store'
@@ -16,7 +16,15 @@ export function TabBar(): JSX.Element {
     aiPanelOpen, setAiPanelOpen, activeForwardIds,
     licenseValid, errorAlertSessionId, setErrorAlert,
     themePanelOpen, setThemePanelOpen,
+    renameSession, pinSession, unpinSession, duplicateSession,
   } = useAppStore()
+
+  // Sort: pinned tabs first, then by insertion order
+  const sortedSessions = [...sessions].sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1
+    if (!a.pinned && b.pinned) return 1
+    return 0
+  })
 
   const hasErrorAlert = errorAlertSessionId === activeSessionId
 
@@ -51,7 +59,7 @@ export function TabBar(): JSX.Element {
   return (
     <>
     <div className="flex items-end border-b border-border bg-sidebar overflow-x-auto shrink-0 h-10 gap-px pl-1">
-      {sessions.map((session) => (
+      {sortedSessions.map((session) => (
         <Tab
           key={session.id}
           session={session}
@@ -79,6 +87,12 @@ export function TabBar(): JSX.Element {
               }
             }
             closeSession(session.id)
+          }}
+          onPin={() => session.pinned ? unpinSession(session.id) : pinSession(session.id)}
+          onRename={(label) => renameSession(session.id, label)}
+          onDuplicate={() => duplicateSession(session.id)}
+          onCloseOthers={() => {
+            sessions.filter(s => s.id !== session.id && !s.pinned).forEach(s => closeSession(s.id))
           }}
         />
       ))}
@@ -242,9 +256,31 @@ interface TabProps {
   isSplit: boolean
   onActivate: () => void
   onClose: () => void
+  onPin: () => void
+  onRename: (label: string) => void
+  onDuplicate: () => void
+  onCloseOthers: () => void
 }
 
-function Tab({ session, isActive, isSplit, onActivate, onClose }: TabProps): JSX.Element {
+function Tab({ session, isActive, isSplit, onActivate, onClose, onPin, onRename, onDuplicate, onCloseOthers }: TabProps): JSX.Element {
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null)
+  const [renaming, setRenaming] = useState(false)
+  const [renameVal, setRenameVal] = useState('')
+  const renameRef = useRef<HTMLInputElement>(null)
+
+  const startRename = () => {
+    setRenameVal(session.label ?? session.connection.name)
+    setRenaming(true)
+    setMenuPos(null)
+    setTimeout(() => renameRef.current?.select(), 30)
+  }
+
+  const commitRename = () => {
+    const trimmed = renameVal.trim()
+    if (trimmed) onRename(trimmed)
+    setRenaming(false)
+  }
+
   const statusDot = {
     connecting:   'bg-amber-400 animate-pulse',
     connected:    'bg-emerald-400',
@@ -252,9 +288,13 @@ function Tab({ session, isActive, isSplit, onActivate, onClose }: TabProps): JSX
     error:        'bg-red-400',
   }[session.status]
 
+  const displayName = session.label ?? (session.type === 'sftp' ? `SFTP · ${session.connection.name}` : session.connection.name)
+
   return (
+    <>
     <div
       onClick={onActivate}
+      onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }) }}
       className={cn(
         'relative flex items-center gap-1.5 px-3 h-9 cursor-pointer shrink-0 group max-w-52 select-none',
         'rounded-t-md border border-b-0 transition-all',
@@ -272,14 +312,34 @@ function Tab({ session, isActive, isSplit, onActivate, onClose }: TabProps): JSX
         </>
       )}
 
-      {session.type === 'sftp'
-        ? <FolderOpen className="w-3 h-3 shrink-0 text-amber-400" />
-        : <span className={cn('w-1.5 h-1.5 rounded-full shrink-0 transition-colors', statusDot)} />
-      }
+      {/* Pin indicator */}
+      {session.pinned && (
+        <Pin className="w-2.5 h-2.5 shrink-0 text-primary/60" />
+      )}
 
-      <span className="text-xs font-medium truncate flex-1 leading-none">
-        {session.type === 'sftp' ? `SFTP · ${session.connection.name}` : session.connection.name}
-      </span>
+      {!session.pinned && (
+        session.type === 'sftp'
+          ? <FolderOpen className="w-3 h-3 shrink-0 text-amber-400" />
+          : <span className={cn('w-1.5 h-1.5 rounded-full shrink-0 transition-colors', statusDot)} />
+      )}
+
+      {renaming ? (
+        <input
+          ref={renameRef}
+          value={renameVal}
+          onChange={(e) => setRenameVal(e.target.value)}
+          onBlur={commitRename}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commitRename()
+            if (e.key === 'Escape') setRenaming(false)
+            e.stopPropagation()
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="text-xs font-medium flex-1 min-w-0 bg-transparent border-b border-primary focus:outline-none"
+        />
+      ) : (
+        <span className="text-xs font-medium truncate flex-1 leading-none">{displayName}</span>
+      )}
 
       {/* Reconnect button — only when disconnected or error (terminal sessions only) */}
       {session.type !== 'sftp' && (session.status === 'disconnected' || session.status === 'error') && (
@@ -306,5 +366,52 @@ function Tab({ session, isActive, isSplit, onActivate, onClose }: TabProps): JSX
         <X className="w-3 h-3" />
       </button>
     </div>
+
+    {menuPos && createPortal(
+      <>
+        <div className="fixed inset-0 z-[9998]" onClick={() => setMenuPos(null)} />
+        <div
+          className="fixed z-[9999] min-w-[168px] bg-popover border border-border rounded-lg shadow-xl py-1 text-sm"
+          style={{ left: menuPos.x, top: menuPos.y }}
+        >
+          <button
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground/90 hover:text-foreground"
+            onClick={() => { setMenuPos(null); startRename() }}
+          >
+            <Pencil className="w-3.5 h-3.5 text-muted-foreground" /> Rename
+          </button>
+          <button
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground/90 hover:text-foreground"
+            onClick={() => { setMenuPos(null); onPin() }}
+          >
+            {session.pinned
+              ? <><PinOff className="w-3.5 h-3.5 text-muted-foreground" /> Unpin</>
+              : <><Pin className="w-3.5 h-3.5 text-muted-foreground" /> Pin tab</>
+            }
+          </button>
+          <button
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground/90 hover:text-foreground"
+            onClick={() => { setMenuPos(null); onDuplicate() }}
+          >
+            <Copy className="w-3.5 h-3.5 text-muted-foreground" /> Duplicate
+          </button>
+          <div className="my-1 border-t border-border" />
+          <button
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground/90 hover:text-foreground"
+            onClick={() => { setMenuPos(null); onCloseOthers() }}
+          >
+            <XCircle className="w-3.5 h-3.5 text-muted-foreground" /> Close others
+          </button>
+          <button
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-red-400 hover:text-red-300"
+            onClick={() => { setMenuPos(null); onClose() }}
+          >
+            <X className="w-3.5 h-3.5" /> Close
+          </button>
+        </div>
+      </>,
+      document.body
+    )}
+    </>
   )
 }

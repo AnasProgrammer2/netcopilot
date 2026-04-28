@@ -78,6 +78,8 @@ export interface Session {
   error?: string
   connectedAt?: number
   loggingPath?: string | null
+  label?: string
+  pinned?: boolean
 }
 
 export interface SftpFileEntry {

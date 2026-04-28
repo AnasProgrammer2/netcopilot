@@ -5,6 +5,7 @@ import { Connection, ConnectionGroup } from '../../types'
 import { ConnectionContextMenu } from './ConnectionContextMenu'
 import { GroupDialog } from './GroupDialog'
 import { SSHKeyDialog } from '../dialogs/SSHKeyDialog'
+import { ExportImportDialog } from '../dialogs/ExportImportDialog'
 import { cn } from '../../lib/utils'
 
 const GROUP_COLORS = [
@@ -35,6 +36,8 @@ export function Sidebar(): JSX.Element {
   const [importMsg, setImportMsg] = useState<string | null>(null)
   const [sshKeyDialogOpen, setSshKeyDialogOpen] = useState(false)
   const [resizing, setResizing] = useState(false)
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
 
   const [search, setSearch] = useState('')
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
@@ -218,15 +221,8 @@ export function Sidebar(): JSX.Element {
         <div className="border-t border-sidebar-border p-2.5 space-y-0.5">
           {[
             { icon: Key,      label: 'SSH Keys',           action: () => setSshKeyDialogOpen(true) },
-            { icon: Download, label: 'Export Connections',  action: () => exportConnections() },
-            { icon: Upload,   label: 'Import Connections',  action: async () => {
-              setImportMsg(null)
-              const count = await importConnections()
-              if (count === -1)     setImportMsg('Import failed — invalid file')
-              else if (count === 0) setImportMsg('No connections imported')
-              else                  setImportMsg(`Imported ${count} connection${count !== 1 ? 's' : ''}`)
-              setTimeout(() => setImportMsg(null), 3500)
-            }},
+            { icon: Download, label: 'Export Connections',  action: () => setExportDialogOpen(true) },
+            { icon: Upload,   label: 'Import Connections',  action: () => setImportDialogOpen(true) },
           ].map(({ icon: Icon, label, action }) => (
             <button
               key={label}
@@ -273,6 +269,33 @@ export function Sidebar(): JSX.Element {
       )}
       {sshKeyDialogOpen && (
         <SSHKeyDialog onClose={() => setSshKeyDialogOpen(false)} />
+      )}
+
+      {exportDialogOpen && (
+        <ExportImportDialog
+          mode="export"
+          onConfirm={async (password) => {
+            setExportDialogOpen(false)
+            await exportConnections(password)
+          }}
+          onCancel={() => setExportDialogOpen(false)}
+        />
+      )}
+
+      {importDialogOpen && (
+        <ExportImportDialog
+          mode="import"
+          onConfirm={async (password) => {
+            setImportDialogOpen(false)
+            setImportMsg(null)
+            const count = await importConnections(password)
+            if (count === -1)     setImportMsg('Import failed — invalid or wrong password')
+            else if (count === 0) setImportMsg('No connections imported')
+            else                  setImportMsg(`Imported ${count} connection${count !== 1 ? 's' : ''}`)
+            setTimeout(() => setImportMsg(null), 3500)
+          }}
+          onCancel={() => setImportDialogOpen(false)}
+        />
       )}
     </div>
   )
