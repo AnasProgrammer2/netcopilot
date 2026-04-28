@@ -231,7 +231,12 @@ const api = {
       ipcRenderer.on('ai:plan', handler)
       return () => ipcRenderer.removeListener('ai:plan', handler)
     },
-  }
+  },
+
+  connection: {
+    ping: (host: string, port: number): Promise<{ alive: boolean; latency?: number }> =>
+      ipcRenderer.invoke('connection:ping', host, port),
+  },
 }
 
 if (process.contextIsolated) {

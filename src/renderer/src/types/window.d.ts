@@ -183,6 +183,9 @@ declare global {
       isMaximized(): Promise<boolean>
       onMaximizedChange(cb: (maximized: boolean) => void): () => void
     }
+    connection: {
+      ping(host: string, port: number): Promise<{ alive: boolean; latency?: number }>
+    }
   }
 }
 }

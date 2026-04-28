@@ -436,6 +436,8 @@ function ConnectionItem({
           onEdit={onEdit}
           onDelete={() => deleteConnection(connection.id)}
           onDuplicate={handleDuplicate}
+          host={connection.host}
+          port={connection.port ?? (connection.protocol === 'telnet' ? 23 : 22)}
         />
       )}
     </>

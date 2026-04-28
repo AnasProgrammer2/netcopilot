@@ -1,4 +1,5 @@
 import { IpcMain } from 'electron'
+import * as net from 'net'
 import { Connection, ConnectionGroup, SSHKey } from '../types/shared'
 import { getDb, rowToConnection, connToRow, rowToGroup, rowToSshKey } from './db'
 
@@ -173,5 +174,20 @@ export function setupStoreHandlers(ipcMain: IpcMain): void {
       getDb().prepare('DELETE FROM command_history').run()
     }
     return true
+  })
+
+  // ── TCP Ping ─────────────────────────────────────────────────────────────────
+  ipcMain.handle('connection:ping', (_event, host: string, port: number) => {
+    return new Promise<{ alive: boolean; latency?: number }>((resolve) => {
+      const start  = Date.now()
+      const socket = new net.Socket()
+      socket.setTimeout(3000)
+      socket.connect(port, host, () => {
+        socket.destroy()
+        resolve({ alive: true, latency: Date.now() - start })
+      })
+      socket.on('error',   () => { socket.destroy(); resolve({ alive: false }) })
+      socket.on('timeout', () => { socket.destroy(); resolve({ alive: false }) })
+    })
   })
 }
