@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { useAppStore, AiPermission, AiApproval } from '../../store'
 import { cn, getInstallerUrl } from '../../lib/utils'
+import { TERMINAL_THEMES, getTerminalTheme } from '../../lib/terminalThemes'
 
 // ─── Settings data model ────────────────────────────────────────────────────
 interface AppSettings {
@@ -33,10 +34,11 @@ interface AppSettings {
   logDirectory: string
   logStripAnsi: boolean
   logTimestamp: boolean
+  terminalTheme: string
 }
 
 const DEFAULTS: AppSettings = {
-  theme: 'dark',
+  theme: 'light',
   accentColor: '#8b5cf6',
   sidebarWidth: 260,
   fontSize: 13,
@@ -58,6 +60,7 @@ const DEFAULTS: AppSettings = {
   logDirectory: '',
   logStripAnsi: true,
   logTimestamp: false,
+  terminalTheme: 'netcopilot',
 }
 
 const inputCls = 'w-full px-3 py-2 rounded-lg bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40 transition-colors'
@@ -272,8 +275,60 @@ function AppearanceSection({ settings, update }: SectionProps) {
 
 // ─── Section: Terminal ────────────────────────────────────────────────────────
 function TerminalSection({ settings, update }: SectionProps) {
+  const activeTheme = getTerminalTheme(settings.terminalTheme)
+  const tc = activeTheme.colors
+
   return (
     <>
+      <Group title="Color Theme">
+        <div className="grid grid-cols-2 gap-2">
+          {TERMINAL_THEMES.map((theme) => {
+            const isSelected = settings.terminalTheme === theme.id
+            const p = theme.preview
+            return (
+              <button
+                key={theme.id}
+                onClick={() => update('terminalTheme', theme.id)}
+                className={cn(
+                  'relative flex items-center gap-3 p-2.5 rounded-xl border-2 text-left transition-all cursor-pointer',
+                  isSelected
+                    ? 'border-primary shadow-[0_0_0_1px] shadow-primary/30'
+                    : 'border-border hover:border-primary/40 hover:bg-accent/30'
+                )}
+              >
+                {/* Mini terminal preview swatch */}
+                <div
+                  className="shrink-0 w-10 h-8 rounded-md overflow-hidden flex flex-col gap-0.5 p-1"
+                  style={{ background: p.bg }}
+                >
+                  <div className="flex gap-0.5 items-center">
+                    <div className="w-2.5 h-0.5 rounded-full" style={{ background: p.green }} />
+                    <div className="w-4 h-0.5 rounded-full opacity-50" style={{ background: p.fg }} />
+                  </div>
+                  <div className="flex gap-0.5 items-center">
+                    <div className="w-1.5 h-0.5 rounded-full" style={{ background: p.blue }} />
+                    <div className="w-3 h-0.5 rounded-full" style={{ background: p.red }} />
+                    <div className="w-1.5 h-0.5 rounded-full" style={{ background: p.yellow }} />
+                  </div>
+                  <div className="flex gap-0.5 items-center">
+                    <div className="w-5 h-0.5 rounded-full opacity-40" style={{ background: p.fg }} />
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-foreground truncate">{theme.name}</p>
+                  <p className="text-[10px] text-muted-foreground">{theme.dark ? 'Dark' : 'Light'}</p>
+                </div>
+                {isSelected && (
+                  <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                    <Check className="w-2.5 h-2.5 text-white" />
+                  </div>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </Group>
+
       <Group title="Font">
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
@@ -297,21 +352,26 @@ function TerminalSection({ settings, update }: SectionProps) {
           </div>
         </div>
 
-        {/* Live preview */}
+        {/* Live preview — colors follow the selected terminal theme */}
         <div
-          className="mt-1 p-3 rounded-md bg-[#0d0f14] border border-border"
-          style={{ fontFamily: `"${settings.fontFamily}", monospace`, fontSize: settings.fontSize, lineHeight: settings.lineHeight }}
+          className="mt-1 p-3 rounded-md border border-border"
+          style={{
+            background: tc.background,
+            fontFamily: `"${settings.fontFamily}", monospace`,
+            fontSize: settings.fontSize,
+            lineHeight: settings.lineHeight,
+          }}
         >
-          <span style={{ color: '#92e991' }}>root</span>
-          <span style={{ color: '#6b7280' }}>@</span>
-          <span style={{ color: '#69ff94' }}>router</span>
-          <span style={{ color: '#60a5fa' }}>:~#</span>
-          <span style={{ color: '#e8eaf0' }}> show ip interface brief</span>
+          <span style={{ color: tc.green }}>root</span>
+          <span style={{ color: tc.brightBlack }}>@</span>
+          <span style={{ color: tc.brightGreen }}>router</span>
+          <span style={{ color: tc.blue }}>:~#</span>
+          <span style={{ color: tc.foreground }}> show ip interface brief</span>
           <br />
-          <span style={{ color: '#6b7280' }}>GigabitEthernet0/0   192.168.1.1   </span>
-          <span style={{ color: '#69ff94' }}>up</span>
-          <span style={{ color: '#6b7280' }}>   </span>
-          <span style={{ color: '#69ff94' }}>up</span>
+          <span style={{ color: tc.brightBlack }}>GigabitEthernet0/0   192.168.1.1   </span>
+          <span style={{ color: tc.green }}>up</span>
+          <span style={{ color: tc.brightBlack }}>   </span>
+          <span style={{ color: tc.green }}>up</span>
         </div>
       </Group>
 

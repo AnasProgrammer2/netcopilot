@@ -14,6 +14,7 @@ import { TerminalHighlighter } from '../../lib/highlighter'
 import type { TerminalSettings, ConnectionSettings } from '../../store'
 import { cn } from '../../lib/utils'
 import { terminalRegistry } from '../../lib/terminalRegistry'
+import { getTerminalTheme } from '../../lib/terminalThemes'
 
 interface Props {
   session: Session
@@ -42,6 +43,11 @@ export function TerminalTab({ session }: Props): JSX.Element {
   const logStripAnsiRef  = useRef(true)
   const logTimestampRef  = useRef(false)
   const doConnectRef     = useRef<((isReconnect?: boolean) => void) | null>(null)
+
+  // ── Terminal theme background (for overlay divs) ─────────────────────────────
+  const [termBg, setTermBg] = useState<string>(
+    () => getTerminalTheme(useAppStore.getState().terminalSettings.terminalTheme).colors.background
+  )
 
   // ── Search state ─────────────────────────────────────────────────────────────
   const [showSearch, setShowSearch]         = useState(false)
@@ -80,6 +86,9 @@ export function TerminalTab({ session }: Props): JSX.Element {
       term.options.cursorBlink = ts.cursorBlink
       term.options.cursorStyle = ts.cursorStyle
       term.options.scrollback  = ts.scrollback
+      const themeColors = getTerminalTheme(ts.terminalTheme).colors
+      term.options.theme = themeColors
+      setTermBg(themeColors.background)
       fitRef.current?.fit()
     })
   }, [])
@@ -320,21 +329,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
       cursorStyle: ts.cursorStyle,
       cursorWidth: ts.cursorStyle === 'bar' ? 2 : 1,
       scrollback:  ts.scrollback,
-      theme: {
-        background:          '#0B0718',
-        foreground:          '#e8eaf0',
-        cursor:              '#e8eaf0',
-        cursorAccent:        '#0B0718',
-        selectionBackground: '#8b5cf640',
-        black:         '#1e2030', red:          '#ff6b6b',
-        green:         '#69ff94', yellow:       '#ffd93d',
-        blue:          '#60a5fa', magenta:      '#c792ea',
-        cyan:          '#6fcfe3', white:        '#e8eaf0',
-        brightBlack:   '#4a5568', brightRed:    '#ff8585',
-        brightGreen:   '#80ffaa', brightYellow: '#ffe066',
-        brightBlue:    '#7db5ff', brightMagenta:'#d4a5f5',
-        brightCyan:    '#89dceb', brightWhite:  '#ffffff'
-      },
+      theme:       getTerminalTheme(ts.terminalTheme).colors,
       allowProposedApi: true
     })
 
@@ -897,13 +892,13 @@ export function TerminalTab({ session }: Props): JSX.Element {
         <div
           ref={containerRef}
           onContextMenu={handleContextMenu}
-          className="w-full h-full bg-[#0B0718]"
-          style={{ fontVariantLigatures: 'none' }}
+          className="w-full h-full"
+          style={{ background: termBg, fontVariantLigatures: 'none' }}
         />
 
         {/* Connecting overlay */}
         {session.status === 'connecting' && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#0B0718]/90 backdrop-blur-sm gap-4">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center backdrop-blur-sm gap-4" style={{ background: `${termBg}e6` }}>
             <div className="relative">
               <div className="w-12 h-12 rounded-full border-2 border-primary/20" />
               <div className="absolute inset-0 w-12 h-12 rounded-full border-2 border-t-primary border-r-transparent border-b-transparent border-l-transparent animate-spin" />
@@ -919,7 +914,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
 
         {/* Disconnected overlay */}
         {session.status === 'disconnected' && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#0B0718]/90 backdrop-blur-sm gap-4">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center backdrop-blur-sm gap-4" style={{ background: `${termBg}e6` }}>
             <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
               <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757" />
@@ -950,7 +945,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
 
         {/* Error overlay */}
         {session.status === 'error' && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#0B0718]/90 backdrop-blur-sm gap-4">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center backdrop-blur-sm gap-4" style={{ background: `${termBg}e6` }}>
             <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
               <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />

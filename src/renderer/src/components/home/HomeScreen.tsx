@@ -56,29 +56,21 @@ function GroupCard({ group, hostCount, connectedCount, onClick }: {
   return (
     <button
       onClick={onClick}
-      className="relative flex items-center gap-3 p-3.5 rounded-xl border border-border bg-card hover:bg-accent/60 hover:border-primary/25 transition-all text-left group cursor-pointer overflow-hidden"
+      className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:bg-accent/50 hover:border-primary/30 transition-all text-left group cursor-pointer"
     >
-      {/* Left accent bar */}
       <div
-        className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full"
-        style={{ backgroundColor: color }}
-      />
-
-      {/* Icon */}
-      <div
-        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ml-2"
-        style={{ backgroundColor: `${color}18` }}
+        className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+        style={{ backgroundColor: `${color}15` }}
       >
-        <Layers className="w-4 h-4" style={{ color }} />
+        <Layers className="w-5 h-5" style={{ color }} />
       </div>
 
-      {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{group.name}</p>
-        <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-xs text-muted-foreground">{hostCount} hosts</span>
+        <p className="text-[15px] font-semibold text-foreground truncate">{group.name}</p>
+        <div className="flex items-center gap-2.5 mt-1">
+          <span className="text-[13px] text-muted-foreground">{hostCount} Hosts</span>
           {connectedCount > 0 && (
-            <span className="flex items-center gap-1 text-[10px] text-emerald-500 font-medium">
+            <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               {connectedCount} live
             </span>
@@ -86,7 +78,7 @@ function GroupCard({ group, hostCount, connectedCount, onClick }: {
         </div>
       </div>
 
-      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/40 group-hover:text-muted-foreground/70 transition-colors shrink-0" />
+      <ChevronRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors shrink-0" />
     </button>
   )
 }
@@ -110,79 +102,48 @@ function HostCard({ connection, isConnected, onConnect }: {
     <button
       onClick={onConnect}
       className={cn(
-        'relative flex items-start gap-3 p-4 rounded-xl border text-left group transition-all cursor-pointer overflow-hidden w-full',
+        'flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left group transition-all cursor-pointer w-full',
         isConnected
           ? 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/50'
-          : 'border-border bg-card hover:bg-accent/40 hover:border-primary/20 hover:shadow-sm'
+          : 'border-border bg-card hover:bg-accent/40 hover:border-primary/25 hover:shadow-sm'
       )}
     >
-      {/* Left accent bar */}
-      <div
-        className="absolute left-0 top-3 bottom-3 w-[3px] rounded-full opacity-70"
-        style={{ backgroundColor: isConnected ? '#22c55e' : accent }}
-      />
-
       {/* Device icon */}
       <div
-        className="relative w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ml-1"
-        style={{ backgroundColor: `${accent}18` }}
+        className="relative w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+        style={{ backgroundColor: `${accent}15` }}
       >
         <Icon className="w-4 h-4" style={{ color: accent }} />
         {isConnected && (
-          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-card shadow-sm" />
+          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-card" />
         )}
       </div>
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        {/* Name */}
-        <p className="text-sm font-semibold text-foreground truncate leading-tight group-hover:text-primary transition-colors">
+        <p className="text-[13px] font-semibold text-foreground truncate leading-tight group-hover:text-primary transition-colors">
           {connection.name || connection.host}
         </p>
-
-        {/* Host + port */}
-        <p className="text-xs text-muted-foreground/70 truncate mt-0.5 font-mono">
+        <p className="text-[11px] text-muted-foreground truncate mt-0.5">
           {host}{showPort ? `:${connection.port}` : ''}
-        </p>
-
-        {/* Badges row */}
-        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-          {/* Protocol badge */}
-          <span
-            className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded-md font-semibold tracking-wide"
-            style={{ backgroundColor: `${accent}15`, color: accent }}
-          >
-            {connection.protocol}
-          </span>
-
-          {/* Username */}
-          {connection.username && (
-            <span className="text-[10px] text-muted-foreground/50 font-mono truncate max-w-[80px]">
-              {connection.username}
-            </span>
+          {connection.protocol && (
+            <span className="ml-1.5 text-muted-foreground/60">{connection.protocol}</span>
           )}
-
-          {/* Tags */}
-          {connection.tags?.slice(0, 2).map(tag => (
-            <span
-              key={tag}
-              className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted/80 text-muted-foreground/60 font-medium truncate max-w-[60px]"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
+          {connection.username && (
+            <span className="ml-1.5 text-muted-foreground/50">{connection.username}</span>
+          )}
+        </p>
       </div>
 
       {/* Right side — status */}
-      <div className="shrink-0 flex flex-col items-end gap-1 self-center">
+      <div className="shrink-0 self-center">
         {isConnected ? (
-          <span className="flex items-center gap-1 text-[10px] text-emerald-500 font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             live
           </span>
         ) : (
-          <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/20 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+          <ArrowRight className="w-4 h-4 text-muted-foreground/20 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
         )}
       </div>
     </button>
@@ -247,13 +208,13 @@ export function HomeScreen(): JSX.Element {
     <div className="flex flex-col h-full bg-background overflow-hidden">
 
       {/* ── Top bar ────────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-5 py-3 border-b border-border shrink-0">
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0">
 
         {/* Live sessions pill */}
         {totalConnected > 0 && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 shrink-0">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs text-emerald-500 font-medium">{totalConnected} live</span>
+            <span className="text-[12px] text-emerald-600 font-medium">{totalConnected} live</span>
           </div>
         )}
 
@@ -263,15 +224,15 @@ export function HomeScreen(): JSX.Element {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search hosts, IPs, users..."
-            className="w-full pl-9 pr-4 py-2 text-sm bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40 transition-all"
+            placeholder="Find a host or ssh user@hostname..."
+            className="w-full pl-9 pr-3 py-1.5 text-[13px] bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all"
           />
         </div>
 
         {/* Actions */}
         <button
           onClick={() => setConnectionDialogOpen(true)}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors shrink-0 cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[13px] font-semibold hover:bg-primary/90 transition-colors shrink-0 cursor-pointer shadow-sm"
         >
           <Plus className="w-3.5 h-3.5" />
           New Host
@@ -279,7 +240,7 @@ export function HomeScreen(): JSX.Element {
 
         <button
           onClick={() => setQuickConnectOpen(true)}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-card border border-border text-foreground text-sm font-medium hover:bg-accent transition-all shrink-0 cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-border text-foreground text-[13px] font-medium hover:bg-accent transition-all shrink-0 cursor-pointer"
         >
           <Zap className="w-3.5 h-3.5 text-yellow-500" />
           Quick
@@ -316,7 +277,7 @@ export function HomeScreen(): JSX.Element {
       )}
 
       {/* ── Content ────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
+      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
 
         {/* Breadcrumb */}
         {selectedGroup && currentGroup && (
@@ -369,19 +330,19 @@ export function HomeScreen(): JSX.Element {
         {/* ── Groups ──────────────────────────────────────────────────────── */}
         {!selectedGroup && groups.length > 0 && (
           <section>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-base font-bold text-foreground">
                 Groups
               </span>
               <button
                 onClick={() => setGroupDialogOpen(true)}
-                className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
-                <FolderPlus className="w-3.5 h-3.5" />
+                <FolderPlus className="w-4 h-4" />
                 New
               </button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {groupedConns
                 .filter(({ conns }) => !search || conns.length > 0)
                 .map(({ group, conns }) => (
@@ -400,17 +361,17 @@ export function HomeScreen(): JSX.Element {
         {/* ── Hosts ───────────────────────────────────────────────────────── */}
         {(ungrouped.length > 0 || (selectedGroup && displayConns.length > 0)) && (
           <section>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-base font-bold text-foreground">
                 {selectedGroup ? 'Hosts' : groups.length > 0 ? 'All Hosts' : 'Hosts'}
               </span>
               {!selectedGroup && (
-                <span className="text-[11px] text-muted-foreground/50">
+                <span className="text-[13px] text-muted-foreground">
                   {filtered.length} connection{filtered.length !== 1 ? 's' : ''}
                 </span>
               )}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
               {(selectedGroup ? displayConns : ungrouped).map(conn => (
                 <HostCard
                   key={conn.id}

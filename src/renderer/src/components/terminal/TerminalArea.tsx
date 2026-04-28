@@ -4,15 +4,17 @@ import { TabBar } from './TabBar'
 import { TerminalTab } from './TerminalTab'
 import { SftpBrowser } from '../sftp/SftpBrowser'
 import { AiPanel } from '../ai/AiPanel'
+import { ThemePanel } from './ThemePanel'
 import { HomeScreen } from '../home/HomeScreen'
 import { terminalRegistry, buildStructuredContext, formatStructuredContext } from '../../lib/terminalRegistry'
 
 const AI_PANEL_DEFAULT_WIDTH = 340
 const AI_PANEL_MIN_WIDTH     = 260
 const AI_PANEL_MAX_WIDTH     = 600
+const THEME_PANEL_WIDTH      = 220
 
 export function TerminalArea(): JSX.Element {
-  const { sessions, activeSessionId, splitSessionId, aiPanelOpen } = useAppStore()
+  const { sessions, activeSessionId, splitSessionId, aiPanelOpen, themePanelOpen } = useAppStore()
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) ?? null
   const isSplit       = !!splitSessionId && sessions.some(s => s.id === splitSessionId) && sessions.length >= 2
@@ -121,6 +123,13 @@ export function TerminalArea(): JSX.Element {
             })}
           </div>
         </div>
+        )}
+
+        {/* Theme panel */}
+        {themePanelOpen && (
+          <div className="shrink-0 flex flex-col overflow-hidden min-h-0" style={{ width: THEME_PANEL_WIDTH }}>
+            <ThemePanel />
+          </div>
         )}
 
         {/* AI panel */}

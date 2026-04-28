@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown, Sparkles, RefreshCw, Globe, FolderOpen } from 'lucide-react'
+import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown, Sparkles, RefreshCw, Globe, FolderOpen, Palette } from 'lucide-react'
 import { toast } from 'sonner'
 import { terminalRegistry } from '../../lib/terminalRegistry'
 import { useAppStore } from '../../store'
@@ -15,6 +15,7 @@ export function TabBar(): JSX.Element {
     setActiveSession, closeSession, setQuickConnectOpen, setSplitSession,
     aiPanelOpen, setAiPanelOpen, activeForwardIds,
     licenseValid, errorAlertSessionId, setErrorAlert,
+    themePanelOpen, setThemePanelOpen,
   } = useAppStore()
 
   const hasErrorAlert = errorAlertSessionId === activeSessionId
@@ -116,6 +117,21 @@ export function TabBar(): JSX.Element {
         )}
         <Sparkles className="w-3.5 h-3.5" />
         <span className="hidden sm:inline">ARIA AI</span>
+      </button>
+
+      {/* Terminal Theme panel toggle */}
+      <button
+        onClick={() => setThemePanelOpen(!themePanelOpen)}
+        title="Terminal theme"
+        className={cn(
+          'shrink-0 self-center flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors',
+          themePanelOpen
+            ? 'text-primary bg-primary/15 hover:bg-primary/25'
+            : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+        )}
+      >
+        <Palette className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">Theme</span>
       </button>
 
       {/* Port Forwarding button */}

@@ -38,6 +38,7 @@ export interface TerminalSettings {
   cursorBlink: boolean
   scrollback: number
   lineHeight: number
+  terminalTheme: string
 }
 
 export interface ConnectionSettings {
@@ -55,7 +56,8 @@ export const DEFAULT_TERMINAL_SETTINGS: TerminalSettings = {
   cursorStyle: 'bar',
   cursorBlink: true,
   scrollback: 5000,
-  lineHeight: 1.4
+  lineHeight: 1.4,
+  terminalTheme: 'netcopilot',
 }
 
 export const DEFAULT_CONNECTION_SETTINGS: ConnectionSettings = {
@@ -141,7 +143,9 @@ interface AppState {
   setErrorAlert: (sessionId: string | null) => void
 
   // AI Copilot
-  aiPanelOpen:  boolean
+  aiPanelOpen:    boolean
+  themePanelOpen: boolean
+  setThemePanelOpen: (open: boolean) => void
   // License state
   licenseKey:    string
   licenseValid:  boolean
@@ -201,7 +205,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   setErrorAlert: (sessionId) => set({ errorAlertSessionId: sessionId }),
 
   // AI Copilot initial state
-  aiPanelOpen:  false,
+  aiPanelOpen:    false,
+  themePanelOpen: false,
+  setThemePanelOpen: (open) => set({ themePanelOpen: open }),
   aiPermission: 'troubleshoot',
   aiApproval:   'ask',
   aiBlacklist:  [],
