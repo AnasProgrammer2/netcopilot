@@ -30,7 +30,8 @@ export function Sidebar(): JSX.Element {
     connections, groups, sessions, activeSessionId,
     sidebarWidth, setSidebarWidth,
     setConnectionDialogOpen, setQuickConnectOpen,
-    openSession, openSftpSession, exportConnections, importConnections
+    openSession, openSftpSession, exportConnections, importConnections,
+    saveConnection,
   } = useAppStore()
 
   const [importMsg, setImportMsg] = useState<string | null>(null)
@@ -38,6 +39,21 @@ export function Sidebar(): JSX.Element {
   const [resizing, setResizing] = useState(false)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+
+  // DnD state for connections → groups
+  const dragConnId = useRef<string | null>(null)
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null) // group id or 'ungrouped'
+
+  const handleConnDrop = useCallback(async (targetGroupId: string | undefined) => {
+    const connId = dragConnId.current
+    if (!connId) return
+    const conn = connections.find((c) => c.id === connId)
+    if (conn && conn.groupId !== targetGroupId) {
+      await saveConnection({ ...conn, groupId: targetGroupId })
+    }
+    dragConnId.current = null
+    setDropTargetId(null)
+  }, [connections, saveConnection])
 
   const [search, setSearch] = useState('')
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
@@ -150,8 +166,15 @@ export function Sidebar(): JSX.Element {
             if (search && groupConns.length === 0) return null
             const isCollapsed = collapsedGroups.has(group.id)
             const groupColor = group.color || GROUP_COLORS[0]
+            const isDropTarget = dropTargetId === group.id
             return (
-              <div key={group.id}>
+              <div
+                key={group.id}
+                onDragOver={(e) => { e.preventDefault(); setDropTargetId(group.id) }}
+                onDragLeave={() => setDropTargetId(null)}
+                onDrop={(e) => { e.preventDefault(); handleConnDrop(group.id) }}
+                className={cn('rounded-lg transition-colors', isDropTarget && 'ring-1 ring-primary/50 bg-primary/5')}
+              >
                 <div className="flex items-center group/grp hover:bg-sidebar-accent/50 mx-1 rounded-lg transition-colors">
                   <button
                     onClick={() => toggleGroup(group.id)}
@@ -197,24 +220,33 @@ export function Sidebar(): JSX.Element {
                       onConnect={() => openSession(conn)}
                       onOpenSftp={() => openSftpSession(conn)}
                       onEdit={() => setConnectionDialogOpen(true, conn)}
+                      onDragStart={() => { dragConnId.current = conn.id }}
                     />
                   ))}
               </div>
             )
           })}
 
-          {/* Ungrouped */}
-          {ungrouped.map((conn) => (
-            <ConnectionItem
-              key={conn.id}
-              connection={conn}
-              sessions={sessions}
-              activeSessionId={activeSessionId}
-              onConnect={() => openSession(conn)}
-              onOpenSftp={() => openSftpSession(conn)}
-              onEdit={() => setConnectionDialogOpen(true, conn)}
-            />
-          ))}
+          {/* Ungrouped — also a drop target */}
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDropTargetId('ungrouped') }}
+            onDragLeave={() => setDropTargetId(null)}
+            onDrop={(e) => { e.preventDefault(); handleConnDrop(undefined) }}
+            className={cn('rounded-lg transition-colors', dropTargetId === 'ungrouped' && 'ring-1 ring-primary/50 bg-primary/5')}
+          >
+            {ungrouped.map((conn) => (
+              <ConnectionItem
+                key={conn.id}
+                connection={conn}
+                sessions={sessions}
+                activeSessionId={activeSessionId}
+                onConnect={() => openSession(conn)}
+                onOpenSftp={() => openSftpSession(conn)}
+                onEdit={() => setConnectionDialogOpen(true, conn)}
+                onDragStart={() => { dragConnId.current = conn.id }}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Footer actions */}
@@ -309,10 +341,11 @@ interface ConnectionItemProps {
   onConnect: () => void
   onOpenSftp: () => void
   onEdit: () => void
+  onDragStart?: () => void
 }
 
 function ConnectionItem({
-  connection, indent = false, sessions, activeSessionId, onConnect, onOpenSftp, onEdit
+  connection, indent = false, sessions, activeSessionId, onConnect, onOpenSftp, onEdit, onDragStart
 }: ConnectionItemProps): JSX.Element {
   const { deleteConnection, saveConnection } = useAppStore()
 
@@ -338,6 +371,8 @@ function ConnectionItem({
   return (
     <>
       <button
+        draggable
+        onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart?.() }}
         onDoubleClick={onConnect}
         onContextMenu={handleContextMenu}
         className={cn(

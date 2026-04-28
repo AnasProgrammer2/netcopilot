@@ -113,6 +113,7 @@ interface AppState {
   pinSession:    (sessionId: string) => void
   unpinSession:  (sessionId: string) => void
   duplicateSession: (sessionId: string) => void
+  reorderSessions: (fromId: string, toId: string) => void
 
   // Actions - Settings
   loadSettings: () => Promise<void>
@@ -690,6 +691,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { sessions, openSession } = get()
     const session = sessions.find((s) => s.id === sessionId)
     if (session) openSession(session.connection)
+  },
+
+  reorderSessions: (fromId, toId) => {
+    if (fromId === toId) return
+    set((state) => {
+      const sessions = [...state.sessions]
+      const fromIdx  = sessions.findIndex((s) => s.id === fromId)
+      const toIdx    = sessions.findIndex((s) => s.id === toId)
+      if (fromIdx === -1 || toIdx === -1) return {}
+      const [moved] = sessions.splice(fromIdx, 1)
+      sessions.splice(toIdx, 0, moved)
+      return { sessions }
+    })
   },
 
   // ── Port Forwarding ──────────────────────────────────────────────────────────

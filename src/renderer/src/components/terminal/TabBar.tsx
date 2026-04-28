@@ -16,7 +16,7 @@ export function TabBar(): JSX.Element {
     aiPanelOpen, setAiPanelOpen, activeForwardIds,
     licenseValid, errorAlertSessionId, setErrorAlert,
     themePanelOpen, setThemePanelOpen,
-    renameSession, pinSession, unpinSession, duplicateSession,
+    renameSession, pinSession, unpinSession, duplicateSession, reorderSessions,
   } = useAppStore()
 
   // Sort: pinned tabs first, then by insertion order
@@ -25,6 +25,10 @@ export function TabBar(): JSX.Element {
     if (!a.pinned && b.pinned) return 1
     return 0
   })
+
+  // DnD state — tracked via refs to avoid re-renders during drag
+  const dragFromId  = useRef<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
 
   const hasErrorAlert = errorAlertSessionId === activeSessionId
 
@@ -94,6 +98,15 @@ export function TabBar(): JSX.Element {
           onCloseOthers={() => {
             sessions.filter(s => s.id !== session.id && !s.pinned).forEach(s => closeSession(s.id))
           }}
+          isDragOver={dragOverId === session.id}
+          onDragStart={() => { dragFromId.current = session.id }}
+          onDragOver={() => setDragOverId(session.id)}
+          onDrop={() => {
+            if (dragFromId.current) reorderSessions(dragFromId.current, session.id)
+            dragFromId.current = null
+            setDragOverId(null)
+          }}
+          onDragEnd={() => { dragFromId.current = null; setDragOverId(null) }}
         />
       ))}
 
@@ -260,9 +273,14 @@ interface TabProps {
   onRename: (label: string) => void
   onDuplicate: () => void
   onCloseOthers: () => void
+  isDragOver: boolean
+  onDragStart: () => void
+  onDragOver: () => void
+  onDrop: () => void
+  onDragEnd: () => void
 }
 
-function Tab({ session, isActive, isSplit, onActivate, onClose, onPin, onRename, onDuplicate, onCloseOthers }: TabProps): JSX.Element {
+function Tab({ session, isActive, isSplit, onActivate, onClose, onPin, onRename, onDuplicate, onCloseOthers, isDragOver, onDragStart, onDragOver, onDrop, onDragEnd }: TabProps): JSX.Element {
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null)
   const [renaming, setRenaming] = useState(false)
   const [renameVal, setRenameVal] = useState('')
@@ -293,15 +311,21 @@ function Tab({ session, isActive, isSplit, onActivate, onClose, onPin, onRename,
   return (
     <>
     <div
+      draggable
       onClick={onActivate}
       onContextMenu={(e) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }) }}
+      onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart() }}
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; onDragOver() }}
+      onDrop={(e) => { e.preventDefault(); onDrop() }}
+      onDragEnd={onDragEnd}
       className={cn(
         'relative flex items-center gap-1.5 px-3 h-9 cursor-pointer shrink-0 group max-w-52 select-none',
         'rounded-t-md border border-b-0 transition-all',
         isActive
           ? 'bg-background border-border text-foreground z-10'
           : 'bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-background/40',
-        isSplit && !isActive && 'border-primary/30 bg-primary/5 text-primary/80'
+        isSplit && !isActive && 'border-primary/30 bg-primary/5 text-primary/80',
+        isDragOver && !isActive && 'border-primary/60 bg-primary/10'
       )}
     >
       {/* Active tab — colored top bar */}
