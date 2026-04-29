@@ -252,10 +252,20 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         else sendToTerminal(d)
       }
 
+      // Scroll to bottom before sending so user sees the command and its output
+      if (resolvedSession) {
+        terminalRegistry.get(resolvedSession.id)?.scrollToBottom()
+      }
+
       // Collect terminal output from the correct session only
       offData = collectTerminalOutput((data) => {
         output += data
         clearTimeout(timer)
+
+        // Keep scrolling to bottom as output arrives
+        if (resolvedSession) {
+          terminalRegistry.get(resolvedSession.id)?.scrollToBottom()
+        }
 
         // If device is paginating, send space to get the next page
         if (MORE_PATTERN.test(data)) {

@@ -98,6 +98,7 @@ declare global {
         import(): Promise<string | null>
         selectFolder(): Promise<string | null>
         getDefaultLogDir(): Promise<string>
+        readSshConfig(pickFile?: boolean): Promise<string | null>
       }
       ssh: {
         connect(payload: SshConnectPayload): Promise<{ success: boolean }>

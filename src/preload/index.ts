@@ -81,7 +81,9 @@ const api = {
     selectFolder: (): Promise<string | null> =>
       ipcRenderer.invoke('dialog:selectFolder'),
     getDefaultLogDir: (): Promise<string> =>
-      ipcRenderer.invoke('dialog:getDefaultLogDir')
+      ipcRenderer.invoke('dialog:getDefaultLogDir'),
+    readSshConfig: (pickFile?: boolean): Promise<string | null> =>
+      ipcRenderer.invoke('dialog:read-ssh-config', pickFile ?? false),
   },
 
   // App info

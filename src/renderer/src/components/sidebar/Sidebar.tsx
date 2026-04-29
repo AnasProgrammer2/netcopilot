@@ -1,11 +1,12 @@
 import { useState, useRef, useCallback } from 'react'
-import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb, Pencil, Trash2, Download, Upload, MoreHorizontal, Clock, Zap } from 'lucide-react'
+import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb, Pencil, Trash2, Download, Upload, MoreHorizontal, Clock, Zap, FileCode } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { Connection, ConnectionGroup } from '../../types'
 import { ConnectionContextMenu } from './ConnectionContextMenu'
 import { GroupDialog } from './GroupDialog'
 import { SSHKeyDialog } from '../dialogs/SSHKeyDialog'
 import { ExportImportDialog } from '../dialogs/ExportImportDialog'
+import { SshConfigImportDialog } from '../dialogs/SshConfigImportDialog'
 import { cn, timeAgo } from '../../lib/utils'
 
 const GROUP_COLORS = [
@@ -39,6 +40,7 @@ export function Sidebar(): JSX.Element {
   const [resizing, setResizing] = useState(false)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [sshConfigDialogOpen, setSshConfigDialogOpen] = useState(false)
 
   // DnD state for connections → groups
   const dragConnId = useRef<string | null>(null)
@@ -114,19 +116,19 @@ export function Sidebar(): JSX.Element {
         {/* Header */}
         <div className="px-3 pt-3 pb-3 border-b border-sidebar-border">
           <div className="flex items-center gap-1 mb-3">
-            <span className="text-[13px] font-bold text-sidebar-foreground flex-1 pl-0.5">
+            <span className="text-[15px] font-bold text-sidebar-foreground flex-1 pl-0.5 tracking-tight">
               Connections
             </span>
             <button
               onClick={() => setConnectionDialogOpen(true)}
-              className="p-1.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors cursor-pointer"
               title="New Connection"
             >
               <Plus className="w-4 h-4" />
             </button>
             <button
               onClick={() => setGroupDialog({ open: true })}
-              className="p-1.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors cursor-pointer"
               title="New Group"
             >
               <FolderPlus className="w-4 h-4" />
@@ -211,21 +213,21 @@ export function Sidebar(): JSX.Element {
                 onDrop={(e) => { e.preventDefault(); handleConnDrop(group.id) }}
                 className={cn('rounded-lg transition-colors', isDropTarget && 'ring-1 ring-primary/50 bg-primary/5')}
               >
-                <div className="flex items-center group/grp hover:bg-sidebar-accent/50 mx-1 rounded-lg transition-colors">
+                <div className="flex items-center group/grp hover:bg-sidebar-accent/50 mx-1 rounded-xl transition-colors">
                   <button
                     onClick={() => toggleGroup(group.id)}
-                    className="flex-1 flex items-center gap-2 px-2.5 py-2 text-[13px] text-sidebar-foreground/60 group-hover/grp:text-sidebar-foreground min-w-0 cursor-pointer"
+                    className="flex-1 flex items-center gap-2 px-2.5 py-2 text-[13px] text-sidebar-foreground/70 group-hover/grp:text-sidebar-foreground min-w-0 cursor-pointer"
                   >
                     {isCollapsed
-                      ? <ChevronRight className="w-3.5 h-3.5 shrink-0 text-sidebar-foreground/30" />
-                      : <ChevronDown  className="w-3.5 h-3.5 shrink-0 text-sidebar-foreground/30" />
+                      ? <ChevronRight className="w-3.5 h-3.5 shrink-0 text-sidebar-foreground/40" />
+                      : <ChevronDown  className="w-3.5 h-3.5 shrink-0 text-sidebar-foreground/40" />
                     }
                     <div
                       className="w-2.5 h-2.5 rounded-full shrink-0"
                       style={{ backgroundColor: groupColor }}
                     />
-                    <span className="font-semibold text-[12px] truncate">{group.name}</span>
-                    <span className="ml-auto text-sidebar-foreground/30 shrink-0 tabular-nums text-[12px]">{groupConns.length}</span>
+                    <span className="font-bold text-[13px] truncate tracking-tight">{group.name}</span>
+                    <span className="ml-auto text-sidebar-foreground/40 shrink-0 tabular-nums text-[12px] font-medium">{groupConns.length}</span>
                   </button>
                   {/* Edit / Delete group */}
                   <div className="flex items-center pr-1 opacity-0 group-hover/grp:opacity-100 transition-opacity">
@@ -285,19 +287,25 @@ export function Sidebar(): JSX.Element {
           </div>
         </div>
 
-        {/* Footer actions */}
-        <div className="border-t border-sidebar-border p-2.5 space-y-0.5">
+        {/* Footer actions — always visible, Termius-style */}
+        <div className="border-t border-sidebar-border px-2 py-2 space-y-0.5">
           {[
-            { icon: Key,      label: 'SSH Keys',           action: () => setSshKeyDialogOpen(true) },
-            { icon: Download, label: 'Export Connections',  action: () => setExportDialogOpen(true) },
-            { icon: Upload,   label: 'Import Connections',  action: () => setImportDialogOpen(true) },
-          ].map(({ icon: Icon, label, action }) => (
+            { icon: Key,      label: 'SSH Keys',           color: '#8b5cf6', action: () => setSshKeyDialogOpen(true) },
+            { icon: FileCode, label: 'Import SSH Config',  color: '#06b6d4', action: () => setSshConfigDialogOpen(true) },
+            { icon: Download, label: 'Export Connections', color: '#10b981', action: () => setExportDialogOpen(true) },
+            { icon: Upload,   label: 'Import Connections', color: '#f59e0b', action: () => setImportDialogOpen(true) },
+          ].map(({ icon: Icon, label, color, action }) => (
             <button
               key={label}
               onClick={action}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors cursor-pointer"
+              className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-[13px] font-medium text-sidebar-foreground hover:bg-sidebar-accent transition-colors cursor-pointer group"
             >
-              <Icon className="w-4 h-4 shrink-0" />
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-opacity"
+                style={{ backgroundColor: color + '22' }}
+              >
+                <Icon className="w-3.5 h-3.5" style={{ color }} />
+              </div>
               {label}
             </button>
           ))}
@@ -363,6 +371,32 @@ export function Sidebar(): JSX.Element {
             setTimeout(() => setImportMsg(null), 3500)
           }}
           onCancel={() => setImportDialogOpen(false)}
+        />
+      )}
+
+      {sshConfigDialogOpen && (
+        <SshConfigImportDialog
+          onImport={async (hosts) => {
+            setSshConfigDialogOpen(false)
+            let count = 0
+            for (const host of hosts) {
+              await saveConnection({
+                name:         host.name,
+                host:         host.hostname,
+                port:         host.port,
+                username:     host.username,
+                protocol:     'ssh',
+                authType:     host.identityFile ? 'key' : 'password',
+                deviceType:   'generic',
+                tags:         [],
+                notes:        host.identityFile ? `IdentityFile: ${host.identityFile}` : '',
+              })
+              count++
+            }
+            setImportMsg(`Imported ${count} host${count !== 1 ? 's' : ''} from SSH config`)
+            setTimeout(() => setImportMsg(null), 3500)
+          }}
+          onCancel={() => setSshConfigDialogOpen(false)}
         />
       )}
     </div>
@@ -438,26 +472,26 @@ function ConnectionItem({
         onDoubleClick={onConnect}
         onContextMenu={handleContextMenu}
         className={cn(
-          'w-full flex items-center gap-2.5 px-2.5 py-2 text-left group transition-all rounded-lg cursor-pointer',
+          'w-full flex items-center gap-3 px-2.5 py-2.5 text-left group transition-all rounded-xl cursor-pointer',
           indent && 'pl-6',
           isActive
             ? 'bg-sidebar-accent text-sidebar-foreground'
-            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground'
+            : 'text-sidebar-foreground hover:bg-sidebar-accent/70'
         )}
       >
         <div
-          className="relative w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-          style={{ backgroundColor: `${accent}15` }}
+          className="relative w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+          style={{ backgroundColor: `${accent}20` }}
         >
-          <DeviceIcon className="w-4 h-4" style={{ color: accent }} />
+          <DeviceIcon className="w-4.5 h-4.5" style={{ color: accent }} />
           {isConnected && (
-            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full border-2 border-sidebar" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-sidebar" />
           )}
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-medium truncate leading-tight">{connection.name}</p>
-          <p className="text-[11px] text-sidebar-foreground/40 truncate mt-0.5">
+          <p className="text-[14px] font-semibold truncate leading-tight text-sidebar-foreground">{connection.name}</p>
+          <p className="text-[12px] text-sidebar-foreground/50 truncate mt-0.5">
             {connection.lastConnectedAt
               ? <span className="flex items-center gap-1"><Clock className="w-2.5 h-2.5 shrink-0" />{timeAgo(connection.lastConnectedAt)}</span>
               : (connection.protocol === 'serial'
@@ -470,8 +504,8 @@ function ConnectionItem({
         <div className="relative shrink-0 flex items-center">
           {/* Protocol badge — hidden on hover */}
           <span
-            className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded-md font-semibold transition-all group-hover:opacity-0 group-hover:scale-75"
-            style={{ backgroundColor: `${accent}15`, color: accent }}
+            className="text-[11px] font-mono uppercase px-2 py-0.5 rounded-lg font-bold transition-all group-hover:opacity-0 group-hover:scale-75"
+            style={{ backgroundColor: `${accent}20`, color: accent }}
           >
             {connection.protocol}
           </span>

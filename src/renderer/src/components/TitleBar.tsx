@@ -36,16 +36,13 @@ export function TitleBar({ onShortcuts, onWelcome }: Props): JSX.Element {
       style={{ paddingLeft: isMac ? '80px' : '16px', paddingRight: isMac ? '12px' : '0px' }}
     >
       {/* Logo */}
-      <div className="flex items-center gap-2 no-drag">
-        <div className="flex items-center justify-center w-6 h-6 rounded-md bg-primary/15">
-          <Network className="w-3.5 h-3.5 text-primary" />
+      <div className="flex items-center gap-2.5 no-drag">
+        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/15">
+          <Network className="w-4 h-4 text-primary" />
         </div>
-        <span className="text-sm font-semibold text-foreground tracking-tight">AI Network</span>
-        <span className="hidden sm:inline text-[10px] text-muted-foreground/40 font-medium ml-0.5 tracking-wider uppercase">
-          beta
-        </span>
+        <span className="text-[15px] font-bold text-foreground tracking-tight">NetCopilot</span>
         {activeSessions > 0 && (
-          <span className="hidden sm:inline text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 tabular-nums">
+          <span className="hidden sm:inline text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 tabular-nums">
             {activeSessions} live
           </span>
         )}
@@ -55,7 +52,7 @@ export function TitleBar({ onShortcuts, onWelcome }: Props): JSX.Element {
       <div className="flex items-center gap-1 no-drag">
         <button
           onClick={() => setQuickConnectOpen(true)}
-          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           title="Quick Connect"
         >
           <Zap className="w-3.5 h-3.5" />
@@ -113,14 +110,14 @@ export function TitleBar({ onShortcuts, onWelcome }: Props): JSX.Element {
         <div className="flex items-center no-drag ml-2">
           <button
             onClick={() => window.api.window.minimize()}
-            className="w-11 h-11 flex items-center justify-center text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors"
+            className="w-11 h-11 flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
             title="Minimize"
           >
             <Minus className="w-4 h-4" />
           </button>
           <button
             onClick={() => window.api.window.maximize()}
-            className="w-11 h-11 flex items-center justify-center text-muted-foreground hover:bg-white/10 hover:text-foreground transition-colors"
+            className="w-11 h-11 flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
             title={isMaximized ? 'Restore' : 'Maximize'}
           >
             {isMaximized
