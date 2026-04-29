@@ -125,33 +125,39 @@ export function TerminalArea(): JSX.Element {
         </div>
         )}
 
-        {/* Theme panel */}
-        {themePanelOpen && (
-          <div className="shrink-0 flex flex-col overflow-hidden min-h-0" style={{ width: THEME_PANEL_WIDTH }}>
-            <ThemePanel />
-          </div>
-        )}
+        {/* Theme panel — slide in from right */}
+        <div
+          className="shrink-0 flex flex-col overflow-hidden min-h-0 transition-all duration-200 ease-out"
+          style={{ width: themePanelOpen ? THEME_PANEL_WIDTH : 0, opacity: themePanelOpen ? 1 : 0 }}
+        >
+          {themePanelOpen && <ThemePanel />}
+        </div>
 
-        {/* AI panel */}
-        {aiPanelOpen && (
+        {/* AI panel — slide in from right */}
+        {(aiPanelOpen) && (
           <>
             {/* Drag handle */}
             <div
               onMouseDown={onDragStart}
               className="w-1 shrink-0 cursor-col-resize hover:bg-primary/30 transition-colors bg-border/40"
             />
-            <div className="shrink-0 flex flex-col overflow-hidden min-h-0" style={{ width: aiWidth }}>
-              <AiPanel
-                activeSession={activeSession}
-                splitSession={isSplit ? sessions.find(s => s.id === splitSessionId) ?? null : null}
-                allSessions={sessions}
-                getTerminalContext={getTerminalContext}
-                sendToTerminal={sendToTerminal}
-                sendToSession={sendToSession}
-              />
-            </div>
           </>
         )}
+        <div
+          className="shrink-0 flex flex-col overflow-hidden min-h-0 transition-all duration-200 ease-out"
+          style={{ width: aiPanelOpen ? aiWidth : 0, opacity: aiPanelOpen ? 1 : 0 }}
+        >
+          {aiPanelOpen && (
+            <AiPanel
+              activeSession={activeSession}
+              splitSession={isSplit ? sessions.find(s => s.id === splitSessionId) ?? null : null}
+              allSessions={sessions}
+              getTerminalContext={getTerminalContext}
+              sendToTerminal={sendToTerminal}
+              sendToSession={sendToSession}
+            />
+          )}
+        </div>
       </div>
     </div>
   )

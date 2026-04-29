@@ -75,6 +75,7 @@ interface AppState {
   connections: Connection[]
   groups: ConnectionGroup[]
   sshKeys: SSHKey[]
+  connectionsLoaded: boolean
 
   // Sessions (active terminal tabs)
   sessions: Session[]
@@ -189,6 +190,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   connections: [],
   groups: [],
   sshKeys: [],
+  connectionsLoaded: false,
   sessions: [],
   activeSessionId: null,
   terminalSettings: { ...DEFAULT_TERMINAL_SETTINGS },
@@ -230,7 +232,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   loadConnections: async () => {
     const connections = await window.api.store.getConnections()
-    set({ connections })
+    set({ connections, connectionsLoaded: true })
   },
 
   saveConnection: async (connData) => {

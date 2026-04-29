@@ -1,12 +1,12 @@
 import { useState, useRef, useCallback } from 'react'
-import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb, Pencil, Trash2, Download, Upload, MoreHorizontal } from 'lucide-react'
+import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb, Pencil, Trash2, Download, Upload, MoreHorizontal, Clock, Zap } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { Connection, ConnectionGroup } from '../../types'
 import { ConnectionContextMenu } from './ConnectionContextMenu'
 import { GroupDialog } from './GroupDialog'
 import { SSHKeyDialog } from '../dialogs/SSHKeyDialog'
 import { ExportImportDialog } from '../dialogs/ExportImportDialog'
-import { cn } from '../../lib/utils'
+import { cn, timeAgo } from '../../lib/utils'
 
 const GROUP_COLORS = [
   '#8b5cf6', '#3b82f6', '#06b6d4', '#10b981',
@@ -31,7 +31,7 @@ export function Sidebar(): JSX.Element {
     sidebarWidth, setSidebarWidth,
     setConnectionDialogOpen, setQuickConnectOpen,
     openSession, openSftpSession, exportConnections, importConnections,
-    saveConnection,
+    saveConnection, connectionsLoaded,
   } = useAppStore()
 
   const [importMsg, setImportMsg] = useState<string | null>(null)
@@ -147,16 +147,52 @@ export function Sidebar(): JSX.Element {
 
         {/* Connection list */}
         <div className="flex-1 overflow-y-auto py-1">
-          {connections.length === 0 && (
-            <div className="flex flex-col items-center gap-2 p-6 text-center">
-              <Server className="w-8 h-8 text-sidebar-foreground/20" />
-              <p className="text-xs text-sidebar-foreground/40">No connections yet</p>
-              <button
-                onClick={() => setQuickConnectOpen(true)}
-                className="text-xs text-primary hover:underline"
-              >
-                Quick connect
-              </button>
+
+          {/* Skeleton loading */}
+          {!connectionsLoaded && (
+            <div className="px-2 py-1 space-y-1">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg mx-1 animate-pulse">
+                  <div className="w-8 h-8 rounded-lg bg-sidebar-accent/60 shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3 rounded bg-sidebar-accent/60" style={{ width: `${55 + (i * 13) % 35}%` }} />
+                    <div className="h-2.5 rounded bg-sidebar-accent/40" style={{ width: `${35 + (i * 17) % 30}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Better empty state */}
+          {connectionsLoaded && connections.length === 0 && (
+            <div className="flex flex-col items-center gap-3 px-4 py-10 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-sidebar-accent/50 flex items-center justify-center">
+                <Server className="w-6 h-6 text-sidebar-foreground/20" />
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-sidebar-foreground/50">No connections yet</p>
+                <p className="text-[11px] text-sidebar-foreground/30 mt-1">Add your first host to get started</p>
+              </div>
+              <div className="flex flex-col gap-1.5 w-full">
+                <button
+                  onClick={() => setConnectionDialogOpen(true)}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-primary/10 text-primary text-[12px] font-medium hover:bg-primary/20 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" /> New Connection
+                </button>
+                <button
+                  onClick={() => setQuickConnectOpen(true)}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-sidebar-accent/50 text-sidebar-foreground/60 text-[12px] hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
+                >
+                  <Zap className="w-3.5 h-3.5" /> Quick Connect
+                </button>
+                <button
+                  onClick={() => setImportDialogOpen(true)}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-sidebar-accent/50 text-sidebar-foreground/60 text-[12px] hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5" /> Import
+                </button>
+              </div>
             </div>
           )}
 
@@ -370,19 +406,44 @@ function ConnectionItem({
 
   return (
     <>
+      {/* Tooltip wrapper */}
+      <div className="relative group/tip mx-1" style={{ width: 'calc(100% - 8px)' }}>
+        {/* Hover tooltip */}
+        <div className={cn(
+          'pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50',
+          'w-52 bg-popover border border-border rounded-xl shadow-xl p-3 text-left',
+          'opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150',
+          'hidden group-hover/tip:block'
+        )}>
+          <p className="text-[12px] font-semibold text-foreground truncate">{connection.name}</p>
+          <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
+            {connection.protocol.toUpperCase()} · {connection.host}{connection.port ? `:${connection.port}` : ''}
+          </p>
+          {connection.lastConnectedAt && (
+            <div className="flex items-center gap-1 mt-1.5 text-[10px] text-muted-foreground/60">
+              <Clock className="w-2.5 h-2.5 shrink-0" />
+              Last connected {timeAgo(connection.lastConnectedAt)}
+            </div>
+          )}
+          {connection.notes && (
+            <p className="text-[11px] text-muted-foreground/70 mt-1.5 border-t border-border pt-1.5 line-clamp-3">
+              {connection.notes}
+            </p>
+          )}
+        </div>
+
       <button
         draggable
         onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart?.() }}
         onDoubleClick={onConnect}
         onContextMenu={handleContextMenu}
         className={cn(
-          'w-full flex items-center gap-2.5 px-2.5 py-2 text-left group transition-all rounded-lg mx-1 cursor-pointer',
+          'w-full flex items-center gap-2.5 px-2.5 py-2 text-left group transition-all rounded-lg cursor-pointer',
           indent && 'pl-6',
           isActive
             ? 'bg-sidebar-accent text-sidebar-foreground'
             : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground'
         )}
-        style={{ width: 'calc(100% - 8px)' }}
       >
         <div
           className="relative w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
@@ -397,9 +458,12 @@ function ConnectionItem({
         <div className="flex-1 min-w-0">
           <p className="text-[13px] font-medium truncate leading-tight">{connection.name}</p>
           <p className="text-[11px] text-sidebar-foreground/40 truncate mt-0.5">
-            {connection.protocol === 'serial'
-              ? (connection.serialConfig?.path ?? connection.host)
-              : connection.host}
+            {connection.lastConnectedAt
+              ? <span className="flex items-center gap-1"><Clock className="w-2.5 h-2.5 shrink-0" />{timeAgo(connection.lastConnectedAt)}</span>
+              : (connection.protocol === 'serial'
+                  ? (connection.serialConfig?.path ?? connection.host)
+                  : connection.host)
+            }
           </p>
         </div>
 
@@ -426,6 +490,7 @@ function ConnectionItem({
           </button>
         </div>
       </button>
+      </div>
 
       {menuPos && (
         <ConnectionContextMenu

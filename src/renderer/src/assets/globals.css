@@ -151,3 +151,15 @@ a, button, input, select, textarea,
   transition-timing-function: ease-out;
   transition-duration: 100ms;
 }
+
+/* ── Focus ring — visible for keyboard navigation ──────────────────── */
+:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Remove default outline when not keyboard navigating */
+:focus:not(:focus-visible) {
+  outline: none;
+}
