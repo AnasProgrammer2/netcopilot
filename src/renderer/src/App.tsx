@@ -16,7 +16,7 @@ import { cn, getInstallerUrl } from './lib/utils'
 
 export default function App(): JSX.Element {
   const {
-    loadConnections, loadGroups, loadSshKeys, loadSettings,
+    loadConnections, loadGroups, loadSshKeys, loadSettings, loadSnippets, loadSnippetFolders,
     connections, sessions, activeSessionId,
     setQuickConnectOpen, setSettingsOpen, setAiPanelOpen, aiPanelOpen,
     setActiveSession, closeSession, setSplitSession, splitSessionId,
@@ -54,6 +54,8 @@ export default function App(): JSX.Element {
       loadGroups()
       loadSshKeys()
       loadSettings()
+      loadSnippets()
+      loadSnippetFolders()
     }
   }, [masterLocked])
 
@@ -203,7 +205,7 @@ export default function App(): JSX.Element {
   if (masterLocked) {
     return <MasterPasswordLock onUnlocked={() => {
       setMasterLocked(false)
-      loadConnections(); loadGroups(); loadSshKeys(); loadSettings()
+      loadConnections(); loadGroups(); loadSshKeys(); loadSettings(); loadSnippets(); loadSnippetFolders()
     }} />
   }
 

@@ -602,6 +602,13 @@ export function TerminalTab({ session }: Props): JSX.Element {
             readyTimeout:      cs.connectTimeout    * 1000,
             keepaliveInterval: cs.keepaliveInterval * 1000,
             jumpHost: jumpHostConfig,
+            proxy: conn.proxyConfig?.type && conn.proxyConfig.type !== 'none' ? {
+              type: conn.proxyConfig.type,
+              host: conn.proxyConfig.host,
+              port: conn.proxyConfig.port,
+              username: conn.proxyConfig.username,
+              password: conn.proxyConfig.password,
+            } : undefined,
           })
 
         } else if (conn.protocol === 'telnet') {

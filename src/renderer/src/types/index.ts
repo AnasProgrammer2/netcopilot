@@ -44,6 +44,31 @@ export interface SerialConfig {
   xoff: boolean
 }
 
+export type ProxyType = 'none' | 'socks5' | 'socks4' | 'http'
+
+export interface ProxyConfig {
+  type: ProxyType
+  host: string
+  port: number
+  username?: string
+  password?: string
+}
+
+export interface Snippet {
+  id: string
+  name: string
+  command: string
+  description?: string
+  folderId?: string
+  createdAt: number
+  updatedAt: number
+}
+
+export interface SnippetFolder {
+  id: string
+  name: string
+}
+
 export interface Connection {
   id: string
   name: string
@@ -64,6 +89,7 @@ export interface Connection {
   serialConfig?: SerialConfig
   autoReconnect?: boolean
   reconnectDelay?: number
+  proxyConfig?: ProxyConfig
   createdAt: number
   updatedAt: number
   lastConnectedAt?: number

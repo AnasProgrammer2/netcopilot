@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown, Sparkles, RefreshCw, Globe, FolderOpen, Palette, Pin, PinOff, Copy, XCircle, Pencil } from 'lucide-react'
+import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown, Sparkles, RefreshCw, Globe, FolderOpen, Palette, Pin, PinOff, Copy, XCircle, Pencil, Code2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { terminalRegistry } from '../../lib/terminalRegistry'
 import { useAppStore } from '../../store'
@@ -16,8 +16,9 @@ export function TabBar(): JSX.Element {
     aiPanelOpen, setAiPanelOpen, activeForwardIds,
     licenseValid, errorAlertSessionId, setErrorAlert,
     themePanelOpen, setThemePanelOpen,
+    snippetPanelOpen, setSnippetPanelOpen,
     renameSession, pinSession, unpinSession, duplicateSession, reorderSessions,
-    setSettingsOpen,
+    setSettingsOpen, groups,
   } = useAppStore()
 
   // Sort: pinned tabs first, then by insertion order
@@ -61,6 +62,8 @@ export function TabBar(): JSX.Element {
 
   const canSplit = sessions.length >= 2
 
+  const groupColorMap = new Map(groups.map(g => [g.id, g.color]))
+
   return (
     <>
     <div className="flex items-end border-b border-border bg-sidebar overflow-x-auto shrink-0 h-10 gap-px pl-1">
@@ -70,6 +73,7 @@ export function TabBar(): JSX.Element {
           session={session}
           isActive={session.id === activeSessionId}
           isSplit={session.id === splitSessionId}
+          groupColor={session.connection.groupId ? groupColorMap.get(session.connection.groupId) : undefined}
           onActivate={() => setActiveSession(session.id)}
           onClose={() => {
             if (session.id === splitSessionId) setSplitSession(null)
@@ -163,6 +167,21 @@ export function TabBar(): JSX.Element {
       >
         <Palette className="w-3.5 h-3.5" />
         <span className="hidden sm:inline">Theme</span>
+      </button>
+
+      {/* Snippets button */}
+      <button
+        onClick={() => setSnippetPanelOpen(!snippetPanelOpen)}
+        title="Snippets"
+        className={cn(
+          'shrink-0 self-center flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors',
+          snippetPanelOpen
+            ? 'text-primary bg-primary/15 hover:bg-primary/25'
+            : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+        )}
+      >
+        <Code2 className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">Snippets</span>
       </button>
 
       {/* Port Forwarding button */}
@@ -270,6 +289,7 @@ export function TabBar(): JSX.Element {
 interface TabProps {
   session: Session
   isActive: boolean
+  groupColor?: string
   isSplit: boolean
   onActivate: () => void
   onClose: () => void
@@ -284,7 +304,7 @@ interface TabProps {
   onDragEnd: () => void
 }
 
-function Tab({ session, isActive, isSplit, onActivate, onClose, onPin, onRename, onDuplicate, onCloseOthers, isDragOver, onDragStart, onDragOver, onDrop, onDragEnd }: TabProps): JSX.Element {
+function Tab({ session, isActive, isSplit, groupColor, onActivate, onClose, onPin, onRename, onDuplicate, onCloseOthers, isDragOver, onDragStart, onDragOver, onDrop, onDragEnd }: TabProps): JSX.Element {
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null)
   const [renaming, setRenaming] = useState(false)
   const [renameVal, setRenameVal] = useState('')
@@ -335,9 +355,20 @@ function Tab({ session, isActive, isSplit, onActivate, onClose, onPin, onRename,
       {/* Active tab — colored top bar */}
       {isActive && (
         <>
-          <span className="absolute top-0 left-3 right-3 h-[2px] rounded-b bg-primary/70" />
+          <span
+            className="absolute top-0 left-3 right-3 h-[2px] rounded-b"
+            style={{ backgroundColor: groupColor || 'hsl(var(--primary) / 0.7)' }}
+          />
           <span className="absolute bottom-[-1px] left-0 right-0 h-px bg-background" />
         </>
+      )}
+
+      {/* Group color dot (when not active, shows subtle indicator) */}
+      {!isActive && groupColor && (
+        <span
+          className="absolute top-0 left-3 right-3 h-[2px] rounded-b opacity-30"
+          style={{ backgroundColor: groupColor }}
+        />
       )}
 
       {/* Pin indicator */}

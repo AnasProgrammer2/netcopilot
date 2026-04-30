@@ -12,6 +12,12 @@ const api = {
     getSshKeys: () => ipcRenderer.invoke('store:get-ssh-keys'),
     saveSshKey: (key: unknown) => ipcRenderer.invoke('store:save-ssh-key', key),
     deleteSshKey: (id: string) => ipcRenderer.invoke('store:delete-ssh-key', id),
+    getSnippets: () => ipcRenderer.invoke('store:get-snippets'),
+    saveSnippet: (snippet: unknown) => ipcRenderer.invoke('store:save-snippet', snippet),
+    deleteSnippet: (id: string) => ipcRenderer.invoke('store:delete-snippet', id),
+    getSnippetFolders: () => ipcRenderer.invoke('store:get-snippet-folders'),
+    saveSnippetFolder: (folder: unknown) => ipcRenderer.invoke('store:save-snippet-folder', folder),
+    deleteSnippetFolder: (id: string) => ipcRenderer.invoke('store:delete-snippet-folder', id),
     getSetting: (key: string) => ipcRenderer.invoke('store:get-setting', key),
     setSetting: (key: string, value: unknown) => ipcRenderer.invoke('store:set-setting', key, value)
   },

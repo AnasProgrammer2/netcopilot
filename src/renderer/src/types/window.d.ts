@@ -1,4 +1,4 @@
-import { Connection, ConnectionGroup, SSHKey, SftpFileEntry } from '.'
+import { Connection, ConnectionGroup, SSHKey, SftpFileEntry, Snippet, SnippetFolder } from '.'
 
 interface JumpHostPayload {
   host: string
@@ -22,6 +22,13 @@ interface SshConnectPayload {
   readyTimeout?: number
   keepaliveInterval?: number
   jumpHost?: JumpHostPayload
+  proxy?: {
+    type: 'socks5' | 'socks4' | 'http'
+    host: string
+    port: number
+    username?: string
+    password?: string
+  }
 }
 
 interface TelnetConnectPayload {
@@ -79,6 +86,12 @@ declare global {
         getSshKeys(): Promise<SSHKey[]>
         saveSshKey(key: SSHKey): Promise<SSHKey>
         deleteSshKey(id: string): Promise<boolean>
+        getSnippets(): Promise<Snippet[]>
+        saveSnippet(snippet: Snippet): Promise<Snippet>
+        deleteSnippet(id: string): Promise<boolean>
+        getSnippetFolders(): Promise<SnippetFolder[]>
+        saveSnippetFolder(folder: SnippetFolder): Promise<SnippetFolder>
+        deleteSnippetFolder(id: string): Promise<boolean>
         getSetting(key: string): Promise<unknown>
         setSetting(key: string, value: unknown): Promise<boolean>
       }

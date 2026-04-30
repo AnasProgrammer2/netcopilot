@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb, Pencil, Trash2, Download, Upload, MoreHorizontal, Clock, Zap, FileCode, X, FolderInput } from 'lucide-react'
+import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb, Pencil, Trash2, Download, Upload, MoreHorizontal, Clock, Zap, FileCode, X, FolderInput, ArrowUpDown, Filter } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { Connection, ConnectionGroup } from '../../types'
 import { ConnectionContextMenu } from './ConnectionContextMenu'
@@ -46,6 +46,11 @@ export function Sidebar(): JSX.Element {
   const [sshConfigDialogOpen, setSshConfigDialogOpen] = useState(false)
   const [footerOpen, setFooterOpen] = useState(false)
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false)
+  const [sortBy, setSortBy] = useState<'name' | 'recent' | 'protocol'>('name')
+  const [sortMenuOpen, setSortMenuOpen] = useState(false)
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false)
+  const [filterProtocol, setFilterProtocol] = useState<string | null>(null)
+  const [filterStatus, setFilterStatus] = useState<'all' | 'connected' | 'disconnected'>('all')
 
   const selCount = selectedConnectionIds.size
 
@@ -129,17 +134,39 @@ export function Sidebar(): JSX.Element {
     })
   }
 
-  const filtered = connections.filter(
-    (c) =>
-      !search ||
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.host.toLowerCase().includes(search.toLowerCase()) ||
-      c.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()))
-  )
+  const connectedIds = new Set(sessions.filter(s => s.status === 'connected').map(s => s.connectionId))
+
+  const filtered = connections.filter((c) => {
+    if (search) {
+      const q = search.toLowerCase()
+      if (!c.name.toLowerCase().includes(q) && !c.host.toLowerCase().includes(q) && !c.tags.some((t) => t.toLowerCase().includes(q))) return false
+    }
+    if (filterProtocol && c.protocol !== filterProtocol) return false
+    if (filterStatus === 'connected' && !connectedIds.has(c.id)) return false
+    if (filterStatus === 'disconnected' && connectedIds.has(c.id)) return false
+    return true
+  })
+
+  const hasActiveFilter = filterProtocol !== null || filterStatus !== 'all'
+
+  const sortFn = (a: Connection, b: Connection) => {
+    if (sortBy === 'recent') {
+      const aTime = a.lastConnectedAt ? new Date(a.lastConnectedAt).getTime() : 0
+      const bTime = b.lastConnectedAt ? new Date(b.lastConnectedAt).getTime() : 0
+      return bTime - aTime
+    }
+    if (sortBy === 'protocol') {
+      const cmp = (a.protocol || '').localeCompare(b.protocol || '')
+      return cmp !== 0 ? cmp : a.name.localeCompare(b.name)
+    }
+    return a.name.localeCompare(b.name)
+  }
+
+  const sorted = [...filtered].sort(sortFn)
 
   const groupIds = new Set(groups.map((g) => g.id))
-  const ungrouped = filtered.filter((c) => !c.groupId || !groupIds.has(c.groupId))
-  const getGroupConnections = (groupId: string) => filtered.filter((c) => c.groupId === groupId)
+  const ungrouped = sorted.filter((c) => !c.groupId || !groupIds.has(c.groupId))
+  const getGroupConnections = (groupId: string) => sorted.filter((c) => c.groupId === groupId)
 
   return (
     <div
@@ -169,15 +196,109 @@ export function Sidebar(): JSX.Element {
             </button>
           </div>
 
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-sidebar-foreground/30" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search..."
-              className="w-full pl-8 pr-3 py-2 text-[13px] bg-sidebar-accent/50 border border-sidebar-border rounded-xl text-sidebar-foreground placeholder:text-sidebar-foreground/30 focus:outline-none focus:ring-1 focus:ring-sidebar-ring transition-colors"
+          {/* Search + Sort */}
+          <div className="flex items-center gap-1.5">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-sidebar-foreground/30" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search..."
+                className="w-full pl-8 pr-3 py-2 text-[13px] bg-sidebar-accent/50 border border-sidebar-border rounded-xl text-sidebar-foreground placeholder:text-sidebar-foreground/30 focus:outline-none focus:ring-1 focus:ring-sidebar-ring transition-colors"
             />
+            </div>
+            <div className="relative">
+              <button
+                onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+                className={cn(
+                  'p-2 rounded-xl border transition-colors cursor-pointer',
+                  hasActiveFilter
+                    ? 'bg-primary/10 border-primary/30 text-primary'
+                    : 'bg-sidebar-accent/50 border-sidebar-border text-sidebar-foreground/40 hover:text-sidebar-foreground'
+                )}
+                title="Filter"
+              >
+                <Filter className="w-3.5 h-3.5" />
+              </button>
+              {filterMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setFilterMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1.5 w-44 bg-popover border border-border rounded-xl shadow-2xl z-50 py-1.5">
+                    <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Protocol</p>
+                    {['ssh', 'telnet', 'serial'].map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setFilterProtocol(filterProtocol === p ? null : p)}
+                        className={cn(
+                          'w-full text-left px-3 py-1.5 text-[12px] transition-colors cursor-pointer rounded-lg',
+                          filterProtocol === p ? 'text-primary font-semibold bg-primary/5' : 'text-foreground hover:bg-accent'
+                        )}
+                      >
+                        {p.toUpperCase()}
+                      </button>
+                    ))}
+                    <div className="my-1.5 border-t border-border" />
+                    <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status</p>
+                    {([['all', 'All'], ['connected', 'Connected'], ['disconnected', 'Disconnected']] as const).map(([key, label]) => (
+                      <button
+                        key={key}
+                        onClick={() => setFilterStatus(key)}
+                        className={cn(
+                          'w-full text-left px-3 py-1.5 text-[12px] transition-colors cursor-pointer rounded-lg',
+                          filterStatus === key ? 'text-primary font-semibold bg-primary/5' : 'text-foreground hover:bg-accent'
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                    {hasActiveFilter && (
+                      <>
+                        <div className="my-1.5 border-t border-border" />
+                        <button
+                          onClick={() => { setFilterProtocol(null); setFilterStatus('all'); setFilterMenuOpen(false) }}
+                          className="w-full text-left px-3 py-1.5 text-[12px] text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer rounded-lg"
+                        >
+                          Clear filters
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="relative">
+              <button
+                onClick={() => setSortMenuOpen(!sortMenuOpen)}
+                className={cn(
+                  'p-2 rounded-xl border transition-colors cursor-pointer',
+                  sortBy !== 'name'
+                    ? 'bg-primary/10 border-primary/30 text-primary'
+                    : 'bg-sidebar-accent/50 border-sidebar-border text-sidebar-foreground/40 hover:text-sidebar-foreground'
+                )}
+                title={`Sort: ${sortBy === 'name' ? 'Name' : sortBy === 'recent' ? 'Recent' : 'Protocol'}`}
+              >
+                <ArrowUpDown className="w-3.5 h-3.5" />
+              </button>
+              {sortMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setSortMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1.5 w-36 bg-popover border border-border rounded-xl shadow-2xl z-50 py-1.5">
+                    {([['name', 'Name'], ['recent', 'Last Connected'], ['protocol', 'Protocol']] as const).map(([key, label]) => (
+                      <button
+                        key={key}
+                        onClick={() => { setSortBy(key); setSortMenuOpen(false) }}
+                        className={cn(
+                          'w-full text-left px-3 py-1.5 text-[12px] transition-colors cursor-pointer rounded-lg',
+                          sortBy === key ? 'text-primary font-semibold bg-primary/5' : 'text-foreground hover:bg-accent'
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 

@@ -11,10 +11,13 @@ import { terminalRegistry, buildStructuredContext, formatStructuredContext } fro
 const AI_PANEL_DEFAULT_WIDTH = 340
 const AI_PANEL_MIN_WIDTH     = 260
 const AI_PANEL_MAX_WIDTH     = 600
+import { SnippetPanel } from './SnippetPanel'
+
 const THEME_PANEL_WIDTH      = 220
+const SNIPPET_PANEL_WIDTH    = 280
 
 export function TerminalArea(): JSX.Element {
-  const { sessions, activeSessionId, splitSessionId, aiPanelOpen, themePanelOpen } = useAppStore()
+  const { sessions, activeSessionId, splitSessionId, aiPanelOpen, themePanelOpen, snippetPanelOpen } = useAppStore()
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) ?? null
   const isSplit       = !!splitSessionId && sessions.some(s => s.id === splitSessionId) && sessions.length >= 2
@@ -131,6 +134,14 @@ export function TerminalArea(): JSX.Element {
           style={{ width: themePanelOpen ? THEME_PANEL_WIDTH : 0, opacity: themePanelOpen ? 1 : 0 }}
         >
           {themePanelOpen && <ThemePanel />}
+        </div>
+
+        {/* Snippet panel — slide in from right */}
+        <div
+          className="shrink-0 flex flex-col overflow-hidden min-h-0 transition-all duration-200 ease-out"
+          style={{ width: snippetPanelOpen ? SNIPPET_PANEL_WIDTH : 0, opacity: snippetPanelOpen ? 1 : 0 }}
+        >
+          {snippetPanelOpen && <SnippetPanel />}
         </div>
 
         {/* AI panel — slide in from right */}

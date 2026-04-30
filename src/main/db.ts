@@ -2,7 +2,7 @@ import Database from 'better-sqlite3-multiple-ciphers'
 import { app, safeStorage } from 'electron'
 import path from 'path'
 import { existsSync, readFileSync } from 'fs'
-import { Connection, ConnectionGroup, SSHKey } from '../types/shared'
+import { Connection, ConnectionGroup, SSHKey, Snippet, SnippetFolder } from '../types/shared'
 import { getDbKey } from './dbKey'
 import { DEFAULT_AI_BLACKLIST } from './aiDefaults'
 
@@ -61,6 +61,7 @@ function initSchema(db: Database.Database): void {
       serial_config   TEXT,
       auto_reconnect  INTEGER NOT NULL DEFAULT 1,
       reconnect_delay INTEGER NOT NULL DEFAULT 10,
+      proxy_config    TEXT,
       created_at      INTEGER NOT NULL,
       updated_at      INTEGER NOT NULL,
       last_connected_at INTEGER
@@ -92,9 +93,32 @@ function initSchema(db: Database.Database): void {
       last_used   INTEGER NOT NULL,
       PRIMARY KEY (device_type, command)
     );
+
+    CREATE TABLE IF NOT EXISTS snippets (
+      id          TEXT PRIMARY KEY,
+      name        TEXT NOT NULL,
+      command     TEXT NOT NULL,
+      description TEXT,
+      folder_id   TEXT,
+      created_at  INTEGER NOT NULL,
+      updated_at  INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS snippet_folders (
+      id   TEXT PRIMARY KEY,
+      name TEXT NOT NULL
+    );
   `)
 
   // Seed default AI blacklist if missing or empty (handles both fresh installs and empty migrations)
+
+  // ── Schema migrations (add columns if missing) ──
+  const cols = db.prepare("PRAGMA table_info(connections)").all() as { name: string }[]
+  const colNames = new Set(cols.map(c => c.name))
+  if (!colNames.has('proxy_config')) {
+    db.exec("ALTER TABLE connections ADD COLUMN proxy_config TEXT")
+  }
+
   const blRow = db
     .prepare("SELECT value FROM settings WHERE key = 'ai.blacklist'")
     .get() as { value: string } | undefined
@@ -148,12 +172,12 @@ function migrateFromJson(db: Database.Database): void {
           INSERT OR IGNORE INTO connections
           (id, name, host, port, protocol, username, auth_type, ssh_key_id, group_id,
            tags, notes, device_type, color, jump_host_id, startup_commands,
-           enable_password, serial_config, auto_reconnect, reconnect_delay,
+           enable_password, serial_config, auto_reconnect, reconnect_delay, proxy_config,
            created_at, updated_at, last_connected_at)
           VALUES
           (@id, @name, @host, @port, @protocol, @username, @auth_type, @ssh_key_id, @group_id,
            @tags, @notes, @device_type, @color, @jump_host_id, @startup_commands,
-           @enable_password, @serial_config, @auto_reconnect, @reconnect_delay,
+           @enable_password, @serial_config, @auto_reconnect, @reconnect_delay, @proxy_config,
            @created_at, @updated_at, @last_connected_at)
         `)
         for (const c of data.connections ?? []) {
@@ -236,6 +260,7 @@ export function rowToConnection(row: Row): Connection {
     serialConfig:     row.serial_config ? safeJsonParse(row.serial_config as string, undefined) : undefined,
     autoReconnect:    Boolean(row.auto_reconnect),
     reconnectDelay:   row.reconnect_delay as number,
+    proxyConfig:      row.proxy_config ? safeJsonParse(row.proxy_config as string, undefined) : undefined,
     createdAt:        row.created_at as number,
     updatedAt:        row.updated_at as number,
     lastConnectedAt:  (row.last_connected_at as number) || undefined,
@@ -263,6 +288,7 @@ export function connToRow(c: Connection): Row {
     serial_config:    c.serialConfig    ? JSON.stringify(c.serialConfig) : null,
     auto_reconnect:   c.autoReconnect   ? 1 : 0,
     reconnect_delay:  c.reconnectDelay  ?? 10,
+    proxy_config:     c.proxyConfig     ? JSON.stringify(c.proxyConfig) : null,
     created_at:       c.createdAt,
     updated_at:       c.updatedAt,
     last_connected_at: c.lastConnectedAt ?? null,
@@ -284,5 +310,24 @@ export function rowToSshKey(row: Row): SSHKey {
     name:      row.name as string,
     publicKey: row.public_key as string,
     createdAt: row.created_at as number,
+  }
+}
+
+export function rowToSnippet(row: Row): Snippet {
+  return {
+    id:          row.id as string,
+    name:        row.name as string,
+    command:     row.command as string,
+    description: (row.description as string) || undefined,
+    folderId:    (row.folder_id as string) || undefined,
+    createdAt:   row.created_at as number,
+    updatedAt:   row.updated_at as number,
+  }
+}
+
+export function rowToSnippetFolder(row: Row): SnippetFolder {
+  return {
+    id:   row.id as string,
+    name: row.name as string,
   }
 }

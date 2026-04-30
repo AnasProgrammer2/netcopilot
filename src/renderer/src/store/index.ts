@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Connection, ConnectionGroup, SSHKey, Session, PortForwardRule } from '../types'
+import { Connection, ConnectionGroup, SSHKey, Session, PortForwardRule, Snippet, SnippetFolder } from '../types'
 import { nanoid } from 'nanoid'
 import { encryptData, decryptData } from '../lib/cryptoUtils'
 
@@ -75,6 +75,8 @@ interface AppState {
   connections: Connection[]
   groups: ConnectionGroup[]
   sshKeys: SSHKey[]
+  snippets: Snippet[]
+  snippetFolders: SnippetFolder[]
   connectionsLoaded: boolean
 
   // Sessions (active terminal tabs)
@@ -111,6 +113,12 @@ interface AppState {
   loadSshKeys: () => Promise<void>
   saveSshKey: (key: Omit<SSHKey, 'id' | 'createdAt'> & { id?: string }) => Promise<SSHKey>
   deleteSshKey: (id: string) => Promise<void>
+  loadSnippets: () => Promise<void>
+  saveSnippet: (snippet: Omit<Snippet, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => Promise<Snippet>
+  deleteSnippet: (id: string) => Promise<void>
+  loadSnippetFolders: () => Promise<void>
+  saveSnippetFolder: (folder: Omit<SnippetFolder, 'id'> & { id?: string }) => Promise<SnippetFolder>
+  deleteSnippetFolder: (id: string) => Promise<void>
 
   // Actions - Sessions
   openSession: (connection: Connection) => string
@@ -163,7 +171,9 @@ interface AppState {
   // AI Copilot
   aiPanelOpen:    boolean
   themePanelOpen: boolean
+  snippetPanelOpen: boolean
   setThemePanelOpen: (open: boolean) => void
+  setSnippetPanelOpen: (open: boolean) => void
   // License state
   licenseKey:    string
   licenseValid:  boolean
@@ -201,6 +211,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   connections: [],
   groups: [],
   sshKeys: [],
+  snippets: [],
+  snippetFolders: [],
   connectionsLoaded: false,
   sessions: [],
   activeSessionId: null,
@@ -224,7 +236,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   // AI Copilot initial state
   aiPanelOpen:    false,
   themePanelOpen: false,
+  snippetPanelOpen: false,
   setThemePanelOpen: (open) => set({ themePanelOpen: open }),
+  setSnippetPanelOpen: (open) => set({ snippetPanelOpen: open }),
   aiPermission: 'troubleshoot',
   aiApproval:   'ask',
   aiBlacklist:  [],
@@ -347,6 +361,70 @@ export const useAppStore = create<AppState>((set, get) => ({
     await window.api.store.deleteSshKey(id)
     set((state) => ({
       sshKeys: state.sshKeys.filter((k) => k.id !== id)
+    }))
+  },
+
+  // ── Snippets ──────────────────────────────────────────────────────────────
+  loadSnippets: async () => {
+    const snippets = await window.api.store.getSnippets()
+    set({ snippets })
+  },
+
+  saveSnippet: async (data) => {
+    const now = Date.now()
+    const snippet: Snippet = {
+      ...data,
+      id: data.id || nanoid(),
+      createdAt: now,
+      updatedAt: now,
+    }
+    if (data.id) {
+      const existing = get().snippets.find(s => s.id === data.id)
+      if (existing) snippet.createdAt = existing.createdAt
+    }
+    const saved = await window.api.store.saveSnippet(snippet)
+    set((state) => {
+      const idx = state.snippets.findIndex(s => s.id === saved.id)
+      if (idx >= 0) {
+        const updated = [...state.snippets]
+        updated[idx] = saved
+        return { snippets: updated }
+      }
+      return { snippets: [...state.snippets, saved] }
+    })
+    return saved
+  },
+
+  deleteSnippet: async (id) => {
+    await window.api.store.deleteSnippet(id)
+    set((state) => ({ snippets: state.snippets.filter(s => s.id !== id) }))
+  },
+
+  loadSnippetFolders: async () => {
+    const snippetFolders = await window.api.store.getSnippetFolders()
+    set({ snippetFolders })
+  },
+
+  saveSnippetFolder: async (data) => {
+    const folder: SnippetFolder = { ...data, id: data.id || nanoid() }
+    const saved = await window.api.store.saveSnippetFolder(folder)
+    set((state) => {
+      const idx = state.snippetFolders.findIndex(f => f.id === saved.id)
+      if (idx >= 0) {
+        const updated = [...state.snippetFolders]
+        updated[idx] = saved
+        return { snippetFolders: updated }
+      }
+      return { snippetFolders: [...state.snippetFolders, saved] }
+    })
+    return saved
+  },
+
+  deleteSnippetFolder: async (id) => {
+    await window.api.store.deleteSnippetFolder(id)
+    set((state) => ({
+      snippetFolders: state.snippetFolders.filter(f => f.id !== id),
+      snippets: state.snippets.map(s => s.folderId === id ? { ...s, folderId: undefined } : s)
     }))
   },
 

@@ -130,7 +130,8 @@ export function ConnectionDialog(): JSX.Element {
         startupCommands: form.startupCommands,
         serialConfig: isSerial ? (form.serialConfig ?? DEFAULT_SERIAL) : undefined,
         autoReconnect: form.autoReconnect ?? true,
-        reconnectDelay: form.reconnectDelay ?? 10
+        reconnectDelay: form.reconnectDelay ?? 10,
+        proxyConfig: form.proxyConfig?.type && form.proxyConfig.type !== 'none' ? form.proxyConfig : undefined
       } as Omit<Connection, 'id' | 'createdAt' | 'updatedAt'> & { id?: string })
 
       if (password && (form.authType === 'password' || form.authType === 'key+password')) {
@@ -476,6 +477,77 @@ export function ConnectionDialog(): JSX.Element {
                   className={cn(inputClass, 'resize-none font-mono text-xs')}
                 />
               </Field>
+
+              {/* Proxy Settings */}
+              {!isSerial && (
+                <div className="space-y-3 pt-1 border-t border-border">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Proxy / Firewall
+                  </p>
+                  <Field label="Proxy Type">
+                    <select
+                      value={form.proxyConfig?.type ?? 'none'}
+                      onChange={(e) => {
+                        const type = e.target.value as 'none' | 'socks5' | 'socks4' | 'http'
+                        update('proxyConfig', type === 'none' ? undefined : {
+                          ...(form.proxyConfig ?? { host: '', port: 1080 }),
+                          type
+                        })
+                      }}
+                      className={inputClass}
+                    >
+                      <option value="none">No Proxy</option>
+                      <option value="socks5">SOCKS5</option>
+                      <option value="socks4">SOCKS4</option>
+                      <option value="http">HTTP CONNECT</option>
+                    </select>
+                  </Field>
+                  {form.proxyConfig?.type && form.proxyConfig.type !== 'none' && (
+                    <>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="col-span-2">
+                          <Field label="Proxy Host">
+                            <input
+                              value={form.proxyConfig.host ?? ''}
+                              onChange={(e) => update('proxyConfig', { ...form.proxyConfig!, host: e.target.value })}
+                              placeholder="proxy.example.com"
+                              className={inputClass}
+                            />
+                          </Field>
+                        </div>
+                        <Field label="Port">
+                          <input
+                            type="number"
+                            min={1} max={65535}
+                            value={form.proxyConfig.port ?? 1080}
+                            onChange={(e) => update('proxyConfig', { ...form.proxyConfig!, port: parseInt(e.target.value) || 1080 })}
+                            className={inputClass}
+                          />
+                        </Field>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Field label="Username (optional)">
+                          <input
+                            value={form.proxyConfig.username ?? ''}
+                            onChange={(e) => update('proxyConfig', { ...form.proxyConfig!, username: e.target.value || undefined })}
+                            placeholder="Optional"
+                            className={inputClass}
+                          />
+                        </Field>
+                        <Field label="Password (optional)">
+                          <input
+                            type="password"
+                            value={form.proxyConfig.password ?? ''}
+                            onChange={(e) => update('proxyConfig', { ...form.proxyConfig!, password: e.target.value || undefined })}
+                            placeholder="Optional"
+                            className={inputClass}
+                          />
+                        </Field>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Auto Reconnect */}
               <div className="space-y-3 pt-1 border-t border-border">

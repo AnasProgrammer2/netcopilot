@@ -1,7 +1,7 @@
 import { IpcMain } from 'electron'
 import * as net from 'net'
-import { Connection, ConnectionGroup, SSHKey } from '../types/shared'
-import { getDb, rowToConnection, connToRow, rowToGroup, rowToSshKey } from './db'
+import { Connection, ConnectionGroup, SSHKey, Snippet, SnippetFolder } from '../types/shared'
+import { getDb, rowToConnection, connToRow, rowToGroup, rowToSshKey, rowToSnippet, rowToSnippetFolder } from './db'
 
 type Row = Record<string, unknown>
 
@@ -113,6 +113,59 @@ export function setupStoreHandlers(ipcMain: IpcMain): void {
 
   ipcMain.handle('store:delete-ssh-key', (_, id: string) => {
     getDb().prepare('DELETE FROM ssh_keys WHERE id = ?').run(id)
+    return true
+  })
+
+  // ── Snippets ────────────────────────────────────────────────────────────────
+
+  ipcMain.handle('store:get-snippets', () => {
+    const rows = getDb().prepare('SELECT * FROM snippets ORDER BY name ASC').all() as Row[]
+    return rows.map(rowToSnippet)
+  })
+
+  ipcMain.handle('store:save-snippet', (_, s: Snippet) => {
+    getDb().prepare(`
+      INSERT INTO snippets (id, name, command, description, folder_id, created_at, updated_at)
+      VALUES (@id, @name, @command, @description, @folder_id, @created_at, @updated_at)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        command = excluded.command,
+        description = excluded.description,
+        folder_id = excluded.folder_id,
+        updated_at = excluded.updated_at
+    `).run({
+      id:          s.id,
+      name:        s.name,
+      command:     s.command,
+      description: s.description ?? null,
+      folder_id:   s.folderId ?? null,
+      created_at:  s.createdAt,
+      updated_at:  s.updatedAt,
+    })
+    return s
+  })
+
+  ipcMain.handle('store:delete-snippet', (_, id: string) => {
+    getDb().prepare('DELETE FROM snippets WHERE id = ?').run(id)
+    return true
+  })
+
+  ipcMain.handle('store:get-snippet-folders', () => {
+    const rows = getDb().prepare('SELECT * FROM snippet_folders ORDER BY name ASC').all() as Row[]
+    return rows.map(rowToSnippetFolder)
+  })
+
+  ipcMain.handle('store:save-snippet-folder', (_, f: SnippetFolder) => {
+    getDb().prepare(`
+      INSERT INTO snippet_folders (id, name) VALUES (@id, @name)
+      ON CONFLICT(id) DO UPDATE SET name = excluded.name
+    `).run({ id: f.id, name: f.name })
+    return f
+  })
+
+  ipcMain.handle('store:delete-snippet-folder', (_, id: string) => {
+    getDb().prepare('DELETE FROM snippet_folders WHERE id = ?').run(id)
+    getDb().prepare('UPDATE snippets SET folder_id = NULL WHERE folder_id = ?').run(id)
     return true
   })
 

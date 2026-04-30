@@ -152,6 +152,77 @@ function handleSocks4(sock: net.Socket, sshClient: Client, buf: Buffer): void {
   })
 }
 
+function connectViaProxy(
+  proxy: { type: 'socks5' | 'socks4' | 'http'; host: string; port: number; username?: string; password?: string },
+  targetHost: string, targetPort: number
+): Promise<net.Socket> {
+  return new Promise((resolve, reject) => {
+    const sock = net.connect(proxy.port, proxy.host, () => {
+      if (proxy.type === 'http') {
+        const auth = proxy.username && proxy.password
+          ? `\r\nProxy-Authorization: Basic ${Buffer.from(`${proxy.username}:${proxy.password}`).toString('base64')}`
+          : ''
+        sock.write(`CONNECT ${targetHost}:${targetPort} HTTP/1.1\r\nHost: ${targetHost}:${targetPort}${auth}\r\n\r\n`)
+        sock.once('data', (chunk) => {
+          const resp = chunk.toString()
+          if (resp.includes('200')) resolve(sock)
+          else { sock.destroy(); reject(new Error(`HTTP proxy rejected: ${resp.split('\r\n')[0]}`)) }
+        })
+      } else {
+        // SOCKS4/5
+        if (proxy.type === 'socks5') {
+          const hasAuth = proxy.username && proxy.password
+          const authMethods = hasAuth ? Buffer.from([0x05, 0x02, 0x00, 0x02]) : Buffer.from([0x05, 0x01, 0x00])
+          sock.write(authMethods)
+          sock.once('data', (greeting) => {
+            if (greeting[1] === 0x02 && hasAuth) {
+              const uBuf = Buffer.from(proxy.username!)
+              const pBuf = Buffer.from(proxy.password!)
+              const authBuf = Buffer.concat([Buffer.from([0x01, uBuf.length]), uBuf, Buffer.from([pBuf.length]), pBuf])
+              sock.write(authBuf)
+              sock.once('data', (authResp) => {
+                if (authResp[1] !== 0x00) { sock.destroy(); return reject(new Error('SOCKS5 auth failed')) }
+                sendSocks5Connect(sock, targetHost, targetPort, resolve, reject)
+              })
+            } else if (greeting[1] === 0x00) {
+              sendSocks5Connect(sock, targetHost, targetPort, resolve, reject)
+            } else {
+              sock.destroy(); reject(new Error('SOCKS5 no acceptable auth method'))
+            }
+          })
+        } else {
+          // SOCKS4
+          const portBuf = Buffer.alloc(2)
+          portBuf.writeUInt16BE(targetPort, 0)
+          const ipBuf = Buffer.from([0, 0, 0, 1]) // SOCKS4a: invalid IP
+          const userBuf = Buffer.from(proxy.username ?? '')
+          const hostBuf = Buffer.from(targetHost)
+          const req = Buffer.concat([Buffer.from([0x04, 0x01]), portBuf, ipBuf, userBuf, Buffer.from([0x00]), hostBuf, Buffer.from([0x00])])
+          sock.write(req)
+          sock.once('data', (resp) => {
+            if (resp[1] === 0x5a) resolve(sock)
+            else { sock.destroy(); reject(new Error(`SOCKS4 rejected: code ${resp[1]}`)) }
+          })
+        }
+      }
+    })
+    sock.on('error', (err) => reject(new Error(`Proxy connection failed: ${err.message}`)))
+    sock.setTimeout(15000, () => { sock.destroy(); reject(new Error('Proxy connection timeout')) })
+  })
+}
+
+function sendSocks5Connect(sock: net.Socket, host: string, port: number, resolve: (s: net.Socket) => void, reject: (e: Error) => void) {
+  const hostBuf = Buffer.from(host)
+  const portBuf = Buffer.alloc(2)
+  portBuf.writeUInt16BE(port, 0)
+  const req = Buffer.concat([Buffer.from([0x05, 0x01, 0x00, 0x03, hostBuf.length]), hostBuf, portBuf])
+  sock.write(req)
+  sock.once('data', (resp) => {
+    if (resp[1] === 0x00) { sock.setTimeout(0); resolve(sock) }
+    else { sock.destroy(); reject(new Error(`SOCKS5 connect failed: code ${resp[1]}`)) }
+  })
+}
+
 export function setupSshHandlers(
   ipcMain: IpcMain,
   getWindow: () => BrowserWindow | null
@@ -179,6 +250,13 @@ export function setupSshHandlers(
           password?: string
           privateKey?: string
           passphrase?: string
+        }
+        proxy?: {
+          type: 'socks5' | 'socks4' | 'http'
+          host: string
+          port: number
+          username?: string
+          password?: string
         }
       }
     ) => {
@@ -299,15 +377,26 @@ export function setupSshHandlers(
           ))
 
         } else {
-          // ── Direct connection ─────────────────────────────────────────────────
-          const client = new Client()
-          client.on('error', (err) => settle({ success: false, error: err.message }))
-          client.on('ready', () => openShell(client, null))
-          client.connect(buildConnectConfig(
-            payload.host, payload.port, payload.username,
-            payload.password, payload.privateKey, payload.passphrase,
-            payload.readyTimeout ?? 30000, payload.keepaliveInterval ?? 30000
-          ))
+          // ── Direct connection (possibly through proxy) ─────────────────────
+          const connectDirect = (sock?: net.Socket) => {
+            const client = new Client()
+            client.on('error', (err) => settle({ success: false, error: err.message }))
+            client.on('ready', () => openShell(client, null))
+            client.connect(buildConnectConfig(
+              payload.host, payload.port, payload.username,
+              payload.password, payload.privateKey, payload.passphrase,
+              payload.readyTimeout ?? 30000, payload.keepaliveInterval ?? 30000,
+              sock
+            ))
+          }
+
+          if (payload.proxy) {
+            connectViaProxy(payload.proxy, payload.host, payload.port)
+              .then((proxySock) => connectDirect(proxySock))
+              .catch((err) => settle({ success: false, error: `Proxy: ${err.message}` }))
+          } else {
+            connectDirect()
+          }
         }
       })
     }
