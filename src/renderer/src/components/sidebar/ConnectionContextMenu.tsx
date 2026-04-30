@@ -41,16 +41,17 @@ export function ConnectionContextMenu({ position, onClose, onConnect, onOpenSftp
     setPingState(result)
   }
 
-  const Item = ({ icon: Icon, label, onClick, danger = false, suffix }: {
+  const Item = ({ icon: Icon, label, onClick, danger = false, suffix, keepOpen = false }: {
     icon: React.ComponentType<{ className?: string }>
     label: string
     onClick: () => void
     danger?: boolean
     suffix?: React.ReactNode
+    keepOpen?: boolean
   }) => (
     <button
-      onClick={() => { onClick(); if (!suffix) onClose() }}
-      className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-sm text-left hover:bg-accent transition-colors ${danger ? 'text-destructive hover:text-destructive' : 'text-foreground'}`}
+      onClick={() => { onClick(); if (!keepOpen) onClose() }}
+      className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-sm text-left hover:bg-accent transition-colors cursor-pointer ${danger ? 'text-destructive hover:text-destructive' : 'text-foreground'}`}
     >
       <Icon className="w-3.5 h-3.5 shrink-0" />
       <span className="flex-1">{label}</span>
@@ -79,6 +80,7 @@ export function ConnectionContextMenu({ position, onClose, onConnect, onOpenSftp
         label="Ping"
         onClick={handlePing}
         suffix={pingBadge()}
+        keepOpen
       />
       <div className="my-1 border-t border-border" />
       <Item icon={Pencil} label="Edit" onClick={onEdit} />

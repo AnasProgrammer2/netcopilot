@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb, Pencil, Trash2, Download, Upload, MoreHorizontal, Clock, Zap, FileCode } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { Connection, ConnectionGroup } from '../../types'
@@ -33,6 +33,7 @@ export function Sidebar(): JSX.Element {
     setConnectionDialogOpen, setQuickConnectOpen,
     openSession, openSftpSession, exportConnections, importConnections,
     saveConnection, connectionsLoaded,
+    groupDialogOpen, setGroupDialogOpen,
   } = useAppStore()
 
   const [importMsg, setImportMsg] = useState<string | null>(null)
@@ -61,6 +62,14 @@ export function Sidebar(): JSX.Element {
   const [search, setSearch] = useState('')
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   const [groupDialog, setGroupDialog] = useState<{ open: boolean; group?: ConnectionGroup }>({ open: false })
+
+  // Sync store-triggered group dialog (from Command Palette)
+  useEffect(() => {
+    if (groupDialogOpen) {
+      setGroupDialog({ open: true })
+      setGroupDialogOpen(false)
+    }
+  }, [groupDialogOpen, setGroupDialogOpen])
   const isResizing = useRef(false)
   const startX = useRef(0)
   const startWidth = useRef(0)

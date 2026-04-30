@@ -91,6 +91,7 @@ interface AppState {
   quickConnectOpen: boolean
   connectionDialogOpen: boolean
   editingConnection: Connection | null
+  groupDialogOpen: boolean
   settingsOpen: boolean
   settingsInitialTab: string | null
 
@@ -131,6 +132,7 @@ interface AppState {
   setSidebarCollapsed: (collapsed: boolean) => void
   setQuickConnectOpen: (open: boolean) => void
   setConnectionDialogOpen: (open: boolean, connection?: Connection | null) => void
+  setGroupDialogOpen: (open: boolean) => void
   setSettingsOpen: (open: boolean, tab?: string) => void
 
   // Split pane
@@ -229,6 +231,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   quickConnectOpen: false,
   connectionDialogOpen: false,
   editingConnection: null,
+  groupDialogOpen: false,
   settingsOpen: false,
   settingsInitialTab: null,
   splitSessionId:    null,
@@ -662,6 +665,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setConnectionDialogOpen: (open, connection = null) =>
     set({ connectionDialogOpen: open, editingConnection: connection }),
+  setGroupDialogOpen: (open) => set({ groupDialogOpen: open }),
 
   setSettingsOpen: (open, tab) => set({ settingsOpen: open, settingsInitialTab: tab ?? null }),
 

@@ -58,6 +58,7 @@ export function QuickConnect(): JSX.Element {
   const {
     quickConnectOpen, setQuickConnectOpen, connections, openSession,
     setConnectionDialogOpen, setSettingsOpen, setSplitSession, activeSessionId, splitSessionId,
+    setGroupDialogOpen,
   } = useAppStore()
   const [query, setQuery]         = useState('')
   const [selectedIdx, setSelectedIdx] = useState(0)
@@ -138,7 +139,7 @@ export function QuickConnect(): JSX.Element {
     setQuickConnectOpen(false)
     switch (id) {
       case 'new-connection':  setConnectionDialogOpen(true); break
-      case 'new-group':       setConnectionDialogOpen(true); break  // reuse dialog; groups handled via sidebar
+      case 'new-group':       setGroupDialogOpen(true); break
       case 'open-settings':   setSettingsOpen(true); break
       case 'ssh-keys':        /* trigger via event */ document.dispatchEvent(new CustomEvent('open-ssh-keys')); break
       case 'export':          document.dispatchEvent(new CustomEvent('open-export')); break
