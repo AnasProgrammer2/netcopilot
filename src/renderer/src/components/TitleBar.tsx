@@ -1,4 +1,4 @@
-import { Settings, Zap, Network, HelpCircle, BookOpen, Keyboard, Minus, Square, X, Copy } from 'lucide-react'
+import { Settings, Zap, Network, HelpCircle, BookOpen, Keyboard, Minus, Square, X, Copy, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { useAppStore } from '../store'
 
@@ -8,7 +8,7 @@ interface Props {
 }
 
 export function TitleBar({ onShortcuts, onWelcome }: Props): JSX.Element {
-  const { setSettingsOpen, setQuickConnectOpen, sessions } = useAppStore()
+  const { setSettingsOpen, setQuickConnectOpen, sessions, sidebarCollapsed, setSidebarCollapsed } = useAppStore()
   const isMac = navigator.userAgent.includes('Mac')
   const activeSessions = sessions.filter(s => s.status === 'connected').length
   const [helpOpen, setHelpOpen] = useState(false)
@@ -35,17 +35,29 @@ export function TitleBar({ onShortcuts, onWelcome }: Props): JSX.Element {
       className="drag-region h-11 flex items-center justify-between border-b border-border bg-sidebar shrink-0"
       style={{ paddingLeft: isMac ? '80px' : '16px', paddingRight: isMac ? '12px' : '0px' }}
     >
-      {/* Logo */}
-      <div className="flex items-center gap-2.5 no-drag">
-        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/15">
-          <Network className="w-4 h-4 text-primary" />
+      {/* Logo + Sidebar toggle */}
+      <div className="flex items-center gap-1 no-drag">
+        <button
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          title={sidebarCollapsed ? 'Show Sidebar' : 'Hide Sidebar'}
+        >
+          {sidebarCollapsed
+            ? <PanelLeftOpen className="w-4 h-4" />
+            : <PanelLeftClose className="w-4 h-4" />
+          }
+        </button>
+        <div className="flex items-center gap-2.5 ml-1">
+          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/15">
+            <Network className="w-4 h-4 text-primary" />
+          </div>
+          <span className="text-[15px] font-bold text-foreground tracking-tight">NetCopilot</span>
+          {activeSessions > 0 && (
+            <span className="hidden sm:inline text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 tabular-nums">
+              {activeSessions} live
+            </span>
+          )}
         </div>
-        <span className="text-[15px] font-bold text-foreground tracking-tight">NetCopilot</span>
-        {activeSessions > 0 && (
-          <span className="hidden sm:inline text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 tabular-nums">
-            {activeSessions} live
-          </span>
-        )}
       </div>
 
       {/* Actions */}

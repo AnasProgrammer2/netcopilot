@@ -17,6 +17,7 @@ export function TabBar(): JSX.Element {
     licenseValid, errorAlertSessionId, setErrorAlert,
     themePanelOpen, setThemePanelOpen,
     renameSession, pinSession, unpinSession, duplicateSession, reorderSessions,
+    setSettingsOpen,
   } = useAppStore()
 
   // Sort: pinned tabs first, then by insertion order
@@ -123,7 +124,10 @@ export function TabBar(): JSX.Element {
       <button
         onClick={() => {
           if (!aiPanelOpen && !licenseValid) {
-            toast.error('License key required', { description: 'Add your license key in Settings → ARIA to use the AI assistant.' })
+            toast.error('License key required', {
+              description: 'Add your license key in Settings → ARIA to use the AI assistant.',
+              action: { label: 'Open Settings', onClick: () => setSettingsOpen(true, 'ai') }
+            })
             return
           }
           if (hasErrorAlert) setErrorAlert(null)

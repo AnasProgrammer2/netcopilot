@@ -25,6 +25,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
   const termRef         = useRef<Terminal | null>(null)
   const fitRef          = useRef<FitAddon | null>(null)
   const searchRef       = useRef<SearchAddon | null>(null)
+  const [terminalReady, setTerminalReady] = useState(false)
   const connectingRef   = useRef(false)
   const mountedRef      = useRef(true)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -217,39 +218,79 @@ export function TerminalTab({ session }: Props): JSX.Element {
   // panel is open and not already streaming, send context for analysis.
   // Skips ANSI-only noise (escape sequences, cursor moves, redraws).
   useEffect(() => {
+    if (!terminalReady || !termRef.current) return
     let debounceTimer: ReturnType<typeof setTimeout> | null = null
+    let typingTimer: ReturnType<typeof setTimeout> | null = null
     let outputBuffer = ''
+    let typingBuffer = ''
     let lastAnalyzed = ''
+    let userSentCommand = false
+    let receivingOutput = false
 
     // Strip ANSI escape codes to get plain text
     const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b[()][AB012]/g, '').trim()
 
     const proto = session.connection.protocol
+
+    const fireProstActive = (context: string) => {
+      const { aiPanelOpen, aiStreaming, aiAgentActive, activeSessionId } = useAppStore.getState()
+      const autoWatch = (window as unknown as Record<string, unknown>)['__aiAutoWatch']
+      if (!aiPanelOpen || aiStreaming || aiAgentActive || activeSessionId !== session.id || !autoWatch) return
+      if (context === lastAnalyzed) return
+      lastAnalyzed = context
+      const proactive = (window as unknown as Record<string, unknown>)['__aiSendProactive']
+      if (typeof proactive === 'function') proactive(context)
+    }
+
+    // Track keystrokes — two triggers: typing pause + Enter→output
+    const keyListener = termRef.current?.onKey(({ key, domEvent }) => {
+      if (key === '\r' || key === '\n') {
+        // User submitted a command → switch to output-watch mode
+        userSentCommand = true
+        receivingOutput = false
+        outputBuffer = ''
+        typingBuffer = ''
+        if (typingTimer) { clearTimeout(typingTimer); typingTimer = null }
+      } else if (key === '\x7f' || domEvent.key === 'Backspace') {
+        typingBuffer = typingBuffer.slice(0, -1)
+      } else if (key.length === 1 && !domEvent.ctrlKey && !domEvent.metaKey && !domEvent.altKey) {
+        typingBuffer += key
+        // Typing pause trigger — fire after 3s of silence while typing
+        if (typingTimer) clearTimeout(typingTimer)
+        if (typingBuffer.trim().length >= 4) {
+          typingTimer = setTimeout(() => {
+            typingTimer = null
+            if (!typingBuffer.trim()) return
+            fireProstActive(`User stopped typing without submitting — current input:\n$ ${typingBuffer}`)
+          }, 3000)
+        }
+      }
+    })
+
     const onData = (_sessionId: string, data: string) => {
       if (_sessionId !== session.id) return
+
+      // Only accumulate if the user actually sent a command
+      if (!userSentCommand) return
+
+      receivingOutput = true
       outputBuffer += data
+
       if (debounceTimer) clearTimeout(debounceTimer)
+      // 2s silence after output stops → trigger
       debounceTimer = setTimeout(() => {
-        const { aiPanelOpen, aiStreaming, aiAgentActive, activeSessionId } = useAppStore.getState()
-        const autoWatch = (window as unknown as Record<string, unknown>)['__aiAutoWatch']
-        if (!aiPanelOpen || aiStreaming || aiAgentActive || activeSessionId !== session.id || !autoWatch) {
-          outputBuffer = ''
-          return
-        }
+        if (!receivingOutput) return
+        receivingOutput = false
+        userSentCommand = false
+
         const plain = stripAnsi(outputBuffer)
         outputBuffer = ''
 
         // Skip if content is too short (< 20 chars) — likely just a prompt redraw
         if (plain.length < 20) return
 
-        // Skip if the content is the same as what we already analyzed
-        if (plain === lastAnalyzed) return
-        lastAnalyzed = plain
-
-        // Trigger proactive analysis via the global bridge set by AiPanel
-        const proactive = (window as unknown as Record<string, unknown>)['__aiSendProactive']
-        if (typeof proactive === 'function') proactive(plain)
-      }, 4000)
+        fireProstActive(plain)
+      }, 2000)
     }
 
     let off: (() => void) | undefined
@@ -259,9 +300,11 @@ export function TerminalTab({ session }: Props): JSX.Element {
 
     return () => {
       if (debounceTimer) clearTimeout(debounceTimer)
+      if (typingTimer) clearTimeout(typingTimer)
+      keyListener?.dispose()
       off?.()
     }
-  }, [session.id, session.connection.protocol])
+  }, [session.id, session.connection.protocol, terminalReady])
 
   // ── Error Alert — always-on detector (panel open or closed) ──────────────────
   useEffect(() => {
@@ -345,6 +388,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
     termRef.current   = term
     fitRef.current    = fitAddon
     searchRef.current = searchAddon
+    setTerminalReady(true)
 
     // Register this terminal instance in the global registry so AiPanel can access it
     terminalRegistry.register(session.id, {

@@ -57,7 +57,24 @@ export function setupFileDialogHandlers(
     return path.join(app.getPath('documents'), 'NetCopilot Logs')
   })
 
-  // ── SSH Config reader ────────────────────────────────────────────────────────
+  // ── Generic text file reader ────────────────────────────────────────────────
+  ipcMain.handle('dialog:read-text-file', async (_, opts: { title?: string; extensions?: string[] } = {}) => {
+    const win = getWindow() ?? undefined
+    try {
+      const result = await dialog.showOpenDialog(win!, {
+        title: opts.title ?? 'Select File',
+        filters: [
+          { name: 'Key Files', extensions: opts.extensions ?? ['pem', 'key', 'pub', 'ppk', ''] },
+          { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+      })
+      if (result.canceled || result.filePaths.length === 0) return null
+      return await readFile(result.filePaths[0], 'utf-8')
+    } catch {
+      return null
+    }
+  })
   ipcMain.handle('dialog:read-ssh-config', async (_, pickFile = false) => {
     const win = getWindow() ?? undefined
     if (pickFile) {

@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState, useRef } from 'react'
-import { Lock, ArrowUpCircle, X } from 'lucide-react'
+import { Lock, ArrowUpCircle, X, PanelLeftOpen } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
 import { useAppStore } from './store'
 import { Sidebar } from './components/sidebar/Sidebar'
@@ -21,6 +21,7 @@ export default function App(): JSX.Element {
     setQuickConnectOpen, setSettingsOpen, setAiPanelOpen, aiPanelOpen,
     setActiveSession, closeSession, setSplitSession, splitSessionId,
     licenseValid,
+    sidebarCollapsed, sidebarWidth, setSidebarCollapsed,
   } = useAppStore()
   const [masterLocked, setMasterLocked] = useState<boolean | null>(null)
   const [locked, setLocked] = useState(false)
@@ -131,7 +132,10 @@ export default function App(): JSX.Element {
       else if (e.shiftKey && e.key === 'A') {
         e.preventDefault()
         if (!aiPanelOpen && !licenseValid) {
-          toast.error('License key required', { description: 'Add your license key in Settings → ARIA to use the AI assistant.' })
+          toast.error('License key required', {
+            description: 'Add your license key in Settings → ARIA to use the AI assistant.',
+            action: { label: 'Open Settings', onClick: () => setSettingsOpen(true, 'ai') }
+          })
           return
         }
         setAiPanelOpen(!aiPanelOpen)
@@ -146,6 +150,11 @@ export default function App(): JSX.Element {
           if (other) setSplitSession(other.id)
         }
       }
+      // ⌘B / Ctrl+B — Toggle sidebar
+      else if (e.key === 'b') {
+        e.preventDefault()
+        setSidebarCollapsed(!sidebarCollapsed)
+      }
       // ⌘1-9 / Ctrl+1-9 — Switch to tab N
       else if (e.key >= '1' && e.key <= '9') {
         const idx = parseInt(e.key) - 1
@@ -159,6 +168,7 @@ export default function App(): JSX.Element {
       setQuickConnectOpen, setSettingsOpen, setAiPanelOpen, aiPanelOpen,
       activeSessionId, splitSessionId, sessions, licenseValid,
       closeSession, setSplitSession, setActiveSession,
+      sidebarCollapsed, setSidebarCollapsed,
     ]  )
 
   useEffect(() => {
@@ -198,7 +208,26 @@ export default function App(): JSX.Element {
       />
 
       <div className="flex flex-1 overflow-hidden min-h-0">
-        <Sidebar />
+        {/* Collapsed mini-bar */}
+        {sidebarCollapsed && (
+          <div className="shrink-0 w-11 bg-sidebar border-r border-sidebar-border flex flex-col items-center pt-3 gap-2">
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              className="p-1.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors cursor-pointer"
+              title="Show Sidebar (⌘B)"
+            >
+              <PanelLeftOpen className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Full sidebar */}
+        <div
+          className="shrink-0 overflow-hidden transition-all duration-200 ease-out"
+          style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}
+        >
+          <Sidebar />
+        </div>
 
         <main className="flex-1 flex flex-col overflow-hidden min-h-0">
           {sessions.length === 0

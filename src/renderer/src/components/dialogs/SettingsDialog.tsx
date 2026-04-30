@@ -97,10 +97,18 @@ const NAV: { id: SettingsSection; label: string; icon: React.ComponentType<{ cla
 
 // ─── Main component ──────────────────────────────────────────────────────────
 export function SettingsDialog(): JSX.Element {
-  const { settingsOpen, setSettingsOpen, applySettings } = useAppStore()
+  const { settingsOpen, setSettingsOpen, applySettings, settingsInitialTab } = useAppStore()
   const [section, setSection] = useState<SettingsSection>('appearance')
   const [settings, setSettings] = useState<AppSettings>(DEFAULTS)
   const [saved, setSaved] = useState(false)
+
+  // Jump to a specific tab when opened with one
+  useEffect(() => {
+    if (settingsOpen && settingsInitialTab) {
+      setSection(settingsInitialTab as SettingsSection)
+    }
+    if (!settingsOpen) setSection('appearance')
+  }, [settingsOpen, settingsInitialTab])
 
   useEffect(() => {
     if (!settingsOpen) return

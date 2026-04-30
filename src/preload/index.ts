@@ -84,6 +84,8 @@ const api = {
       ipcRenderer.invoke('dialog:getDefaultLogDir'),
     readSshConfig: (pickFile?: boolean): Promise<string | null> =>
       ipcRenderer.invoke('dialog:read-ssh-config', pickFile ?? false),
+    readTextFile: (opts?: { title?: string; extensions?: string[] }): Promise<string | null> =>
+      ipcRenderer.invoke('dialog:read-text-file', opts ?? {}),
   },
 
   // App info

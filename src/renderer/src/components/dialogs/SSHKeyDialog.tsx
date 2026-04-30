@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Plus, Trash2, Key, Eye, EyeOff, Check } from 'lucide-react'
+import { X, Plus, Trash2, Key, Eye, EyeOff, Check, FolderOpen } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { SSHKey } from '../../types'
 import { cn } from '../../lib/utils'
@@ -43,6 +43,24 @@ export function SSHKeyDialog({ onClose }: Props): JSX.Element {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleImportKeyFile = async () => {
+    const content = await window.api.file.readTextFile({
+      title: 'Select SSH Key File',
+      extensions: ['pem', 'key', 'pub', 'ppk', '']
+    })
+    if (!content) return
+    const trimmed = content.trim()
+    // Detect public vs private key
+    const isPublic = trimmed.startsWith('ssh-') || trimmed.startsWith('ecdsa-') || trimmed.startsWith('sk-')
+    if (isPublic) {
+      setPublicKey(trimmed)
+    } else {
+      setPrivateKey(trimmed)
+      setShowPrivate(false)
+    }
+    setView('add')
   }
 
   const handleDelete = async (key: SSHKey) => {
@@ -96,7 +114,19 @@ export function SSHKeyDialog({ onClose }: Props): JSX.Element {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Public Key</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-muted-foreground">Public Key</label>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const content = await window.api.file.readTextFile({ title: 'Select Public Key File', extensions: ['pub', 'pem', 'key', ''] })
+                      if (content) setPublicKey(content.trim())
+                    }}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" /> Import from file
+                  </button>
+                </div>
                 <textarea
                   value={publicKey}
                   onChange={(e) => setPublicKey(e.target.value)}
@@ -109,13 +139,25 @@ export function SSHKeyDialog({ onClose }: Props): JSX.Element {
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-medium text-muted-foreground">Private Key</label>
-                  <button
-                    onClick={() => setShowPrivate(v => !v)}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showPrivate ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    {showPrivate ? 'Hide' : 'Show'}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const content = await window.api.file.readTextFile({ title: 'Select Private Key File', extensions: ['pem', 'key', 'ppk', ''] })
+                        if (content) { setPrivateKey(content.trim()); setShowPrivate(false) }
+                      }}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5" /> Import from file
+                    </button>
+                    <button
+                      onClick={() => setShowPrivate(v => !v)}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    >
+                      {showPrivate ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      {showPrivate ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
                 </div>
                 <textarea
                   value={privateKey}
@@ -140,12 +182,19 @@ export function SSHKeyDialog({ onClose }: Props): JSX.Element {
                 {sshKeys.length} {sshKeys.length === 1 ? 'key' : 'keys'}
               </span>
               <div className="flex gap-2">
-                <button onClick={onClose} className="px-4 py-2 text-sm rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                <button onClick={onClose} className="px-4 py-2 text-sm rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer">
                   Close
                 </button>
                 <button
+                  onClick={handleImportKeyFile}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md border border-border text-foreground hover:bg-accent transition-colors cursor-pointer"
+                >
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  Import File
+                </button>
+                <button
                   onClick={() => setView('add')}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md bg-primary text-white hover:bg-primary/90 transition-colors"
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md bg-primary text-white hover:bg-primary/90 transition-colors cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Add Key

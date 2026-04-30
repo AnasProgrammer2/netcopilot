@@ -41,6 +41,7 @@ export function Sidebar(): JSX.Element {
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [sshConfigDialogOpen, setSshConfigDialogOpen] = useState(false)
+  const [footerOpen, setFooterOpen] = useState(false)
 
   // DnD state for connections → groups
   const dragConnId = useRef<string | null>(null)
@@ -109,12 +110,12 @@ export function Sidebar(): JSX.Element {
 
   return (
     <div
-      className="flex shrink-0 bg-sidebar border-r border-sidebar-border relative"
+      className="flex shrink-0 h-full bg-sidebar border-r border-sidebar-border relative overflow-hidden"
       style={{ width: sidebarWidth }}
     >
-      <div className="flex flex-col w-full overflow-hidden">
+      <div className="flex flex-col w-full h-full overflow-hidden">
         {/* Header */}
-        <div className="px-3 pt-3 pb-3 border-b border-sidebar-border">
+        <div className="shrink-0 px-3 pt-3 pb-3 border-b border-sidebar-border">
           <div className="flex items-center gap-1 mb-3">
             <span className="text-[15px] font-bold text-sidebar-foreground flex-1 pl-0.5 tracking-tight">
               Connections
@@ -287,40 +288,56 @@ export function Sidebar(): JSX.Element {
           </div>
         </div>
 
-        {/* Footer actions — always visible, Termius-style */}
-        <div className="border-t border-sidebar-border px-2 py-2 space-y-0.5">
-          {[
-            { icon: Key,      label: 'SSH Keys',           color: '#8b5cf6', action: () => setSshKeyDialogOpen(true) },
-            { icon: FileCode, label: 'Import SSH Config',  color: '#06b6d4', action: () => setSshConfigDialogOpen(true) },
-            { icon: Download, label: 'Export Connections', color: '#10b981', action: () => setExportDialogOpen(true) },
-            { icon: Upload,   label: 'Import Connections', color: '#f59e0b', action: () => setImportDialogOpen(true) },
-          ].map(({ icon: Icon, label, color, action }) => (
-            <button
-              key={label}
-              onClick={action}
-              className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-[13px] font-medium text-sidebar-foreground hover:bg-sidebar-accent transition-colors cursor-pointer group"
-            >
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-opacity"
-                style={{ backgroundColor: color + '22' }}
-              >
-                <Icon className="w-3.5 h-3.5" style={{ color }} />
-              </div>
-              {label}
-            </button>
-          ))}
+        {/* Footer actions — collapsible, always at bottom */}
+        <div className="shrink-0 border-t border-sidebar-border">
+          <button
+            onClick={() => setFooterOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-3 py-2 text-[11px] font-medium text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors cursor-pointer"
+          >
+            <span className="uppercase tracking-wider">Tools</span>
+            <ChevronDown className={cn('w-3.5 h-3.5 transition-transform duration-200', footerOpen && 'rotate-180')} />
+          </button>
 
-          {importMsg && (
-            <p className={cn(
-              'text-xs px-2 py-1 rounded-lg mt-1',
-              importMsg.startsWith('Imported')
-                ? 'text-emerald-500 bg-emerald-500/10'
-                : 'text-red-400 bg-red-400/10'
-            )}>
-              {importMsg}
-            </p>
-          )}
+          <div className={cn(
+            'overflow-hidden transition-all duration-200 ease-out',
+            footerOpen ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
+          )}>
+            <div className="px-2 pb-2 space-y-0.5">
+              {[
+                { icon: Key,      label: 'SSH Keys',           color: '#8b5cf6', action: () => setSshKeyDialogOpen(true) },
+                { icon: FileCode, label: 'Import SSH Config',  color: '#06b6d4', action: () => setSshConfigDialogOpen(true) },
+                { icon: Download, label: 'Export Connections', color: '#10b981', action: () => setExportDialogOpen(true) },
+                { icon: Upload,   label: 'Import Connections', color: '#f59e0b', action: () => setImportDialogOpen(true) },
+              ].map(({ icon: Icon, label, color, action }) => (
+                <button
+                  key={label}
+                  onClick={action}
+                  className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-[13px] font-medium text-sidebar-foreground hover:bg-sidebar-accent transition-colors cursor-pointer group"
+                >
+                  <div
+                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: color + '22' }}
+                  >
+                    <Icon className="w-3.5 h-3.5" style={{ color }} />
+                  </div>
+                  {label}
+                </button>
+              ))}
+
+              {importMsg && (
+                <p className={cn(
+                  'text-xs px-2 py-1 rounded-lg mt-1',
+                  importMsg.startsWith('Imported')
+                    ? 'text-emerald-500 bg-emerald-500/10'
+                    : 'text-red-400 bg-red-400/10'
+                )}>
+                  {importMsg}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
+
       </div>
 
       {/* Resize handle */}

@@ -277,7 +277,7 @@ export function HomeScreen(): JSX.Element {
       )}
 
       {/* ── Content ────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
+      <div className="flex-1 overflow-y-auto px-6 py-6 pb-4 space-y-6">
 
         {/* Breadcrumb */}
         {selectedGroup && currentGroup && (
@@ -342,7 +342,7 @@ export function HomeScreen(): JSX.Element {
                 New
               </button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
               {groupedConns
                 .filter(({ conns }) => !search || conns.length > 0)
                 .map(({ group, conns }) => (
@@ -371,7 +371,7 @@ export function HomeScreen(): JSX.Element {
                 </span>
               )}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
               {(selectedGroup ? displayConns : ungrouped).map(conn => (
                 <HostCard
                   key={conn.id}

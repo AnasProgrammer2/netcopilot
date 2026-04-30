@@ -87,10 +87,12 @@ interface AppState {
 
   // UI state
   sidebarWidth: number
+  sidebarCollapsed: boolean
   quickConnectOpen: boolean
   connectionDialogOpen: boolean
   editingConnection: Connection | null
   settingsOpen: boolean
+  settingsInitialTab: string | null
 
   // Actions - Data
   loadConnections: () => Promise<void>
@@ -126,9 +128,10 @@ interface AppState {
 
   // Actions - UI
   setSidebarWidth: (width: number) => void
+  setSidebarCollapsed: (collapsed: boolean) => void
   setQuickConnectOpen: (open: boolean) => void
   setConnectionDialogOpen: (open: boolean, connection?: Connection | null) => void
-  setSettingsOpen: (open: boolean) => void
+  setSettingsOpen: (open: boolean, tab?: string) => void
 
   // Split pane
   splitSessionId: string | null
@@ -222,10 +225,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   aiAgentActive: false,
   aiTokens:     { input: 0, output: 0 },
   sidebarWidth: 260,
+  sidebarCollapsed: false,
   quickConnectOpen: false,
   connectionDialogOpen: false,
   editingConnection: null,
   settingsOpen: false,
+  settingsInitialTab: null,
   splitSessionId:    null,
   portForwardRules:  [],
   activeForwardIds:  new Set<string>(),
@@ -651,13 +656,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     })),
 
   setSidebarWidth: (width) => set({ sidebarWidth: width }),
+  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
 
   setQuickConnectOpen: (open) => set({ quickConnectOpen: open }),
 
   setConnectionDialogOpen: (open, connection = null) =>
     set({ connectionDialogOpen: open, editingConnection: connection }),
 
-  setSettingsOpen: (open) => set({ settingsOpen: open }),
+  setSettingsOpen: (open, tab) => set({ settingsOpen: open, settingsInitialTab: tab ?? null }),
 
   setSplitSession: (id) => set({ splitSessionId: id }),
 
