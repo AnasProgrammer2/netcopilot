@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb, Pencil, Trash2, Download, Upload, MoreHorizontal, Clock, Zap, FileCode } from 'lucide-react'
+import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb, Pencil, Trash2, Download, Upload, MoreHorizontal, Clock, Zap, FileCode, X, FolderInput } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { Connection, ConnectionGroup } from '../../types'
 import { ConnectionContextMenu } from './ConnectionContextMenu'
@@ -34,6 +34,8 @@ export function Sidebar(): JSX.Element {
     openSession, openSftpSession, exportConnections, importConnections,
     saveConnection, connectionsLoaded,
     groupDialogOpen, setGroupDialogOpen,
+    selectedConnectionIds, toggleSelectConnection, clearSelection,
+    deleteConnection,
   } = useAppStore()
 
   const [importMsg, setImportMsg] = useState<string | null>(null)
@@ -43,6 +45,28 @@ export function Sidebar(): JSX.Element {
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [sshConfigDialogOpen, setSshConfigDialogOpen] = useState(false)
   const [footerOpen, setFooterOpen] = useState(false)
+  const [bulkMoveOpen, setBulkMoveOpen] = useState(false)
+
+  const selCount = selectedConnectionIds.size
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selCount} connection${selCount !== 1 ? 's' : ''}?`)) return
+    for (const id of selectedConnectionIds) {
+      await deleteConnection(id)
+    }
+    clearSelection()
+  }
+
+  const handleBulkMove = async (groupId: string | undefined) => {
+    for (const id of selectedConnectionIds) {
+      const conn = connections.find((c) => c.id === id)
+      if (conn && conn.groupId !== groupId) {
+        await saveConnection({ ...conn, groupId })
+      }
+    }
+    clearSelection()
+    setBulkMoveOpen(false)
+  }
 
   // DnD state for connections → groups
   const dragConnId = useRef<string | null>(null)
@@ -157,6 +181,59 @@ export function Sidebar(): JSX.Element {
           </div>
         </div>
 
+        {/* Bulk actions bar */}
+        {selCount > 0 && (
+          <div className="shrink-0 flex items-center gap-1 px-2 py-1.5 border-b border-sidebar-border bg-primary/5">
+            <span className="text-[12px] font-semibold text-primary flex-1 pl-1">{selCount} selected</span>
+            <div className="relative">
+              <button
+                onClick={() => setBulkMoveOpen(!bulkMoveOpen)}
+                className="p-1.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors cursor-pointer"
+                title="Move to group"
+              >
+                <FolderInput className="w-3.5 h-3.5" />
+              </button>
+              {bulkMoveOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setBulkMoveOpen(false)} />
+                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-44 bg-popover border border-border rounded-xl shadow-2xl z-50 py-1.5 animate-in fade-in slide-in-from-bottom-2">
+                    <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Move to</p>
+                    <button
+                      onClick={() => handleBulkMove(undefined)}
+                      className="w-full text-left px-3 py-2 text-[13px] text-foreground hover:bg-accent rounded-lg transition-colors cursor-pointer"
+                    >
+                      Ungrouped
+                    </button>
+                    {groups.map((g) => (
+                      <button
+                        key={g.id}
+                        onClick={() => handleBulkMove(g.id)}
+                        className="w-full text-left px-3 py-2 text-[13px] text-foreground hover:bg-accent rounded-lg transition-colors cursor-pointer"
+                      >
+                        {g.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <button
+              onClick={handleBulkDelete}
+              className="p-1.5 rounded-lg hover:bg-red-500/10 text-sidebar-foreground/60 hover:text-red-400 transition-colors cursor-pointer"
+              title="Delete selected"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={clearSelection}
+              className="p-1.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors cursor-pointer"
+              title="Clear selection"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Connection list */}
         <div className="flex-1 overflow-y-auto py-1">
 
@@ -269,6 +346,8 @@ export function Sidebar(): JSX.Element {
                       onOpenSftp={() => openSftpSession(conn)}
                       onEdit={() => setConnectionDialogOpen(true, conn)}
                       onDragStart={() => { dragConnId.current = conn.id }}
+                      isSelected={selectedConnectionIds.has(conn.id)}
+                      onSelect={(e) => toggleSelectConnection(conn.id, e.ctrlKey || e.metaKey)}
                     />
                   ))}
               </div>
@@ -292,6 +371,8 @@ export function Sidebar(): JSX.Element {
                 onOpenSftp={() => openSftpSession(conn)}
                 onEdit={() => setConnectionDialogOpen(true, conn)}
                 onDragStart={() => { dragConnId.current = conn.id }}
+                isSelected={selectedConnectionIds.has(conn.id)}
+                onSelect={(e) => toggleSelectConnection(conn.id, e.ctrlKey || e.metaKey)}
               />
             ))}
           </div>
@@ -438,10 +519,13 @@ interface ConnectionItemProps {
   onOpenSftp: () => void
   onEdit: () => void
   onDragStart?: () => void
+  isSelected?: boolean
+  onSelect?: (e: React.MouseEvent) => void
 }
 
 function ConnectionItem({
-  connection, indent = false, sessions, activeSessionId, onConnect, onOpenSftp, onEdit, onDragStart
+  connection, indent = false, sessions, activeSessionId, onConnect, onOpenSftp, onEdit, onDragStart,
+  isSelected = false, onSelect
 }: ConnectionItemProps): JSX.Element {
   const { deleteConnection, saveConnection } = useAppStore()
 
@@ -495,14 +579,20 @@ function ConnectionItem({
       <button
         draggable
         onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; onDragStart?.() }}
+        onClick={(e) => {
+          if (e.ctrlKey || e.metaKey) { onSelect?.(e); return }
+          onConnect()
+        }}
         onDoubleClick={onConnect}
         onContextMenu={handleContextMenu}
         className={cn(
           'w-full flex items-center gap-3 px-2.5 py-2.5 text-left group transition-all rounded-xl cursor-pointer',
           indent && 'pl-6',
-          isActive
-            ? 'bg-sidebar-accent text-sidebar-foreground'
-            : 'text-sidebar-foreground hover:bg-sidebar-accent/70'
+          isSelected
+            ? 'bg-primary/10 ring-1 ring-primary/40 text-sidebar-foreground'
+            : isActive
+              ? 'bg-sidebar-accent text-sidebar-foreground'
+              : 'text-sidebar-foreground hover:bg-sidebar-accent/70'
         )}
       >
         <div

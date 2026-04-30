@@ -93,6 +93,12 @@ interface AppState {
   editingConnection: Connection | null
   groupDialogOpen: boolean
   settingsOpen: boolean
+
+  // Multi-select
+  selectedConnectionIds: Set<string>
+  toggleSelectConnection: (id: string, multi?: boolean) => void
+  clearSelection: () => void
+  selectAll: (ids: string[]) => void
   settingsInitialTab: string | null
 
   // Actions - Data
@@ -233,6 +239,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   editingConnection: null,
   groupDialogOpen: false,
   settingsOpen: false,
+  selectedConnectionIds: new Set(),
   settingsInitialTab: null,
   splitSessionId:    null,
   portForwardRules:  [],
@@ -666,6 +673,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   setConnectionDialogOpen: (open, connection = null) =>
     set({ connectionDialogOpen: open, editingConnection: connection }),
   setGroupDialogOpen: (open) => set({ groupDialogOpen: open }),
+
+  toggleSelectConnection: (id, multi = false) => set((state) => {
+    const next = multi ? new Set(state.selectedConnectionIds) : new Set<string>()
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    return { selectedConnectionIds: next }
+  }),
+  clearSelection: () => set({ selectedConnectionIds: new Set() }),
+  selectAll: (ids) => set({ selectedConnectionIds: new Set(ids) }),
 
   setSettingsOpen: (open, tab) => set({ settingsOpen: open, settingsInitialTab: tab ?? null }),
 

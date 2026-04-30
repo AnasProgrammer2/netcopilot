@@ -207,6 +207,7 @@ export function ConnectionDialog(): JSX.Element {
                     className={inputClass}
                   />
                 </Field>
+                {groups.length > 0 && (
                 <Field label="Group">
                   <select
                     value={form.groupId ?? ''}
@@ -219,6 +220,7 @@ export function ConnectionDialog(): JSX.Element {
                     ))}
                   </select>
                 </Field>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import {
   Search, Plus, FolderPlus, Router, Server, Monitor, Usb,
   ChevronRight, Zap, Terminal, ArrowRight,
-  Layers
+  Layers, X, FolderInput, Trash2
 } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { Connection, ConnectionGroup, DeviceType } from '../../types'
@@ -84,10 +84,12 @@ function GroupCard({ group, hostCount, connectedCount, onClick }: {
 }
 
 // ── Host Card ─────────────────────────────────────────────────────────────────
-function HostCard({ connection, isConnected, onConnect }: {
+function HostCard({ connection, isConnected, onConnect, isSelected, onSelect }: {
   connection: Connection
   isConnected: boolean
   onConnect: () => void
+  isSelected?: boolean
+  onSelect?: (e: React.MouseEvent) => void
 }) {
   const Icon   = getDeviceIcon(connection.deviceType, connection.protocol)
   const accent = getDeviceAccent(connection.deviceType, connection.protocol)
@@ -100,12 +102,17 @@ function HostCard({ connection, isConnected, onConnect }: {
 
   return (
     <button
-      onClick={onConnect}
+      onClick={(e) => {
+        if (e.ctrlKey || e.metaKey) { onSelect?.(e); return }
+        onConnect()
+      }}
       className={cn(
         'flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left group transition-all cursor-pointer w-full',
-        isConnected
-          ? 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/50'
-          : 'border-border bg-card hover:bg-accent/40 hover:border-primary/25 hover:shadow-sm'
+        isSelected
+          ? 'border-primary/50 bg-primary/10 ring-1 ring-primary/40'
+          : isConnected
+            ? 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/50'
+            : 'border-border bg-card hover:bg-accent/40 hover:border-primary/25 hover:shadow-sm'
       )}
     >
       {/* Device icon */}
@@ -155,7 +162,9 @@ export function HomeScreen(): JSX.Element {
   const {
     connections, groups, sessions,
     setConnectionDialogOpen,
-    openSession, setQuickConnectOpen
+    openSession, setQuickConnectOpen,
+    selectedConnectionIds, toggleSelectConnection, clearSelection,
+    deleteConnection, saveConnection
   } = useAppStore()
 
   const [search,           setSearch]           = useState('')
@@ -163,6 +172,28 @@ export function HomeScreen(): JSX.Element {
   const [selectedTag,      setSelectedTag]      = useState<string | null>(null)
   const [groupDialogOpen,  setGroupDialogOpen]  = useState(false)
   const [sshKeyDialogOpen, setSshKeyDialogOpen] = useState(false)
+  const [bulkMoveOpen,     setBulkMoveOpen]     = useState(false)
+
+  const selCount = selectedConnectionIds.size
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selCount} connection${selCount !== 1 ? 's' : ''}?`)) return
+    for (const id of selectedConnectionIds) {
+      await deleteConnection(id)
+    }
+    clearSelection()
+  }
+
+  const handleBulkMove = async (groupId: string | undefined) => {
+    for (const id of selectedConnectionIds) {
+      const conn = connections.find((c) => c.id === id)
+      if (conn && conn.groupId !== groupId) {
+        await saveConnection({ ...conn, groupId })
+      }
+    }
+    clearSelection()
+    setBulkMoveOpen(false)
+  }
 
   const connectedIds   = new Set(sessions.filter(s => s.status === 'connected').map(s => s.connectionId))
   const totalConnected = sessions.filter(s => s.status === 'connected').length
@@ -371,6 +402,60 @@ export function HomeScreen(): JSX.Element {
                 </span>
               )}
             </div>
+
+            {/* Bulk actions bar */}
+            {selCount > 0 && (
+              <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-primary/5 border border-primary/20">
+                <span className="text-[13px] font-semibold text-primary flex-1">{selCount} selected</span>
+                <div className="relative">
+                  <button
+                    onClick={() => setBulkMoveOpen(!bulkMoveOpen)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-medium text-foreground hover:bg-accent transition-colors cursor-pointer"
+                  >
+                    <FolderInput className="w-3.5 h-3.5" />
+                    Move
+                  </button>
+                  {bulkMoveOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setBulkMoveOpen(false)} />
+                      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-44 bg-popover border border-border rounded-xl shadow-2xl z-50 py-1.5 animate-in fade-in slide-in-from-bottom-2">
+                        <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Move to</p>
+                        <button
+                          onClick={() => handleBulkMove(undefined)}
+                          className="w-full text-left px-3 py-2 text-[13px] text-foreground hover:bg-accent rounded-lg transition-colors cursor-pointer"
+                        >
+                          Ungrouped
+                        </button>
+                        {groups.map((g) => (
+                          <button
+                            key={g.id}
+                            onClick={() => handleBulkMove(g.id)}
+                            className="w-full text-left px-3 py-2 text-[13px] text-foreground hover:bg-accent rounded-lg transition-colors cursor-pointer"
+                          >
+                            {g.name}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+                <button
+                  onClick={handleBulkDelete}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-medium text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete
+                </button>
+                <button
+                  onClick={clearSelection}
+                  className="p-1 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  title="Clear selection"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
               {(selectedGroup ? displayConns : ungrouped).map(conn => (
                 <HostCard
@@ -378,6 +463,8 @@ export function HomeScreen(): JSX.Element {
                   connection={conn}
                   isConnected={connectedIds.has(conn.id)}
                   onConnect={() => openSession(conn)}
+                  isSelected={selectedConnectionIds.has(conn.id)}
+                  onSelect={(e) => toggleSelectConnection(conn.id, e.ctrlKey || e.metaKey)}
                 />
               ))}
             </div>

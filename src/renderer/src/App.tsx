@@ -22,6 +22,7 @@ export default function App(): JSX.Element {
     setActiveSession, closeSession, setSplitSession, splitSessionId,
     licenseValid,
     sidebarCollapsed, sidebarWidth, setSidebarCollapsed,
+    selectedConnectionIds, clearSelection,
   } = useAppStore()
   const [masterLocked, setMasterLocked] = useState<boolean | null>(null)
   const [locked, setLocked] = useState(false)
@@ -92,6 +93,12 @@ export default function App(): JSX.Element {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey
+
+      // Escape — clear multi-select
+      if (e.key === 'Escape' && selectedConnectionIds.size > 0) {
+        clearSelection()
+        return
+      }
 
       // ? — Help dialog (only when not typing in an input)
       if (e.key === '?' && !mod) {
@@ -169,6 +176,7 @@ export default function App(): JSX.Element {
       activeSessionId, splitSessionId, sessions, licenseValid,
       closeSession, setSplitSession, setActiveSession,
       sidebarCollapsed, setSidebarCollapsed,
+      selectedConnectionIds, clearSelection,
     ]  )
 
   useEffect(() => {
