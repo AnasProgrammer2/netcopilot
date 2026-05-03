@@ -101,7 +101,6 @@
       "node_modules/better-sqlite3-multiple-ciphers/**/*",
       "node_modules/@serialport/bindings-cpp/**/*"
     ],
-    "afterSign": "scripts/notarize.js",
     "mac": {
       "category": "public.app-category.developer-tools",
       "target": [
@@ -112,7 +111,10 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "resources/entitlements.mac.plist",
-      "entitlementsInherit": "resources/entitlements.mac.inherit.plist"
+      "entitlementsInherit": "resources/entitlements.mac.inherit.plist",
+      "notarize": {
+        "teamId": "FC2U7NZKXV"
+      }
     },
     "win": {
       "target": [
