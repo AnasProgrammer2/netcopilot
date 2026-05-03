@@ -89,22 +89,24 @@ jobs:
           _APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
           if [ -n "$_APPLE_CERTIFICATE" ]; then
-            echo "$_APPLE_CERTIFICATE" | base64 --decode > certificate.p12
-            security create-keychain -p "temp-keychain-password" build.keychain
-            security import certificate.p12 -k build.keychain \
-              -P "$_APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-            security list-keychains -s build.keychain
-            security default-keychain -s build.keychain
-            security unlock-keychain -p "temp-keychain-password" build.keychain
+            KEYCHAIN_PASSWORD="$(openssl rand -hex 16)"
+            echo "$_APPLE_CERTIFICATE" | base64 --decode > /tmp/certificate.p12
+            security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+            security set-keychain-settings -lut 21600 build.keychain
+            security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+            security import /tmp/certificate.p12 -k build.keychain \
+              -P "$_APPLE_CERTIFICATE_PASSWORD" \
+              -T /usr/bin/codesign -T /usr/bin/security
+            security list-keychains -d user -s build.keychain login.keychain
             security set-key-partition-list \
-              -S apple-tool:,apple:,codesign: -s -k "temp-keychain-password" build.keychain
-            rm certificate.p12
+              -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+            rm /tmp/certificate.p12
             echo "CSC_IDENTITY_AUTO_DISCOVERY=true" >> $GITHUB_ENV
-            echo "✓ Developer ID certificate imported — full signing enabled."
+            echo "✓ Developer ID certificate imported — full signing + notarization enabled."
           else
             echo "CSC_IDENTITY=-"                    >> $GITHUB_ENV
             echo "CSC_IDENTITY_AUTO_DISCOVERY=false" >> $GITHUB_ENV
-            echo "✓ No certificate — using ad-hoc signing."
+            echo "⚠ No certificate found — using ad-hoc signing (won't run on other Macs)."
           fi
 
       # Set Windows signing env only when the cert secret is actually configured.

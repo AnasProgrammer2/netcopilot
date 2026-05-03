@@ -59,6 +59,7 @@
     "@electron-toolkit/eslint-config-prettier": "^2.0.0",
     "@electron-toolkit/eslint-config-ts": "^2.0.0",
     "@electron-toolkit/tsconfig": "^1.0.1",
+    "@electron/notarize": "^2.5.0",
     "@electron/rebuild": "^3.7.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.14.9",
@@ -100,13 +101,18 @@
       "node_modules/better-sqlite3-multiple-ciphers/**/*",
       "node_modules/@serialport/bindings-cpp/**/*"
     ],
+    "afterSign": "scripts/notarize.js",
     "mac": {
       "category": "public.app-category.developer-tools",
       "target": [
         "dmg",
         "zip"
       ],
-      "icon": "resources/icon.icns"
+      "icon": "resources/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "resources/entitlements.mac.plist",
+      "entitlementsInherit": "resources/entitlements.mac.inherit.plist"
     },
     "win": {
       "target": [
