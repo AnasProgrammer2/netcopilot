@@ -60,8 +60,8 @@ export const TERMINAL_THEMES: TerminalTheme[] = [
     },
   },
   {
-    id: 'termius-dark',
-    name: 'Termius Dark',
+    id: 'midnight-dark',
+    name: 'Midnight Dark',
     dark: true,
     preview: { bg: '#1c1d26', fg: '#ffffff', green: '#6be7a2', blue: '#7aa2f7', red: '#f7768e', yellow: '#e0af68' },
     colors: {
@@ -81,8 +81,8 @@ export const TERMINAL_THEMES: TerminalTheme[] = [
     },
   },
   {
-    id: 'termius-light',
-    name: 'Termius Light',
+    id: 'midnight-light',
+    name: 'Midnight Light',
     dark: false,
     preview: { bg: '#f5f5f5', fg: '#343b58', green: '#485e30', blue: '#34548a', red: '#8c4351', yellow: '#8f5e15' },
     colors: {

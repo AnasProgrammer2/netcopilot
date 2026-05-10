@@ -1,6 +1,6 @@
 {
   "name": "netcopilot",
-  "version": "0.11.10",
+  "version": "0.11.11",
   "description": "NetCopilot – AI-powered SSH/Telnet terminal for network engineers",
   "main": "./out/main/index.js",
   "author": {
@@ -115,6 +115,11 @@
       "notarize": {
         "teamId": "FC2U7NZKXV"
       }
+    },
+    "mas": {
+      "entitlements": "resources/entitlements.mas.plist",
+      "entitlementsInherit": "resources/entitlements.mas.inherit.plist",
+      "provisioningProfile": "resources/embedded.provisionprofile"
     },
     "win": {
       "target": [

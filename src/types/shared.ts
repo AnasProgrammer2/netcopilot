@@ -1,3 +1,6 @@
+export const DEFAULT_TERMINAL_COLS = 220
+export const DEFAULT_TERMINAL_ROWS = 50
+
 export type Protocol = 'ssh' | 'telnet' | 'serial'
 export type AuthType = 'password' | 'key' | 'key+password'
 export type DeviceType =

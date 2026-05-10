@@ -1,14 +1,37 @@
-import { X, Check } from 'lucide-react'
+import { useState } from 'react'
+import { X, Check, Minus, Plus, ChevronDown } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { cn } from '../../lib/utils'
 import { TERMINAL_THEMES } from '../../lib/terminalThemes'
 
+const FONT_FAMILIES = [
+  'JetBrains Mono',
+  'Fira Code',
+  'Source Code Pro',
+  'Cascadia Code',
+  'SF Mono',
+  'Consolas',
+  'monospace'
+]
+
 export function ThemePanel(): JSX.Element {
   const { setThemePanelOpen, terminalSettings, applySettings } = useAppStore()
+  const [fontOpen, setFontOpen] = useState(false)
 
   const applyTheme = async (themeId: string) => {
     applySettings({ terminalTheme: themeId })
     await window.api.store.setSetting('terminalTheme', themeId)
+  }
+
+  const updateFont = async (fontFamily: string) => {
+    applySettings({ fontFamily })
+    await window.api.store.setSetting('fontFamily', fontFamily)
+  }
+
+  const updateSize = async (fontSize: number) => {
+    const clamped = Math.min(24, Math.max(10, fontSize))
+    applySettings({ fontSize: clamped })
+    await window.api.store.setSetting('fontSize', clamped)
   }
 
   return (
@@ -24,14 +47,89 @@ export function ThemePanel(): JSX.Element {
         </div>
         <button
           onClick={() => setThemePanelOpen(false)}
-          className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
         >
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
 
+      {/* Font section */}
+      <div className="px-3 pt-3 pb-2 border-b border-border shrink-0 space-y-3">
+        <div>
+          <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest mb-2">Font</p>
+          <div className="relative">
+            <button
+              onClick={() => setFontOpen(!fontOpen)}
+              className={cn(
+                'w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all cursor-pointer',
+                fontOpen
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-primary/40 bg-accent/30'
+              )}
+            >
+              <span
+                className="text-[13px] font-medium text-foreground truncate"
+                style={{ fontFamily: `"${terminalSettings.fontFamily}", monospace` }}
+              >
+                {terminalSettings.fontFamily}
+              </span>
+              <ChevronDown className={cn('w-3.5 h-3.5 text-muted-foreground transition-transform shrink-0 ml-2', fontOpen && 'rotate-180')} />
+            </button>
+
+            {fontOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setFontOpen(false)} />
+                <div className="absolute left-0 right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-2xl z-50 py-1 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
+                  {FONT_FAMILIES.map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => { updateFont(f); setFontOpen(false) }}
+                      className={cn(
+                        'w-full flex items-center justify-between px-3 py-2 text-left transition-colors cursor-pointer',
+                        terminalSettings.fontFamily === f
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-foreground hover:bg-accent'
+                      )}
+                    >
+                      <span style={{ fontFamily: `"${f}", monospace` }} className="text-[13px]">{f}</span>
+                      {terminalSettings.fontFamily === f && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-[13px] font-medium text-foreground">Text Size</span>
+          <div className="flex items-center">
+            <button
+              onClick={() => updateSize(terminalSettings.fontSize - 1)}
+              className="w-8 h-8 flex items-center justify-center rounded-l-lg border border-border bg-accent/50 hover:bg-accent text-foreground transition-colors cursor-pointer"
+            >
+              <Minus className="w-3.5 h-3.5" />
+            </button>
+            <div className="w-10 h-8 flex items-center justify-center border-y border-border bg-background text-[13px] font-semibold tabular-nums">
+              {terminalSettings.fontSize}
+            </div>
+            <button
+              onClick={() => updateSize(terminalSettings.fontSize + 1)}
+              className="w-8 h-8 flex items-center justify-center rounded-r-lg border border-border bg-accent/50 hover:bg-accent text-foreground transition-colors cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Themes label */}
+      <div className="px-3 pt-3 pb-1 shrink-0">
+        <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Themes</p>
+      </div>
+
       {/* Theme list */}
-      <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
+      <div className="flex-1 overflow-y-auto py-1 px-2 space-y-1">
         {TERMINAL_THEMES.map((theme) => {
           const isSelected = terminalSettings.terminalTheme === theme.id
           const p = theme.preview

@@ -4,7 +4,7 @@ import {
   X, Monitor, Terminal, Network, Lock, Info, FileText,
   Sun, Moon, Laptop, Check, FolderOpen,
   Sparkles, Eye, EyeOff, ShieldCheck, Wrench, Zap,
-  RefreshCw, ArrowUpCircle, AlertCircle
+  RefreshCw, ArrowUpCircle, AlertCircle, Minus, Plus, ChevronDown
 } from 'lucide-react'
 import { useAppStore, AiPermission, AiApproval } from '../../store'
 import { cn, getInstallerUrl } from '../../lib/utils'
@@ -338,31 +338,35 @@ function TerminalSection({ settings, update }: SectionProps) {
       </Group>
 
       <Group title="Font">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Family</label>
-            <select
-              value={settings.fontFamily}
-              onChange={(e) => update('fontFamily', e.target.value)}
-              className={inputCls}
+        <FontPicker
+          value={settings.fontFamily}
+          onChange={(v) => update('fontFamily', v)}
+        />
+
+        <div className="flex items-center justify-between mt-3">
+          <span className="text-sm font-medium text-foreground">Text Size</span>
+          <div className="flex items-center gap-0">
+            <button
+              onClick={() => update('fontSize', Math.max(10, settings.fontSize - 1))}
+              className="w-9 h-9 flex items-center justify-center rounded-l-lg border border-border bg-accent/50 hover:bg-accent text-foreground transition-colors cursor-pointer"
             >
-              {FONT_FAMILIES.map((f) => <option key={f} value={f}>{f}</option>)}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Size</label>
-            <SliderRow
-              min={10} max={20} step={1}
-              value={settings.fontSize}
-              onChange={(v) => update('fontSize', v)}
-              display={`${settings.fontSize}px`}
-            />
+              <Minus className="w-4 h-4" />
+            </button>
+            <div className="w-12 h-9 flex items-center justify-center border-y border-border bg-background text-sm font-semibold tabular-nums">
+              {settings.fontSize}
+            </div>
+            <button
+              onClick={() => update('fontSize', Math.min(24, settings.fontSize + 1))}
+              className="w-9 h-9 flex items-center justify-center rounded-r-lg border border-border bg-accent/50 hover:bg-accent text-foreground transition-colors cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        {/* Live preview — colors follow the selected terminal theme */}
+        {/* Live preview */}
         <div
-          className="mt-1 p-3 rounded-md border border-border"
+          className="mt-3 p-3 rounded-lg border border-border"
           style={{
             background: tc.background,
             fontFamily: `"${settings.fontFamily}", monospace`,
@@ -905,6 +909,55 @@ function AboutSection() {
 type SectionProps = {
   settings: AppSettings
   update: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void
+}
+
+function FontPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className={cn(
+          'w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all cursor-pointer',
+          open
+            ? 'border-primary bg-primary/5'
+            : 'border-border hover:border-primary/40 bg-accent/30'
+        )}
+      >
+        <span
+          className="text-base font-medium text-foreground"
+          style={{ fontFamily: `"${value}", monospace` }}
+        >
+          {value}
+        </span>
+        <ChevronDown className={cn('w-4 h-4 text-muted-foreground transition-transform', open && 'rotate-180')} />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 right-0 top-full mt-1.5 bg-popover border border-border rounded-xl shadow-2xl z-50 py-1.5 max-h-52 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
+            {FONT_FAMILIES.map((f) => (
+              <button
+                key={f}
+                onClick={() => { onChange(f); setOpen(false) }}
+                className={cn(
+                  'w-full flex items-center justify-between px-4 py-2.5 text-left transition-colors cursor-pointer',
+                  value === f
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-foreground hover:bg-accent'
+                )}
+              >
+                <span style={{ fontFamily: `"${f}", monospace` }} className="text-sm">{f}</span>
+                {value === f && <Check className="w-4 h-4 text-primary shrink-0" />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
 
 function Group({ title, children }: { title: string; children: React.ReactNode }) {

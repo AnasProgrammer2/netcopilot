@@ -1,5 +1,6 @@
 import { IpcMain, BrowserWindow } from 'electron'
 import { Client, ClientChannel, ConnectConfig } from 'ssh2'
+import { DEFAULT_TERMINAL_COLS, DEFAULT_TERMINAL_ROWS } from '../types/shared'
 import * as net from 'net'
 
 interface ActiveSession {
@@ -291,7 +292,7 @@ export function setupSshHandlers(
         }
 
         const openShell = (client: Client, jumpClient: Client | null) => {
-          const termOptions = { term: 'xterm-256color', cols: payload.cols || 220, rows: payload.rows || 50 }
+          const termOptions = { term: 'xterm-256color', cols: payload.cols || DEFAULT_TERMINAL_COLS, rows: payload.rows || DEFAULT_TERMINAL_ROWS }
           client.shell(termOptions, (err, stream) => {
             if (err) {
               client.end()

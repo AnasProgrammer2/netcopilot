@@ -1,0 +1,102 @@
+name: App Store Upload
+
+# Run manually when you're ready to submit a new build to App Store Connect.
+on:
+  workflow_dispatch:
+    inputs:
+      submit_for_review:
+        description: "Submit for review after upload? (yes/no)"
+        required: false
+        default: "no"
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: macos-latest
+    name: Build & Upload to App Store Connect
+
+    # ── Required GitHub Secrets ───────────────────────────────────────────────
+    # APPLE_ID                        — your Apple ID email
+    # APPLE_APP_SPECIFIC_PASSWORD     — app-specific password (appleid.apple.com)
+    # APPLE_TEAM_ID                   — FC2U7NZKXV
+    #
+    # MAS certificate bundle (Certificates.p12 from Apple Developer portal —
+    # contains both Mac App Distribution + Mac Installer Distribution):
+    #   MAC_CERTS_MAS                 — base64 of Certificates.p12
+    #                                    base64 -i ~/Desktop/Certificates.p12 | pbcopy
+    #   MAC_CERTS_MAS_PASSWORD        — password you set when exporting the .p12
+    #
+    # Provisioning profile:
+    #   PROVISIONING_PROFILE_MAS      — base64-encoded .provisionprofile
+    #                                    base64 -i ~/Desktop/NetCopilot.provisionprofile | pbcopy
+    #
+    # Optional — App Store Connect API key (replaces APPLE_ID + password):
+    #   APP_STORE_CONNECT_KEY_ID
+    #   APP_STORE_CONNECT_ISSUER_ID
+    #   APP_STORE_CONNECT_KEY_CONTENT — base64 .p8 key
+    # ─────────────────────────────────────────────────────────────────────────
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Import MAS certificates
+        env:
+          CERT_P12:      ${{ secrets.MAC_CERTS_MAS }}
+          CERT_PASSWORD: ${{ secrets.MAC_CERTS_MAS_PASSWORD }}
+        run: |
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 16)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" mas.keychain
+          security set-keychain-settings -lut 21600 mas.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" mas.keychain
+
+          echo "$CERT_P12" | base64 --decode > /tmp/certificates.p12
+          security import /tmp/certificates.p12 -k mas.keychain \
+            -P "$CERT_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/productbuild \
+            -T /usr/bin/security
+
+          security list-keychains -d user -s mas.keychain login.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" mas.keychain
+
+          rm -f /tmp/certificates.p12
+
+      - name: Install provisioning profile
+        env:
+          PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_MAS }}
+        run: |
+          echo "$PROFILE_BASE64" | base64 --decode > resources/embedded.provisionprofile
+
+      - name: Build MAS package
+        run: bundle exec fastlane build_mas
+
+      - name: Upload to App Store Connect
+        env:
+          APPLE_ID:                    ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APP_STORE_CONNECT_KEY_ID:    ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_KEY_CONTENT }}
+        run: bundle exec fastlane upload
+
+      - name: Clean up keychain
+        if: always()
+        run: security delete-keychain mas.keychain 2>/dev/null || true

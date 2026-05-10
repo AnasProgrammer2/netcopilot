@@ -1,5 +1,6 @@
 import { IpcMain, BrowserWindow } from 'electron'
 import { Socket } from 'net'
+import { DEFAULT_TERMINAL_COLS, DEFAULT_TERMINAL_ROWS } from '../types/shared'
 
 interface TelnetSession {
   socket: Socket
@@ -74,8 +75,8 @@ export function setupTelnetHandlers(
     ) => {
       return new Promise((resolve, reject) => {
         const socket = new Socket()
-        const cols = payload.cols || 220
-        const rows = payload.rows || 50
+        const cols = payload.cols || DEFAULT_TERMINAL_COLS
+        const rows = payload.rows || DEFAULT_TERMINAL_ROWS
 
         // H3 fix: settled flag prevents double-resolve/reject after connect
         let settled = false

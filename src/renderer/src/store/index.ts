@@ -815,7 +815,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ── Port Forwarding ──────────────────────────────────────────────────────────
 
   savePortForwardRule: (rule) => {
-    const { nanoid } = require('nanoid')
     set((state) => {
       const id    = rule.id ?? nanoid()
       const full  = { ...rule, id } as PortForwardRule

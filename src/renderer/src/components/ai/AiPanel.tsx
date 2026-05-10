@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { nanoid } from 'nanoid'
 import { X, Send, Sparkles, Trash2, Square, ShieldCheck, Wrench, AlertCircle, ChevronDown, Check, Eye, EyeOff, ShieldAlert, RotateCcw, Download } from 'lucide-react'
 import { useAppStore, AiMessage as AiMessageType, AiPermission, AiApproval } from '../../store'
-import { cn } from '../../lib/utils'
+import { cn, stripAnsi } from '../../lib/utils'
 import { AiMessage } from './AiMessage'
 import { Session } from '../../types'
 import { terminalRegistry } from '../../lib/terminalRegistry'
@@ -1063,11 +1063,6 @@ function collectTerminalOutput(cb: (data: string) => void, filterSessionId?: str
   return () => handlers.forEach((off) => off())
 }
 
-/** Strip ANSI escape sequences from terminal output */
-function stripAnsi(str: string): string {
-  // eslint-disable-next-line no-control-regex
-  return str.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
-}
 
 // ── Pending command sticky bar ────────────────────────────────────────────────
 

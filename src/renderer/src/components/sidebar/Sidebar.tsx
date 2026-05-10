@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb, Pencil, Trash2, Download, Upload, MoreHorizontal, Clock, Zap, FileCode, X, FolderInput, ArrowUpDown, Filter } from 'lucide-react'
+import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb, Pencil, Trash2, Download, Upload, MoreHorizontal, Clock, Zap, FileCode, X, FolderInput, SlidersHorizontal, Check } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { Connection, ConnectionGroup } from '../../types'
 import { ConnectionContextMenu } from './ConnectionContextMenu'
@@ -47,8 +47,7 @@ export function Sidebar(): JSX.Element {
   const [footerOpen, setFooterOpen] = useState(false)
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false)
   const [sortBy, setSortBy] = useState<'name' | 'recent' | 'protocol'>('name')
-  const [sortMenuOpen, setSortMenuOpen] = useState(false)
-  const [filterMenuOpen, setFilterMenuOpen] = useState(false)
+  const [viewMenuOpen, setViewMenuOpen] = useState(false)
   const [filterProtocol, setFilterProtocol] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<'all' | 'connected' | 'disconnected'>('all')
 
@@ -209,92 +208,88 @@ export function Sidebar(): JSX.Element {
             </div>
             <div className="relative">
               <button
-                onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+                onClick={() => setViewMenuOpen(!viewMenuOpen)}
                 className={cn(
-                  'p-2 rounded-xl border transition-colors cursor-pointer',
-                  hasActiveFilter
+                  'relative p-2 rounded-xl border transition-colors cursor-pointer',
+                  (hasActiveFilter || sortBy !== 'name')
                     ? 'bg-primary/10 border-primary/30 text-primary'
                     : 'bg-sidebar-accent/50 border-sidebar-border text-sidebar-foreground/40 hover:text-sidebar-foreground'
                 )}
-                title="Filter"
+                title="Sort & Filter"
               >
-                <Filter className="w-3.5 h-3.5" />
-              </button>
-              {filterMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setFilterMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-1.5 w-44 bg-popover border border-border rounded-xl shadow-2xl z-50 py-1.5">
-                    <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Protocol</p>
-                    {['ssh', 'telnet', 'serial'].map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => setFilterProtocol(filterProtocol === p ? null : p)}
-                        className={cn(
-                          'w-full text-left px-3 py-1.5 text-[12px] transition-colors cursor-pointer rounded-lg',
-                          filterProtocol === p ? 'text-primary font-semibold bg-primary/5' : 'text-foreground hover:bg-accent'
-                        )}
-                      >
-                        {p.toUpperCase()}
-                      </button>
-                    ))}
-                    <div className="my-1.5 border-t border-border" />
-                    <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status</p>
-                    {([['all', 'All'], ['connected', 'Connected'], ['disconnected', 'Disconnected']] as const).map(([key, label]) => (
-                      <button
-                        key={key}
-                        onClick={() => setFilterStatus(key)}
-                        className={cn(
-                          'w-full text-left px-3 py-1.5 text-[12px] transition-colors cursor-pointer rounded-lg',
-                          filterStatus === key ? 'text-primary font-semibold bg-primary/5' : 'text-foreground hover:bg-accent'
-                        )}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                    {hasActiveFilter && (
-                      <>
-                        <div className="my-1.5 border-t border-border" />
-                        <button
-                          onClick={() => { setFilterProtocol(null); setFilterStatus('all'); setFilterMenuOpen(false) }}
-                          className="w-full text-left px-3 py-1.5 text-[12px] text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer rounded-lg"
-                        >
-                          Clear filters
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-            <div className="relative">
-              <button
-                onClick={() => setSortMenuOpen(!sortMenuOpen)}
-                className={cn(
-                  'p-2 rounded-xl border transition-colors cursor-pointer',
-                  sortBy !== 'name'
-                    ? 'bg-primary/10 border-primary/30 text-primary'
-                    : 'bg-sidebar-accent/50 border-sidebar-border text-sidebar-foreground/40 hover:text-sidebar-foreground'
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                {(hasActiveFilter || sortBy !== 'name') && (
+                  <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-primary rounded-full" />
                 )}
-                title={`Sort: ${sortBy === 'name' ? 'Name' : sortBy === 'recent' ? 'Recent' : 'Protocol'}`}
-              >
-                <ArrowUpDown className="w-3.5 h-3.5" />
               </button>
-              {sortMenuOpen && (
+              {viewMenuOpen && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setSortMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-1.5 w-36 bg-popover border border-border rounded-xl shadow-2xl z-50 py-1.5">
+                  <div className="fixed inset-0 z-40" onClick={() => setViewMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1.5 w-52 bg-popover border border-border rounded-xl shadow-2xl z-50 py-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Sort by</p>
                     {([['name', 'Name'], ['recent', 'Last Connected'], ['protocol', 'Protocol']] as const).map(([key, label]) => (
                       <button
                         key={key}
-                        onClick={() => { setSortBy(key); setSortMenuOpen(false) }}
+                        onClick={() => setSortBy(key)}
                         className={cn(
-                          'w-full text-left px-3 py-1.5 text-[12px] transition-colors cursor-pointer rounded-lg',
-                          sortBy === key ? 'text-primary font-semibold bg-primary/5' : 'text-foreground hover:bg-accent'
+                          'w-full flex items-center justify-between px-3 py-1.5 text-[12px] transition-colors cursor-pointer rounded-lg mx-0.5',
+                          sortBy === key ? 'text-primary font-semibold' : 'text-foreground hover:bg-accent'
                         )}
                       >
                         {label}
+                        {sortBy === key && <Check className="w-3 h-3" />}
                       </button>
                     ))}
+
+                    <div className="my-1.5 border-t border-border" />
+
+                    <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Protocol</p>
+                    <div className="flex flex-wrap gap-1 px-2 pb-1">
+                      {['ssh', 'telnet', 'serial'].map((p) => (
+                        <button
+                          key={p}
+                          onClick={() => setFilterProtocol(filterProtocol === p ? null : p)}
+                          className={cn(
+                            'flex-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-colors cursor-pointer',
+                            filterProtocol === p
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-accent text-muted-foreground hover:text-foreground'
+                          )}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+
+                    <p className="px-3 py-1 mt-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status</p>
+                    <div className="flex gap-1 px-2 pb-1">
+                      {([['all', 'All'], ['connected', 'Live'], ['disconnected', 'Offline']] as const).map(([key, label]) => (
+                        <button
+                          key={key}
+                          onClick={() => setFilterStatus(key)}
+                          className={cn(
+                            'flex-1 px-2 py-1 text-[10px] font-bold rounded-md transition-colors cursor-pointer',
+                            filterStatus === key
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-accent text-muted-foreground hover:text-foreground'
+                          )}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {(hasActiveFilter || sortBy !== 'name') && (
+                      <>
+                        <div className="my-1.5 border-t border-border" />
+                        <button
+                          onClick={() => { setFilterProtocol(null); setFilterStatus('all'); setSortBy('name'); setViewMenuOpen(false) }}
+                          className="w-full text-left px-3 py-1.5 text-[12px] text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer rounded-lg mx-0.5"
+                        >
+                          Reset all
+                        </button>
+                      </>
+                    )}
                   </div>
                 </>
               )}
@@ -480,7 +475,7 @@ export function Sidebar(): JSX.Element {
             onDragOver={(e) => { e.preventDefault(); setDropTargetId('ungrouped') }}
             onDragLeave={() => setDropTargetId(null)}
             onDrop={(e) => { e.preventDefault(); handleConnDrop(undefined) }}
-            className={cn('rounded-lg transition-colors', dropTargetId === 'ungrouped' && 'ring-1 ring-primary/50 bg-primary/5')}
+            className={cn('rounded-lg transition-colors stagger-children', dropTargetId === 'ungrouped' && 'ring-1 ring-primary/50 bg-primary/5')}
           >
             {ungrouped.map((conn) => (
               <ConnectionItem
@@ -707,8 +702,9 @@ function ConnectionItem({
         onDoubleClick={onConnect}
         onContextMenu={handleContextMenu}
         className={cn(
-          'w-full flex items-center gap-3 px-2.5 py-2.5 text-left group transition-all rounded-xl cursor-pointer',
-          indent && 'pl-6',
+          'w-full flex items-center gap-2.5 px-2 py-1.5 text-left group transition-all rounded-lg cursor-pointer',
+          'animate-in fade-in slide-in-from-left-1 duration-200',
+          indent && 'pl-5',
           isSelected
             ? 'bg-primary/10 ring-1 ring-primary/40 text-sidebar-foreground'
             : isActive
@@ -717,31 +713,55 @@ function ConnectionItem({
         )}
       >
         <div
-          className="relative w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+          className="relative w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
           style={{ backgroundColor: `${accent}20` }}
         >
-          <DeviceIcon className="w-4.5 h-4.5" style={{ color: accent }} />
+          <DeviceIcon className="w-3.5 h-3.5" style={{ color: accent }} />
           {isConnected && (
-            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-sidebar" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full border-2 border-sidebar animate-live-pulse shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
           )}
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="text-[14px] font-semibold truncate leading-tight text-sidebar-foreground">{connection.name}</p>
-          <p className="text-[12px] text-sidebar-foreground/50 truncate mt-0.5">
-            {connection.lastConnectedAt
-              ? <span className="flex items-center gap-1"><Clock className="w-2.5 h-2.5 shrink-0" />{timeAgo(connection.lastConnectedAt)}</span>
-              : (connection.protocol === 'serial'
-                  ? (connection.serialConfig?.path ?? connection.host)
-                  : connection.host)
-            }
-          </p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="text-[13px] font-semibold truncate leading-tight text-sidebar-foreground">{connection.name}</p>
+            {isConnected && (
+              <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400 shrink-0">Live</span>
+            )}
+          </div>
+          <div className="flex items-center gap-1 mt-0.5 min-w-0">
+            <p className="text-[11px] text-sidebar-foreground/50 truncate">
+              {connection.lastConnectedAt
+                ? <span className="inline-flex items-center gap-1"><Clock className="w-2.5 h-2.5 shrink-0" />{timeAgo(connection.lastConnectedAt)}</span>
+                : (connection.protocol === 'serial'
+                    ? (connection.serialConfig?.path ?? connection.host)
+                    : connection.host)
+              }
+            </p>
+            {connection.tags && connection.tags.length > 0 && (
+              <div className="flex items-center gap-1 shrink min-w-0 overflow-hidden">
+                {connection.tags.slice(0, 2).map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-[9px] font-medium px-1.5 py-px rounded-md bg-sidebar-accent text-sidebar-foreground/60 truncate max-w-[60px]"
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {connection.tags.length > 2 && (
+                  <span className="text-[9px] font-medium text-sidebar-foreground/40 shrink-0">
+                    +{connection.tags.length - 2}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="relative shrink-0 flex items-center">
           {/* Protocol badge — hidden on hover */}
           <span
-            className="text-[11px] font-mono uppercase px-2 py-0.5 rounded-lg font-bold transition-all group-hover:opacity-0 group-hover:scale-75"
+            className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded-md font-bold transition-all group-hover:opacity-0 group-hover:scale-75"
             style={{ backgroundColor: `${accent}20`, color: accent }}
           >
             {connection.protocol}

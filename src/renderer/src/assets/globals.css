@@ -123,6 +123,42 @@ code, kbd, samp, pre, .font-mono {
 }
 .animate-shake { animation: shake 0.4s ease-in-out; }
 
+/* ── Micro-interactions ─────────────────────────────── */
+
+/* Hover lift effect for cards */
+.hover-lift {
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease-out;
+}
+.hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px -4px hsl(0 0% 0% / 0.3);
+}
+
+/* Subtle pulse for live status (slower than ping) */
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+.animate-live-pulse { animation: live-pulse 2s ease-in-out infinite; }
+
+/* Spring slide for tab switching */
+@keyframes spring-in {
+  0%   { opacity: 0; transform: translateY(4px) scale(0.985); }
+  60%  { opacity: 1; transform: translateY(-1px) scale(1.005); }
+  100% { opacity: 1; transform: translateY(0)   scale(1); }
+}
+.animate-spring-in { animation: spring-in 240ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* Stagger helper — delay first 8 children */
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 25ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 50ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 75ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 125ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 150ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 175ms; }
+
 /* xterm.js overrides */
 .xterm {
   height: 100%;

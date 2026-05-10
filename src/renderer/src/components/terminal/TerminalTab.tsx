@@ -12,7 +12,8 @@ import { detectDeviceType, PROBE_COMMAND, DEVICE_LABELS } from '../../lib/device
 import { PasswordPrompt } from '../dialogs/PasswordPrompt'
 import { TerminalHighlighter } from '../../lib/highlighter'
 import type { TerminalSettings, ConnectionSettings } from '../../store'
-import { cn } from '../../lib/utils'
+import { cn, stripAnsi } from '../../lib/utils'
+import { DEFAULT_TERMINAL_COLS, DEFAULT_TERMINAL_ROWS } from '../../types'
 import { terminalRegistry } from '../../lib/terminalRegistry'
 import { getTerminalTheme } from '../../lib/terminalThemes'
 
@@ -227,9 +228,6 @@ export function TerminalTab({ session }: Props): JSX.Element {
     let userSentCommand = false
     let receivingOutput = false
 
-    // Strip ANSI escape codes to get plain text
-    const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b[()][AB012]/g, '').trim()
-
     const proto = session.connection.protocol
 
     const fireProstActive = (context: string) => {
@@ -323,8 +321,6 @@ export function TerminalTab({ session }: Props): JSX.Element {
       /^error:/im,
       /\bFailed to\b/i,
     ]
-    const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').trim()
-
     let buf = ''
     let timer: ReturnType<typeof setTimeout> | null = null
 
@@ -587,7 +583,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
             }
           }
 
-          const { cols, rows } = termRef.current ?? { cols: 220, rows: 50 }
+          const { cols, rows } = termRef.current ?? { cols: DEFAULT_TERMINAL_COLS, rows: DEFAULT_TERMINAL_ROWS }
           await window.api.ssh.connect({
             sessionId: session.id,
             host:      conn.host,
@@ -612,7 +608,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
           })
 
         } else if (conn.protocol === 'telnet') {
-          const { cols, rows } = termRef.current ?? { cols: 220, rows: 50 }
+          const { cols, rows } = termRef.current ?? { cols: DEFAULT_TERMINAL_COLS, rows: DEFAULT_TERMINAL_ROWS }
           await window.api.telnet.connect({ sessionId: session.id, host: conn.host, port: conn.port, cols, rows })
 
         } else if (conn.protocol === 'serial') {

@@ -110,8 +110,6 @@ function initSchema(db: Database.Database): void {
     );
   `)
 
-  // Seed default AI blacklist if missing or empty (handles both fresh installs and empty migrations)
-
   // ── Schema migrations (add columns if missing) ──
   const cols = db.prepare("PRAGMA table_info(connections)").all() as { name: string }[]
   const colNames = new Set(cols.map(c => c.name))

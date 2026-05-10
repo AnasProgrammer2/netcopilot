@@ -1,0 +1,91 @@
+require "json"
+
+default_platform(:mac)
+
+APP_ID = "com.netcopilot.app"
+
+# Returns the version string from package.json
+def node_version
+  JSON.parse(File.read("package.json"))["version"]
+end
+
+# Returns path to the built MAS .pkg, raising if it doesn't exist
+def mas_pkg_path
+  version = node_version
+  exact   = "dist/NetCopilot-#{version}.pkg"
+  return exact if File.exist?(exact)
+
+  fallback = Dir["dist/*.pkg"].first
+  raise "No .pkg found in dist/ — run `bundle exec fastlane build_mas` first" unless fallback
+  fallback
+end
+
+# Loads App Store Connect API key if env vars are present (preferred for CI).
+# Falls back to APPLE_ID + APPLE_APP_SPECIFIC_PASSWORD for interactive sessions.
+def load_asc_credentials
+  key_id     = ENV["APP_STORE_CONNECT_KEY_ID"]
+  issuer_id  = ENV["APP_STORE_CONNECT_ISSUER_ID"]
+  key_content = ENV["APP_STORE_CONNECT_KEY_CONTENT"]
+
+  if key_id && issuer_id && key_content
+    app_store_connect_api_key(
+      key_id: key_id,
+      issuer_id: issuer_id,
+      key_content: key_content,
+      is_key_content_base64: true,
+      in_house: false
+    )
+  end
+  # If not set, Fastlane will use APPLE_ID + APPLE_APP_SPECIFIC_PASSWORD from .env
+end
+
+# ──────────────────────────────────────────────────────────────────────────────
+
+platform :mac do
+  desc "Build the Mac App Store universal .pkg (arm64 + x64)"
+  lane :build_mas do
+    sh("npm run build")
+    sh("npx electron-builder --mac mas --x64 --arm64 --publish never")
+    UI.success "MAS package built → dist/NetCopilot-#{node_version}.pkg"
+  end
+
+  desc "Validate the .pkg against App Store Connect rules (no upload)"
+  lane :validate do
+    load_asc_credentials
+    pkg = mas_pkg_path
+    UI.message "Validating #{pkg} ..."
+    upload_to_app_store(
+      app_identifier: APP_ID,
+      pkg: pkg,
+      platform: "osx",
+      skip_metadata: true,
+      skip_screenshots: true,
+      submit_for_review: false,
+      verify_only: true
+    )
+    UI.success "Validation passed."
+  end
+
+  desc "Upload existing .pkg to App Store Connect (does not submit for review)"
+  lane :upload do
+    load_asc_credentials
+    pkg = mas_pkg_path
+    UI.message "Uploading #{pkg} to App Store Connect..."
+    upload_to_app_store(
+      app_identifier: APP_ID,
+      pkg: pkg,
+      platform: "osx",
+      skip_metadata: true,
+      skip_screenshots: true,
+      submit_for_review: false,
+      automatic_release: false
+    )
+    UI.success "Upload complete — open App Store Connect to finish submission."
+  end
+
+  desc "Build + upload to App Store Connect in one step"
+  lane :release do
+    build_mas
+    upload
+  end
+end
