@@ -58,6 +58,12 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  /* WebKit (Chrome, Safari, Electron) */
   ::-webkit-scrollbar {
     width: 4px;
     height: 4px;

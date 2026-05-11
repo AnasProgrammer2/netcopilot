@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import {
   Search, Plus, FolderPlus, Router, Server, Monitor, Usb,
   ChevronRight, Zap, Terminal, ArrowRight,
-  Layers, X, FolderInput, Trash2, ArrowUpDown, Filter
+  Layers, X, FolderInput, Trash2, ArrowUpDown, Filter, Activity, RefreshCw
 } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { Connection, ConnectionGroup, DeviceType } from '../../types'
@@ -44,6 +44,13 @@ function getDeviceAccent(deviceType: DeviceType, protocol?: string): string {
   }
 }
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface PingState {
+  alive: boolean
+  latency?: number
+  checking: boolean
+}
+
 // ── Group Card ────────────────────────────────────────────────────────────────
 function GroupCard({ group, hostCount, connectedCount, onClick }: {
   group: ConnectionGroup
@@ -83,13 +90,42 @@ function GroupCard({ group, hostCount, connectedCount, onClick }: {
   )
 }
 
+// ── Latency badge ─────────────────────────────────────────────────────────────
+function LatencyBadge({ ping }: { ping: PingState }) {
+  if (ping.checking) {
+    return (
+      <span className="flex items-center gap-1 text-[10px] text-muted-foreground/50">
+        <RefreshCw className="w-3 h-3 animate-spin" />
+      </span>
+    )
+  }
+  if (!ping.alive) {
+    return (
+      <span className="flex items-center gap-1 text-[10px] font-medium text-red-400/80">
+        <span className="w-1.5 h-1.5 rounded-full bg-red-400/80" />
+        offline
+      </span>
+    )
+  }
+  const ms = ping.latency ?? 0
+  const color = ms < 50 ? 'text-emerald-500' : ms < 150 ? 'text-yellow-500' : 'text-orange-500'
+  const dot   = ms < 50 ? 'bg-emerald-500'   : ms < 150 ? 'bg-yellow-500'   : 'bg-orange-500'
+  return (
+    <span className={cn('flex items-center gap-1 text-[10px] font-medium tabular-nums', color)}>
+      <span className={cn('w-1.5 h-1.5 rounded-full', dot)} />
+      {ms}ms
+    </span>
+  )
+}
+
 // ── Host Card ─────────────────────────────────────────────────────────────────
-function HostCard({ connection, isConnected, onConnect, isSelected, onSelect }: {
+function HostCard({ connection, isConnected, onConnect, isSelected, onSelect, ping }: {
   connection: Connection
   isConnected: boolean
   onConnect: () => void
   isSelected?: boolean
   onSelect?: (e: React.MouseEvent) => void
+  ping?: PingState
 }) {
   const Icon   = getDeviceIcon(connection.deviceType, connection.protocol)
   const accent = getDeviceAccent(connection.deviceType, connection.protocol)
@@ -142,13 +178,15 @@ function HostCard({ connection, isConnected, onConnect, isSelected, onSelect }: 
         </p>
       </div>
 
-      {/* Right side — status */}
+      {/* Right side — status / latency */}
       <div className="shrink-0 self-center">
         {isConnected ? (
           <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             live
           </span>
+        ) : ping ? (
+          <LatencyBadge ping={ping} />
         ) : (
           <ArrowRight className="w-4 h-4 text-muted-foreground/20 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
         )}
@@ -178,8 +216,57 @@ export function HomeScreen(): JSX.Element {
   const [filterMenuOpen,   setFilterMenuOpen]   = useState(false)
   const [filterProtocol,   setFilterProtocol]   = useState<string | null>(null)
   const [filterStatus,     setFilterStatus]     = useState<'all' | 'connected' | 'disconnected'>('all')
+  const [healthMode,       setHealthMode]       = useState(false)
+  const [pingMap,          setPingMap]          = useState<Map<string, PingState>>(new Map())
+  const pingAbortRef = useRef(false)
 
   const selCount = selectedConnectionIds.size
+
+  const runHealthScan = useCallback(async (conns: Connection[]) => {
+    const pingable = conns.filter(c => c.protocol !== 'serial')
+    if (pingable.length === 0) return
+    pingAbortRef.current = false
+
+    // mark all as checking
+    setPingMap(prev => {
+      const next = new Map(prev)
+      pingable.forEach(c => next.set(c.id, { alive: false, checking: true }))
+      return next
+    })
+
+    // ping in batches of 5 to avoid flooding
+    const BATCH = 5
+    for (let i = 0; i < pingable.length; i += BATCH) {
+      if (pingAbortRef.current) break
+      const batch = pingable.slice(i, i + BATCH)
+      await Promise.all(batch.map(async (c) => {
+        try {
+          const result = await window.api.connection.ping(c.host, c.port)
+          if (!pingAbortRef.current) {
+            setPingMap(prev => new Map(prev).set(c.id, { ...result, checking: false }))
+          }
+        } catch {
+          if (!pingAbortRef.current) {
+            setPingMap(prev => new Map(prev).set(c.id, { alive: false, checking: false }))
+          }
+        }
+      }))
+    }
+  }, [])
+
+  // auto-scan when health mode is enabled, repeat every 60s
+  useEffect(() => {
+    if (!healthMode) {
+      pingAbortRef.current = true
+      return
+    }
+    runHealthScan(connections)
+    const id = setInterval(() => runHealthScan(connections), 60_000)
+    return () => {
+      clearInterval(id)
+      pingAbortRef.current = true
+    }
+  }, [healthMode, connections, runHealthScan])
 
   const handleBulkDelete = async () => {
     if (!confirm(`Delete ${selCount} connection${selCount !== 1 ? 's' : ''}?`)) return
@@ -382,6 +469,31 @@ export function HomeScreen(): JSX.Element {
         </div>
 
         {/* Actions */}
+        {/* Health scan toggle */}
+        <button
+          onClick={() => setHealthMode(v => !v)}
+          title={healthMode ? 'Stop health scan' : 'Scan host reachability'}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[13px] font-medium transition-all shrink-0 cursor-pointer',
+            healthMode
+              ? 'bg-primary/10 border-primary/40 text-primary'
+              : 'bg-card border-border text-muted-foreground hover:text-foreground hover:bg-accent'
+          )}
+        >
+          <Activity className={cn('w-3.5 h-3.5', healthMode && 'animate-pulse')} />
+          {healthMode ? 'Scanning' : 'Health'}
+        </button>
+
+        {healthMode && (
+          <button
+            onClick={() => runHealthScan(connections)}
+            title="Re-scan now"
+            className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer shrink-0"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        )}
+
         <button
           onClick={() => setConnectionDialogOpen(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[13px] font-semibold hover:bg-primary/90 transition-colors shrink-0 cursor-pointer shadow-sm"
@@ -586,6 +698,7 @@ export function HomeScreen(): JSX.Element {
                   onConnect={() => openSession(conn)}
                   isSelected={selectedConnectionIds.has(conn.id)}
                   onSelect={(e) => toggleSelectConnection(conn.id, e.ctrlKey || e.metaKey)}
+                  ping={healthMode ? pingMap.get(conn.id) : undefined}
                 />
               ))}
             </div>

@@ -8,13 +8,15 @@ import { ThemePanel } from './ThemePanel'
 import { HomeScreen } from '../home/HomeScreen'
 import { terminalRegistry, buildStructuredContext, formatStructuredContext } from '../../lib/terminalRegistry'
 
-const AI_PANEL_DEFAULT_WIDTH = 340
-const AI_PANEL_MIN_WIDTH     = 260
-const AI_PANEL_MAX_WIDTH     = 600
+const AI_PANEL_DEFAULT_WIDTH    = 340
+const AI_PANEL_MIN_WIDTH        = 260
+const AI_PANEL_MAX_WIDTH        = 600
 import { SnippetPanel } from './SnippetPanel'
 
-const THEME_PANEL_WIDTH      = 220
-const SNIPPET_PANEL_WIDTH    = 280
+const THEME_PANEL_DEFAULT_WIDTH = 260
+const THEME_PANEL_MIN_WIDTH     = 200
+const THEME_PANEL_MAX_WIDTH     = 480
+const SNIPPET_PANEL_WIDTH       = 280
 
 export function TerminalArea(): JSX.Element {
   const { sessions, activeSessionId, splitSessionId, aiPanelOpen, themePanelOpen, snippetPanelOpen } = useAppStore()
@@ -23,9 +25,14 @@ export function TerminalArea(): JSX.Element {
   const isSplit       = !!splitSessionId && sessions.some(s => s.id === splitSessionId) && sessions.length >= 2
 
   // AI panel width (resizable via drag handle)
-  const [aiWidth, setAiWidth]     = useState(AI_PANEL_DEFAULT_WIDTH)
-  const dragStartX                = useRef<number>(0)
-  const dragStartWidth            = useRef<number>(AI_PANEL_DEFAULT_WIDTH)
+  const [aiWidth, setAiWidth]         = useState(AI_PANEL_DEFAULT_WIDTH)
+  const dragStartX                    = useRef<number>(0)
+  const dragStartWidth                = useRef<number>(AI_PANEL_DEFAULT_WIDTH)
+
+  // Theme panel width (resizable via drag handle)
+  const [themeWidth, setThemeWidth]   = useState(THEME_PANEL_DEFAULT_WIDTH)
+  const themeDragStartX               = useRef<number>(0)
+  const themeDragStartWidth           = useRef<number>(THEME_PANEL_DEFAULT_WIDTH)
 
   const onDragStart = useCallback((e: React.MouseEvent) => {
     dragStartX.current     = e.clientX
@@ -43,6 +50,24 @@ export function TerminalArea(): JSX.Element {
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
   }, [aiWidth])
+
+  const onThemeDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    themeDragStartX.current     = e.clientX
+    themeDragStartWidth.current = themeWidth
+
+    const onMove = (ev: MouseEvent) => {
+      const delta    = themeDragStartX.current - ev.clientX
+      const newWidth = Math.max(THEME_PANEL_MIN_WIDTH, Math.min(THEME_PANEL_MAX_WIDTH, themeDragStartWidth.current + delta))
+      setThemeWidth(newWidth)
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [themeWidth])
 
   // Callbacks for AiPanel — includes split session context when active
   const getTerminalContext = useCallback((lines = 150) => {
@@ -128,13 +153,22 @@ export function TerminalArea(): JSX.Element {
         </div>
         )}
 
-        {/* Theme panel — slide in from right */}
-        <div
-          className="shrink-0 flex flex-col overflow-hidden min-h-0 transition-all duration-200 ease-out"
-          style={{ width: themePanelOpen ? THEME_PANEL_WIDTH : 0, opacity: themePanelOpen ? 1 : 0 }}
-        >
-          {themePanelOpen && <ThemePanel />}
-        </div>
+        {/* Theme panel — slide in from right, resizable */}
+        {themePanelOpen && (
+          <div
+            className="shrink-0 flex overflow-hidden min-h-0 animate-in fade-in slide-in-from-right-2 duration-200"
+            style={{ width: themeWidth }}
+          >
+            {/* Drag handle on the left edge */}
+            <div
+              onMouseDown={onThemeDragStart}
+              className="w-1 shrink-0 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 transition-colors"
+            />
+            <div className="flex-1 overflow-hidden">
+              <ThemePanel />
+            </div>
+          </div>
+        )}
 
         {/* Snippet panel — slide in from right */}
         <div

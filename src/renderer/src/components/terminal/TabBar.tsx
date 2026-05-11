@@ -417,8 +417,10 @@ function Tab({ session, isActive, isSplit, groupColor, onActivate, onClose, onPi
 
       <button
         onClick={(e) => { e.stopPropagation(); onClose() }}
+        title="Close tab"
+        aria-label="Close tab"
         className={cn(
-          'shrink-0 p-0.5 rounded hover:bg-accent transition-all',
+          'shrink-0 p-0.5 rounded hover:bg-accent transition-all cursor-pointer',
           isActive ? 'opacity-50 hover:opacity-100' : 'opacity-0 group-hover:opacity-100'
         )}
       >
@@ -434,13 +436,13 @@ function Tab({ session, isActive, isSplit, groupColor, onActivate, onClose, onPi
           style={{ left: menuPos.x, top: menuPos.y }}
         >
           <button
-            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground/90 hover:text-foreground"
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground/90 hover:text-foreground transition-colors cursor-pointer"
             onClick={() => { setMenuPos(null); startRename() }}
           >
             <Pencil className="w-3.5 h-3.5 text-muted-foreground" /> Rename
           </button>
           <button
-            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground/90 hover:text-foreground"
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground/90 hover:text-foreground transition-colors cursor-pointer"
             onClick={() => { setMenuPos(null); onPin() }}
           >
             {session.pinned
@@ -449,20 +451,20 @@ function Tab({ session, isActive, isSplit, groupColor, onActivate, onClose, onPi
             }
           </button>
           <button
-            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground/90 hover:text-foreground"
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground/90 hover:text-foreground transition-colors cursor-pointer"
             onClick={() => { setMenuPos(null); onDuplicate() }}
           >
             <Copy className="w-3.5 h-3.5 text-muted-foreground" /> Duplicate
           </button>
           <div className="my-1 border-t border-border" />
           <button
-            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground/90 hover:text-foreground"
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground/90 hover:text-foreground transition-colors cursor-pointer"
             onClick={() => { setMenuPos(null); onCloseOthers() }}
           >
             <XCircle className="w-3.5 h-3.5 text-muted-foreground" /> Close others
           </button>
           <button
-            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-red-400 hover:text-red-300"
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-red-400 hover:text-red-300 transition-colors cursor-pointer"
             onClick={() => { setMenuPos(null); onClose() }}
           >
             <X className="w-3.5 h-3.5" /> Close

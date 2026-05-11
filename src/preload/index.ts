@@ -1,5 +1,38 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+// ── Single-listener fanout ────────────────────────────────────────────────────
+// Instead of registering one ipcRenderer listener per session (causing
+// MaxListenersExceededWarning when >10 sessions are open), we keep exactly ONE
+// ipcRenderer listener per channel and fan out to all registered callbacks.
+function makeFanout<T extends unknown[]>(channel: string): (cb: (...args: T) => void) => () => void {
+  const handlers = new Set<(...args: T) => void>()
+  ipcRenderer.on(channel, (_: unknown, ...args: unknown[]) => {
+    handlers.forEach(cb => cb(...(args as T)))
+  })
+  return (cb) => {
+    handlers.add(cb)
+    return () => handlers.delete(cb)
+  }
+}
+
+const onSshData    = makeFanout<[string, string]>('ssh:data')
+const onSshClosed  = makeFanout<[string]>('ssh:closed')
+const onTelnetData   = makeFanout<[string, string]>('telnet:data')
+const onTelnetClosed = makeFanout<[string]>('telnet:closed')
+const onSerialData   = makeFanout<[string, string]>('serial:data')
+const onSerialClosed = makeFanout<[string]>('serial:closed')
+const onSerialError  = makeFanout<[string, string]>('serial:error')
+const onSftpProgress = makeFanout<[string, string, number, number]>('sftp:progress')
+const onSftpClosed   = makeFanout<[string]>('sftp:closed')
+const onAiChunk     = makeFanout<[string]>('ai:chunk')
+const onAiDone      = makeFanout<[{ inputTokens: number; outputTokens: number } | undefined]>('ai:done')
+const onAiToolCall  = makeFanout<[{ id: string; command: string; reason: string; targetSession?: string }]>('ai:tool-call')
+const onAiError     = makeFanout<[string]>('ai:error')
+const onAiPlan      = makeFanout<[{ objective: string; steps: string[] }]>('ai:plan')
+const onWindowMaximized  = makeFanout<[boolean]>('window:maximized-change')
+const onUpdaterAvailable = makeFanout<[{ version: string; releaseDate: string; releaseNotes: string | null }]>('updater:update-available')
+const onUpdaterError     = makeFanout<[string]>('updater:error')
+
 const api = {
   // Store
   store: {
@@ -39,16 +72,8 @@ const api = {
     forwardStart: (payload: unknown) => ipcRenderer.invoke('ssh:forward-start', payload),
     forwardStop:  (forwardId: string) => ipcRenderer.invoke('ssh:forward-stop', forwardId),
     forwardStopSession: (sessionId: string) => ipcRenderer.invoke('ssh:forward-stop-session', sessionId),
-    onData: (cb: (sessionId: string, data: string) => void) => {
-      const handler = (_: unknown, sessionId: string, data: string) => cb(sessionId, data)
-      ipcRenderer.on('ssh:data', handler)
-      return () => ipcRenderer.removeListener('ssh:data', handler)
-    },
-    onClosed: (cb: (sessionId: string) => void) => {
-      const handler = (_: unknown, sessionId: string) => cb(sessionId)
-      ipcRenderer.on('ssh:closed', handler)
-      return () => ipcRenderer.removeListener('ssh:closed', handler)
-    }
+    onData:   onSshData,
+    onClosed: onSshClosed,
   },
 
   // Telnet
@@ -58,16 +83,8 @@ const api = {
     resize: (sessionId: string, cols: number, rows: number) =>
       ipcRenderer.invoke('telnet:resize', sessionId, cols, rows),
     disconnect: (sessionId: string) => ipcRenderer.invoke('telnet:disconnect', sessionId),
-    onData: (cb: (sessionId: string, data: string) => void) => {
-      const handler = (_: unknown, sessionId: string, data: string) => cb(sessionId, data)
-      ipcRenderer.on('telnet:data', handler)
-      return () => ipcRenderer.removeListener('telnet:data', handler)
-    },
-    onClosed: (cb: (sessionId: string) => void) => {
-      const handler = (_: unknown, sessionId: string) => cb(sessionId)
-      ipcRenderer.on('telnet:closed', handler)
-      return () => ipcRenderer.removeListener('telnet:closed', handler)
-    }
+    onData:   onTelnetData,
+    onClosed: onTelnetClosed,
   },
 
   // Session Logging
@@ -112,27 +129,15 @@ const api = {
     maximize:    () => ipcRenderer.invoke('window:maximize'),
     close:       () => ipcRenderer.invoke('window:close'),
     isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
-    onMaximizedChange: (cb: (maximized: boolean) => void) => {
-      const handler = (_: unknown, maximized: boolean) => cb(maximized)
-      ipcRenderer.on('window:maximized-change', handler)
-      return () => ipcRenderer.removeListener('window:maximized-change', handler)
-    },
+    onMaximizedChange: onWindowMaximized,
   },
 
   // Auto-updater (check only — downloads open in browser)
   updater: {
     check:       () => ipcRenderer.invoke('updater:check'),
     openRelease: (url: string) => ipcRenderer.invoke('updater:open-release', url),
-    onUpdateAvailable: (cb: (info: { version: string; releaseDate: string; releaseNotes: string | null }) => void) => {
-      const handler = (_: unknown, info: { version: string; releaseDate: string; releaseNotes: string | null }) => cb(info)
-      ipcRenderer.on('updater:update-available', handler)
-      return () => ipcRenderer.removeListener('updater:update-available', handler)
-    },
-    onError: (cb: (message: string) => void) => {
-      const handler = (_: unknown, message: string) => cb(message)
-      ipcRenderer.on('updater:error', handler)
-      return () => ipcRenderer.removeListener('updater:error', handler)
-    },
+    onUpdateAvailable: onUpdaterAvailable,
+    onError:           onUpdaterError,
   },
 
   // Serial
@@ -141,21 +146,9 @@ const api = {
     connect: (payload: unknown) => ipcRenderer.invoke('serial:connect', payload),
     send: (sessionId: string, data: string) => ipcRenderer.send('serial:send', sessionId, data),
     disconnect: (sessionId: string) => ipcRenderer.invoke('serial:disconnect', sessionId),
-    onData: (cb: (sessionId: string, data: string) => void) => {
-      const handler = (_: unknown, sessionId: string, data: string) => cb(sessionId, data)
-      ipcRenderer.on('serial:data', handler)
-      return () => ipcRenderer.removeListener('serial:data', handler)
-    },
-    onClosed: (cb: (sessionId: string) => void) => {
-      const handler = (_: unknown, sessionId: string) => cb(sessionId)
-      ipcRenderer.on('serial:closed', handler)
-      return () => ipcRenderer.removeListener('serial:closed', handler)
-    },
-    onError: (cb: (sessionId: string, error: string) => void) => {
-      const handler = (_: unknown, sessionId: string, error: string) => cb(sessionId, error)
-      ipcRenderer.on('serial:error', handler)
-      return () => ipcRenderer.removeListener('serial:error', handler)
-    }
+    onData:   onSerialData,
+    onClosed: onSerialClosed,
+    onError:  onSerialError,
   },
 
   // Auth
@@ -196,17 +189,8 @@ const api = {
     rename:   (sessionId: string, oldPath: string, newPath: string) => ipcRenderer.invoke('sftp:rename', sessionId, oldPath, newPath),
     mkdir:    (sessionId: string, remotePath: string) => ipcRenderer.invoke('sftp:mkdir', sessionId, remotePath),
     disconnect: (sessionId: string) => ipcRenderer.invoke('sftp:disconnect', sessionId),
-    onProgress: (cb: (sessionId: string, filePath: string, transferred: number, total: number) => void) => {
-      const handler = (_: unknown, sessionId: string, filePath: string, transferred: number, total: number) =>
-        cb(sessionId, filePath, transferred, total)
-      ipcRenderer.on('sftp:progress', handler)
-      return () => ipcRenderer.removeListener('sftp:progress', handler)
-    },
-    onClosed: (cb: (sessionId: string) => void) => {
-      const handler = (_: unknown, sessionId: string) => cb(sessionId)
-      ipcRenderer.on('sftp:closed', handler)
-      return () => ipcRenderer.removeListener('sftp:closed', handler)
-    },
+    onProgress: onSftpProgress,
+    onClosed:   onSftpClosed,
   },
 
   // AI Copilot
@@ -216,31 +200,11 @@ const api = {
     toolResult:    (callId: string, output: string)     => ipcRenderer.invoke('ai:tool-result', callId, output),
     resetBlacklist: ()                                  => ipcRenderer.invoke('ai:reset-blacklist'),
     exportMarkdown: (payload: unknown)                  => ipcRenderer.invoke('ai:export-markdown', payload),
-    onChunk:    (cb: (chunk: string) => void) => {
-      const handler = (_: unknown, chunk: string) => cb(chunk)
-      ipcRenderer.on('ai:chunk', handler)
-      return () => ipcRenderer.removeListener('ai:chunk', handler)
-    },
-    onDone: (cb: (usage?: { inputTokens: number; outputTokens: number }) => void) => {
-      const handler = (_: unknown, usage?: { inputTokens: number; outputTokens: number }) => cb(usage)
-      ipcRenderer.on('ai:done', handler)
-      return () => ipcRenderer.removeListener('ai:done', handler)
-    },
-    onToolCall: (cb: (call: { id: string; command: string; reason: string; targetSession?: string }) => void) => {
-      const handler = (_: unknown, call: { id: string; command: string; reason: string; targetSession?: string }) => cb(call)
-      ipcRenderer.on('ai:tool-call', handler)
-      return () => ipcRenderer.removeListener('ai:tool-call', handler)
-    },
-    onError: (cb: (error: string) => void) => {
-      const handler = (_: unknown, error: string) => cb(error)
-      ipcRenderer.on('ai:error', handler)
-      return () => ipcRenderer.removeListener('ai:error', handler)
-    },
-    onPlan: (cb: (plan: { objective: string; steps: string[] }) => void) => {
-      const handler = (_: unknown, plan: { objective: string; steps: string[] }) => cb(plan)
-      ipcRenderer.on('ai:plan', handler)
-      return () => ipcRenderer.removeListener('ai:plan', handler)
-    },
+    onChunk:    onAiChunk,
+    onDone:     onAiDone,
+    onToolCall: onAiToolCall,
+    onError:    onAiError,
+    onPlan:     onAiPlan,
   },
 
   connection: {

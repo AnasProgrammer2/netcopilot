@@ -56,6 +56,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
   const [searchQuery, setSearchQuery]       = useState('')
   const [searchCaseSens, setSearchCaseSens] = useState(false)
   const [searchRegex, setSearchRegex]       = useState(false)
+  const [searchResult, setSearchResult]     = useState<{ resultIndex: number; resultCount: number } | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
 
@@ -140,6 +141,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
   const closeSearch = useCallback(() => {
     setShowSearch(false)
     setSearchQuery('')
+    setSearchResult(null)
     termRef.current?.focus()
   }, [])
 
@@ -374,6 +376,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
 
     const fitAddon    = new FitAddon()
     const searchAddon = new SearchAddon()
+    searchAddon.onDidChangeResults((r) => setSearchResult(r ?? null))
 
     term.loadAddon(fitAddon)
     term.loadAddon(new WebLinksAddon())
@@ -872,7 +875,8 @@ export function TerminalTab({ session }: Props): JSX.Element {
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value)
-              if (searchRef.current && e.target.value) {
+              if (!e.target.value) { setSearchResult(null); return }
+              if (searchRef.current) {
                 searchRef.current.findNext(e.target.value, { caseSensitive: searchCaseSens, regex: searchRegex, incremental: true })
               }
             }}
@@ -881,26 +885,45 @@ export function TerminalTab({ session }: Props): JSX.Element {
               if (e.key === 'Escape') closeSearch()
             }}
             placeholder="Search..."
-            className="w-40 text-xs bg-transparent text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+            className="w-36 text-xs bg-transparent text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 rounded"
           />
+          {/* Result counter */}
+          {searchQuery && (
+            <span className={cn(
+              'text-[10px] tabular-nums shrink-0 min-w-[40px] text-center',
+              searchResult
+                ? searchResult.resultCount === 0
+                  ? 'text-red-400'
+                  : 'text-muted-foreground'
+                : 'text-muted-foreground/40'
+            )}>
+              {searchResult
+                ? searchResult.resultCount === 0
+                  ? 'No results'
+                  : `${searchResult.resultIndex + 1}/${searchResult.resultCount}`
+                : '…'
+              }
+            </span>
+          )}
+          <div className="w-px h-4 bg-border mx-0.5" />
           <button
             onClick={() => setSearchCaseSens(v => !v)}
             title="Case sensitive"
-            className={cn('px-1.5 py-0.5 rounded text-xs font-mono transition-colors', searchCaseSens ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground')}
+            className={cn('px-1.5 py-0.5 rounded text-xs font-mono transition-colors cursor-pointer', searchCaseSens ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground')}
           >Aa</button>
           <button
             onClick={() => setSearchRegex(v => !v)}
             title="Use regex"
-            className={cn('px-1.5 py-0.5 rounded text-xs font-mono transition-colors', searchRegex ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground')}
+            className={cn('px-1.5 py-0.5 rounded text-xs font-mono transition-colors cursor-pointer', searchRegex ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground')}
           >.*</button>
           <div className="w-px h-4 bg-border mx-0.5" />
-          <button onClick={() => doSearch('prev')} title="Previous (Shift+Enter)" className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
+          <button onClick={() => doSearch('prev')} title="Previous (Shift+Enter)" className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground cursor-pointer">
             <ChevronUp className="w-3.5 h-3.5" />
           </button>
-          <button onClick={() => doSearch('next')} title="Next (Enter)" className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
+          <button onClick={() => doSearch('next')} title="Next (Enter)" className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground cursor-pointer">
             <ChevronDown className="w-3.5 h-3.5" />
           </button>
-          <button onClick={closeSearch} className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
+          <button onClick={closeSearch} title="Close (Esc)" aria-label="Close search" className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -908,24 +931,24 @@ export function TerminalTab({ session }: Props): JSX.Element {
 
       {/* Toolbar */}
       <div className="flex items-center justify-between px-3 py-1 border-b border-border/40 bg-background shrink-0">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[11px] text-muted-foreground/50 font-mono">
+        <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+          <span className="text-[11px] text-muted-foreground/50 font-mono truncate">
             {session.connection.protocol.toUpperCase()} · {session.connection.host}
           </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           {/* Search button */}
           <button
             onClick={openSearch}
             title="Search (Ctrl+F)"
             className={cn(
-              'flex items-center gap-1 px-2 py-0.5 rounded text-xs transition-colors',
+              'flex items-center gap-1 px-2 py-0.5 rounded text-xs transition-colors cursor-pointer',
               showSearch
                 ? 'bg-primary/15 text-primary'
-                : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-white/5'
+                : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent'
             )}
           >
-            <Search className="w-3 h-3" />
+            <Search className="w-3.5 h-3.5" />
             <span>Search</span>
           </button>
 
@@ -936,7 +959,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
             <button
               onClick={stopLogging}
               title={`Logging to: ${session.loggingPath}\nClick to stop`}
-              className="flex items-center gap-1.5 px-2 py-0.5 rounded text-xs text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors"
+              className="flex items-center gap-1.5 px-2 py-0.5 rounded text-xs text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors cursor-pointer"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse shrink-0" />
               REC · Stop
@@ -945,7 +968,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
             <button
               onClick={startLogging}
               title="Start session logging"
-              className="flex items-center gap-1 px-2 py-0.5 rounded text-xs text-muted-foreground/60 hover:text-muted-foreground hover:bg-white/5 transition-colors"
+              className="flex items-center gap-1 px-2 py-0.5 rounded text-xs text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent transition-colors cursor-pointer"
             >
               <span className="w-1.5 h-1.5 rounded-full border border-current shrink-0" />
               Log

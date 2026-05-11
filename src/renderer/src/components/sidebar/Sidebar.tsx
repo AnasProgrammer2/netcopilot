@@ -46,7 +46,7 @@ export function Sidebar(): JSX.Element {
   const [sshConfigDialogOpen, setSshConfigDialogOpen] = useState(false)
   const [footerOpen, setFooterOpen] = useState(false)
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false)
-  const [sortBy, setSortBy] = useState<'name' | 'recent' | 'protocol'>('name')
+  const [sortBy, setSortBy] = useState<'name' | 'recent' | 'protocol'>('recent')
   const [viewMenuOpen, setViewMenuOpen] = useState(false)
   const [filterProtocol, setFilterProtocol] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<'all' | 'connected' | 'disconnected'>('all')
@@ -149,6 +149,11 @@ export function Sidebar(): JSX.Element {
   const hasActiveFilter = filterProtocol !== null || filterStatus !== 'all'
 
   const sortFn = (a: Connection, b: Connection) => {
+    // Active (open) sessions always float to the top regardless of sort mode
+    const aOpen = sessions.some((s) => s.connectionId === a.id) ? 1 : 0
+    const bOpen = sessions.some((s) => s.connectionId === b.id) ? 1 : 0
+    if (bOpen !== aOpen) return bOpen - aOpen
+
     if (sortBy === 'recent') {
       const aTime = a.lastConnectedAt ? new Date(a.lastConnectedAt).getTime() : 0
       const bTime = b.lastConnectedAt ? new Date(b.lastConnectedAt).getTime() : 0
@@ -395,7 +400,13 @@ export function Sidebar(): JSX.Element {
                   onClick={() => setImportDialogOpen(true)}
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-sidebar-accent/50 text-sidebar-foreground/60 text-[12px] hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
                 >
-                  <Upload className="w-3.5 h-3.5" /> Import
+                  <Upload className="w-3.5 h-3.5" /> Import Connections
+                </button>
+                <button
+                  onClick={() => setSshConfigDialogOpen(true)}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-sidebar-accent/50 text-sidebar-foreground/60 text-[12px] hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
+                >
+                  <FileCode className="w-3.5 h-3.5" /> Import SSH Config
                 </button>
               </div>
             </div>
@@ -471,27 +482,55 @@ export function Sidebar(): JSX.Element {
           })}
 
           {/* Ungrouped — also a drop target */}
-          <div
-            onDragOver={(e) => { e.preventDefault(); setDropTargetId('ungrouped') }}
-            onDragLeave={() => setDropTargetId(null)}
-            onDrop={(e) => { e.preventDefault(); handleConnDrop(undefined) }}
-            className={cn('rounded-lg transition-colors stagger-children', dropTargetId === 'ungrouped' && 'ring-1 ring-primary/50 bg-primary/5')}
-          >
-            {ungrouped.map((conn) => (
-              <ConnectionItem
-                key={conn.id}
-                connection={conn}
-                sessions={sessions}
-                activeSessionId={activeSessionId}
-                onConnect={() => openSession(conn)}
-                onOpenSftp={() => openSftpSession(conn)}
-                onEdit={() => setConnectionDialogOpen(true, conn)}
-                onDragStart={() => { dragConnId.current = conn.id }}
-                isSelected={selectedConnectionIds.has(conn.id)}
-                onSelect={(e) => toggleSelectConnection(conn.id, e.ctrlKey || e.metaKey)}
-              />
-            ))}
-          </div>
+          {(() => {
+            const openConns    = ungrouped.filter((c) => sessions.some((s) => s.connectionId === c.id))
+            const closedConns  = ungrouped.filter((c) => !sessions.some((s) => s.connectionId === c.id))
+            const showDivider  = openConns.length > 0 && closedConns.length > 0
+            return (
+              <div
+                onDragOver={(e) => { e.preventDefault(); setDropTargetId('ungrouped') }}
+                onDragLeave={() => setDropTargetId(null)}
+                onDrop={(e) => { e.preventDefault(); handleConnDrop(undefined) }}
+                className={cn('rounded-lg transition-colors stagger-children', dropTargetId === 'ungrouped' && 'ring-1 ring-primary/50 bg-primary/5')}
+              >
+                {openConns.map((conn) => (
+                  <ConnectionItem
+                    key={conn.id}
+                    connection={conn}
+                    sessions={sessions}
+                    activeSessionId={activeSessionId}
+                    onConnect={() => openSession(conn)}
+                    onOpenSftp={() => openSftpSession(conn)}
+                    onEdit={() => setConnectionDialogOpen(true, conn)}
+                    onDragStart={() => { dragConnId.current = conn.id }}
+                    isSelected={selectedConnectionIds.has(conn.id)}
+                    onSelect={(e) => toggleSelectConnection(conn.id, e.ctrlKey || e.metaKey)}
+                  />
+                ))}
+                {showDivider && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 mt-0.5">
+                    <div className="h-px flex-1 bg-sidebar-border/60" />
+                    <span className="text-[9px] font-semibold uppercase tracking-widest text-sidebar-foreground/30">Recent</span>
+                    <div className="h-px flex-1 bg-sidebar-border/60" />
+                  </div>
+                )}
+                {closedConns.map((conn) => (
+                  <ConnectionItem
+                    key={conn.id}
+                    connection={conn}
+                    sessions={sessions}
+                    activeSessionId={activeSessionId}
+                    onConnect={() => openSession(conn)}
+                    onOpenSftp={() => openSftpSession(conn)}
+                    onEdit={() => setConnectionDialogOpen(true, conn)}
+                    onDragStart={() => { dragConnId.current = conn.id }}
+                    isSelected={selectedConnectionIds.has(conn.id)}
+                    onSelect={(e) => toggleSelectConnection(conn.id, e.ctrlKey || e.metaKey)}
+                  />
+                ))}
+              </div>
+            )
+          })()}
         </div>
 
         {/* Footer actions — collapsible, always at bottom */}

@@ -47,6 +47,8 @@ export function ThemePanel(): JSX.Element {
         </div>
         <button
           onClick={() => setThemePanelOpen(false)}
+          title="Close"
+          aria-label="Close theme panel"
           className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
         >
           <X className="w-3.5 h-3.5" />
@@ -91,7 +93,7 @@ export function ThemePanel(): JSX.Element {
                           : 'text-foreground hover:bg-accent'
                       )}
                     >
-                      <span style={{ fontFamily: `"${f}", monospace` }} className="text-[13px]">{f}</span>
+                      <span style={{ fontFamily: `"${f}", monospace` }} className="text-[13px] truncate min-w-0">{f}</span>
                       {terminalSettings.fontFamily === f && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
                     </button>
                   ))}
@@ -106,15 +108,19 @@ export function ThemePanel(): JSX.Element {
           <div className="flex items-center">
             <button
               onClick={() => updateSize(terminalSettings.fontSize - 1)}
+              title="Decrease font size"
+              aria-label="Decrease font size"
               className="w-8 h-8 flex items-center justify-center rounded-l-lg border border-border bg-accent/50 hover:bg-accent text-foreground transition-colors cursor-pointer"
             >
               <Minus className="w-3.5 h-3.5" />
             </button>
-            <div className="w-10 h-8 flex items-center justify-center border-y border-border bg-background text-[13px] font-semibold tabular-nums">
+            <div className="w-10 h-8 flex items-center justify-center border-y border-border bg-background text-[13px] font-semibold tabular-nums select-none">
               {terminalSettings.fontSize}
             </div>
             <button
               onClick={() => updateSize(terminalSettings.fontSize + 1)}
+              title="Increase font size"
+              aria-label="Increase font size"
               className="w-8 h-8 flex items-center justify-center rounded-r-lg border border-border bg-accent/50 hover:bg-accent text-foreground transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
