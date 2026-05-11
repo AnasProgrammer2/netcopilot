@@ -157,9 +157,17 @@ Your license key is stored in the **OS keychain** — never on disk or in any fi
 - Access via right-click context menu or the 3-dot (⋯) hover menu on any SSH connection
 - Progress indicator for file transfers
 
+### Connection Health Monitor
+
+- Ping dashboard on the home screen — check latency for all connections at a glance
+- Color-coded latency badges: green (fast) → yellow → orange (slow) → red (offline)
+- Refresh button to re-scan all connections on demand
+- Non-blocking — runs in the background while you work
+
 ### Terminal
 
 - In-terminal search with regex and case-sensitivity (`⌘F`)
+- Result counter shows `n / total` matches as you type; red indicator when nothing is found
 - Right-click context menu (Copy, Paste, Search, Clear)
 - Configurable font family, size, line height, cursor style, and scrollback
 - Session logging with ANSI stripping and optional timestamps
@@ -176,11 +184,13 @@ Your license key is stored in the **OS keychain** — never on disk or in any fi
 ### Connection Management
 
 - Organized library with groups, colors, tags, and notes
+- **Smart sidebar sorting** — active sessions always float to the top; default sort by last connected so your most-used hosts are always first
 - Tags filter from the HomeScreen pills bar
 - **Quick Connect** (`⌘K`) — instant session from `user@host:port` without saving
 - Startup commands that run automatically after connecting
 - SSH key manager with reusable named keys
 - Full import / export as JSON
+- Import directly from `~/.ssh/config`
 
 ### Keyboard Shortcuts
 
@@ -272,6 +282,9 @@ Output files in `dist/`.
 - [x] **Session Summary Dialog** — closing a tab with AI activity shows a full summary of commands run, stats, and ARIA's last response
 - [x] **Thinking… / Running… indicators** — live feedback while ARIA is waiting for the first token or executing between tool calls
 - [x] **Port Forwarding** — local, remote, and dynamic (SOCKS) tunnels per connection with live status
+- [x] **Connection Health Monitor** — ping dashboard with live latency badges directly on the home screen
+- [x] **Smart sidebar sorting** — open sessions always on top, sorted by last connected
+- [x] **Terminal search counter** — live `n / total` result count with no-match indicator
 
 ### Planned
 - [ ] Command snippets library
