@@ -62,6 +62,9 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
   const [sessionBlacklist,  setSessionBlacklist]  = useState<string[]>(aiBlacklist)
   const [autoWatch,         setAutoWatch]          = useState(true)
   const [historyCommands,   setHistoryCommands]    = useState<string[]>([])
+  const [privacyDismissed,  setPrivacyDismissed]  = useState(() =>
+    localStorage.getItem('aria-privacy-notice-accepted') === '1'
+  )
   const prevMessageCount = useRef(0)
 
   // Sequential command queue — prevents race condition when auto-executing multiple commands
@@ -665,6 +668,23 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
               </div>
             )
           })()}
+
+          {/* Privacy notice — shown once until dismissed */}
+          {licenseValid && !privacyDismissed && aiMessages.length === 0 && (
+            <div className="mx-3 mb-1.5 px-3 py-2 rounded-lg border border-amber-500/20 bg-amber-500/5 flex items-start gap-2">
+              <AlertCircle className="w-3.5 h-3.5 text-amber-500/70 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-muted-foreground/70 leading-relaxed flex-1">
+                ARIA sends your terminal context and conversation to <span className="text-foreground/60 font-medium">api.netcopilot.app</span> to generate responses. Avoid using ARIA on sessions with sensitive credentials.
+              </p>
+              <button
+                onClick={() => { localStorage.setItem('aria-privacy-notice-accepted', '1'); setPrivacyDismissed(true) }}
+                className="shrink-0 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                title="Dismiss"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
 
           {/* Input box */}
           <div className="border-t border-border/60 px-3 pt-2 pb-2 shrink-0 bg-gradient-to-t from-background to-transparent">

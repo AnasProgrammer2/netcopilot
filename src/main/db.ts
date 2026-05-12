@@ -10,6 +10,18 @@ function safeJsonParse<T>(raw: string, fallback: T): T {
   try { return JSON.parse(raw) as T } catch { return fallback }
 }
 
+/** Encrypt a sensitive field value with OS keychain via safeStorage. */
+function encryptField(value: string): string {
+  if (!safeStorage.isEncryptionAvailable()) return value
+  try { return safeStorage.encryptString(value).toString('base64') } catch { return value }
+}
+
+/** Decrypt a field encrypted by encryptField; falls back to plaintext for legacy rows. */
+function decryptField(value: string): string {
+  if (!safeStorage.isEncryptionAvailable()) return value
+  try { return safeStorage.decryptString(Buffer.from(value, 'base64')) } catch { return value }
+}
+
 let _db: Database.Database | null = null
 
 export function getDb(): Database.Database {
@@ -254,7 +266,7 @@ export function rowToConnection(row: Row): Connection {
     color:            (row.color as string) || undefined,
     jumpHostId:       (row.jump_host_id as string) || undefined,
     startupCommands:  row.startup_commands ? safeJsonParse(row.startup_commands as string, undefined) : undefined,
-    enablePassword:   (row.enable_password as string) || undefined,
+    enablePassword:   row.enable_password ? decryptField(row.enable_password as string) : undefined,
     serialConfig:     row.serial_config ? safeJsonParse(row.serial_config as string, undefined) : undefined,
     autoReconnect:    Boolean(row.auto_reconnect),
     reconnectDelay:   row.reconnect_delay as number,
@@ -282,7 +294,7 @@ export function connToRow(c: Connection): Row {
     color:            c.color       ?? null,
     jump_host_id:     c.jumpHostId  ?? null,
     startup_commands: c.startupCommands ? JSON.stringify(c.startupCommands) : null,
-    enable_password:  c.enablePassword  ?? null,
+    enable_password:  c.enablePassword  ? encryptField(c.enablePassword) : null,
     serial_config:    c.serialConfig    ? JSON.stringify(c.serialConfig) : null,
     auto_reconnect:   c.autoReconnect   ? 1 : 0,
     reconnect_delay:  c.reconnectDelay  ?? 10,

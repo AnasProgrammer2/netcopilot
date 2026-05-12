@@ -85,8 +85,8 @@ export function setupMasterPasswordHandlers(ipcMain: IpcMain): void {
   ipcMain.handle('auth:hasMasterPassword', () => loadHash() !== null)
 
   ipcMain.handle('auth:setMasterPassword', (_, password: string) => {
-    if (!password || password.length < 4) {
-      return { success: false, error: 'Password must be at least 4 characters' }
+    if (!password || password.length < 8) {
+      return { success: false, error: 'Password must be at least 8 characters' }
     }
     const salt = randomBytes(SALT_BYTES)
     const hash = hashPassword(password, salt)

@@ -624,7 +624,7 @@ function SecuritySection({ settings, update }: SectionProps) {
   const resetMpForm = () => { setPw1(''); setPw2(''); setCurrentPw(''); setMpError(''); setMpMode('idle') }
 
   const handleSetPassword = async () => {
-    if (pw1.length < 4) return setMpError('At least 4 characters required')
+    if (pw1.length < 8) return setMpError('At least 8 characters required')
     if (pw1 !== pw2) return setMpError('Passwords do not match')
     if (mpMode === 'change') {
       const ok = await window.api.auth.verifyMasterPassword(currentPw)
