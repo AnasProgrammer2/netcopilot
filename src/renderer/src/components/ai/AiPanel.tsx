@@ -831,7 +831,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 function PillSelect<T extends string>({
   options, value, onChange, align = 'left',
 }: {
-  options: { id: T; label: string; short: string; icon?: JSX.Element; dimColor: string; activeColor: string }[]
+  options: { id: T; label: string; short: string; icon?: JSX.Element; dimColor: string; activeColor: string; desc?: string }[]
   value: T
   onChange: (v: T) => void
   align?: 'left' | 'right'
@@ -873,7 +873,7 @@ function PillSelect<T extends string>({
         transform: align === 'right' ? 'translate(-100%, -100%)' : 'translateY(-100%)',
         zIndex:   9999,
       }}
-      className="bg-popover border border-border/80 rounded-lg shadow-2xl min-w-[148px] py-1 overflow-hidden"
+      className="bg-popover border border-border/80 rounded-lg shadow-2xl min-w-[200px] py-1 overflow-hidden"
     >
       {options.map((opt) => {
         const isActive = value === opt.id
@@ -882,15 +882,22 @@ function PillSelect<T extends string>({
             key={opt.id}
             onClick={() => { onChange(opt.id); setOpen(false) }}
             className={cn(
-              'w-full flex items-center gap-2.5 px-3 py-1.5 text-[12px] transition-colors text-left',
+              'w-full flex items-start gap-2.5 px-3 py-2 text-[12px] transition-colors text-left',
               isActive
                 ? `${opt.activeColor} bg-muted/60`
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
             )}
           >
-            {opt.icon && <span className="shrink-0">{opt.icon}</span>}
-            <span className="flex-1">{opt.label}</span>
-            {isActive && <Check className="w-3 h-3 shrink-0 opacity-80" />}
+            {opt.icon && <span className="shrink-0 mt-0.5">{opt.icon}</span>}
+            <span className="flex-1 min-w-0">
+              <span className="block font-medium leading-snug">{opt.label}</span>
+              {opt.desc && (
+                <span className={cn('block text-[10px] leading-relaxed mt-0.5', isActive ? 'opacity-70' : 'text-muted-foreground/60')}>
+                  {opt.desc}
+                </span>
+              )}
+            </span>
+            {isActive && <Check className="w-3 h-3 shrink-0 opacity-80 mt-0.5" />}
           </button>
         )
       })}
@@ -928,16 +935,19 @@ function AgentModeSelector({ value, onChange }: { value: AiMode; onChange: (v: A
       options={[
         {
           id: 'read-only',   label: 'Read Only',   short: 'Read Only',
+          desc: 'Diagnose only — no changes to the device. Show, ping, ls, ps…',
           icon: <ShieldCheck className="w-3 h-3" />,
           dimColor: 'text-emerald-500/70', activeColor: 'text-emerald-400',
         },
         {
           id: 'fix',         label: 'Fix Mode',    short: 'Fix Mode',
+          desc: 'Can apply config changes, but asks your approval before each command.',
           icon: <Wrench className="w-3 h-3" />,
           dimColor: 'text-amber-500/70',   activeColor: 'text-amber-400',
         },
         {
           id: 'auto-pilot',  label: 'Auto Pilot',  short: 'Auto Pilot',
+          desc: 'Executes commands automatically without stopping. Use with caution.',
           icon: <Zap className="w-3 h-3" />,
           dimColor: 'text-red-500/70',     activeColor: 'text-red-400',
         },
