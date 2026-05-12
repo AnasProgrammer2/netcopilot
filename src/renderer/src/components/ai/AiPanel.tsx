@@ -687,7 +687,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
           )}
 
           {/* Input box */}
-          <div className="border-t border-border/60 px-3 pt-2 pb-2 shrink-0 bg-gradient-to-t from-background to-transparent">
+          <div className="border-t border-border/40 px-3 pt-2.5 pb-3 shrink-0">
             {!licenseValid ? (
               /* ── No License Gate ── */
               <div className="flex flex-col items-center gap-3 py-4 px-3 rounded-xl border border-red-500/20 bg-red-500/5">
@@ -709,110 +709,98 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                 </p>
               </div>
             ) : (
-              <>
-                <div className="bg-card/70 border border-border/70 rounded-xl shadow-sm transition-all focus-within:border-primary/40 focus-within:shadow-[0_0_0_3px_rgba(139,92,246,0.08)]">
-                  {/* Text area row */}
-                  <div className="flex items-end gap-2 px-3 pt-2.5 pb-1">
-                    <textarea
-                      ref={inputRef}
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
-                          handleSubmit()
-                        }
-                      }}
-                      placeholder={`Ask about ${activeSession.connection.name}…`}
-                      rows={1}
-                      disabled={aiStreaming}
-                      className={cn(
-                        'flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground',
-                        'outline-none max-h-32 overflow-y-auto leading-relaxed',
-                        'disabled:opacity-50'
-                      )}
-                      style={{ minHeight: '20px' }}
-                      onInput={(e) => {
-                        const el = e.currentTarget
-                        el.style.height = 'auto'
-                        el.style.height = Math.min(el.scrollHeight, 128) + 'px'
-                      }}
-                    />
-                  </div>
+              <div
+                className={cn(
+                  'rounded-2xl border transition-all duration-200',
+                  'bg-card/80 backdrop-blur-sm',
+                  'border-border/60',
+                  'shadow-[0_2px_12px_rgba(0,0,0,0.15)]',
+                  'focus-within:border-primary/50 focus-within:shadow-[0_0_0_3px_rgba(139,92,246,0.10),0_2px_16px_rgba(139,92,246,0.08)]'
+                )}
+              >
+                {/* Textarea */}
+                <div className="px-3.5 pt-3 pb-1">
+                  <textarea
+                    ref={inputRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        handleSubmit()
+                      }
+                    }}
+                    placeholder={`Ask about ${activeSession.connection.name}…`}
+                    rows={1}
+                    disabled={aiStreaming}
+                    className={cn(
+                      'w-full resize-none bg-transparent text-sm text-foreground',
+                      'placeholder:text-muted-foreground/50',
+                      'outline-none max-h-36 overflow-y-auto leading-relaxed',
+                      'disabled:opacity-40'
+                    )}
+                    style={{ minHeight: '22px' }}
+                    onInput={(e) => {
+                      const el = e.currentTarget
+                      el.style.height = 'auto'
+                      el.style.height = Math.min(el.scrollHeight, 144) + 'px'
+                    }}
+                  />
+                </div>
 
-                  {/* Toolbar row */}
-                  <div className="flex items-center gap-1 px-2 pb-2">
-                    {/* Permission selector */}
-                    <ModeSelector
-                      value={sessionPermission}
-                      onChange={setSessionPermission}
-                    />
+                {/* Toolbar */}
+                <div className="flex items-center gap-0.5 px-2.5 pb-2.5 pt-1">
+                  <ModeSelector value={sessionPermission} onChange={setSessionPermission} />
+                  <ApprovalSelector value={sessionApproval} onChange={setSessionApproval} />
+                  <BlacklistButton blacklist={sessionBlacklist} onChange={setSessionBlacklist} />
 
-                    {/* Divider */}
-                    <span className="w-px h-3.5 bg-border/60 mx-0.5" />
+                  <button
+                    onClick={() => setAutoWatch(v => !v)}
+                    title={autoWatch ? 'Auto Watch ON — click to disable' : 'Auto Watch OFF — click to enable'}
+                    className={cn(
+                      'flex items-center justify-center w-6 h-6 rounded-lg transition-all',
+                      autoWatch
+                        ? 'text-primary/70 hover:text-primary hover:bg-primary/10'
+                        : 'text-muted-foreground/35 hover:text-muted-foreground hover:bg-muted/50'
+                    )}
+                  >
+                    {autoWatch ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                  </button>
 
-                    {/* Approval selector */}
-                    <ApprovalSelector
-                      value={sessionApproval}
-                      onChange={setSessionApproval}
-                    />
+                  <div className="flex-1" />
 
-                    {/* Divider */}
-                    <span className="w-px h-3.5 bg-border/60 mx-0.5" />
+                  {/* hint */}
+                  <span className="text-[10px] text-muted-foreground/30 mr-2 hidden sm:block select-none">
+                    ↵ send · ⇧↵ newline
+                  </span>
 
-                    {/* Per-session blacklist — always available as a safety guard */}
-                    <BlacklistButton
-                      blacklist={sessionBlacklist}
-                      onChange={setSessionBlacklist}
-                    />
-
-                    {/* Divider */}
-                    <span className="w-px h-3.5 bg-border/60 mx-0.5" />
-
-                    {/* Auto Watch toggle */}
+                  {aiStreaming ? (
                     <button
-                      onClick={() => setAutoWatch(v => !v)}
-                      title={autoWatch ? 'Auto Watch ON — click to disable' : 'Auto Watch OFF — click to enable'}
+                      onClick={() => window.api.ai.cancel()}
+                      title="Stop generation"
+                      className="shrink-0 flex items-center gap-1.5 px-2.5 h-7 rounded-xl text-[11px] font-medium bg-red-500/12 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/35 transition-all"
+                    >
+                      <Square className="w-3 h-3" />
+                      Stop
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleSubmit}
+                      disabled={!input.trim()}
+                      title="Send (Enter)"
                       className={cn(
-                        'flex items-center justify-center w-6 h-6 rounded-md transition-all border',
-                        autoWatch
-                          ? 'text-primary/80 border-transparent hover:border-border hover:bg-muted/50'
-                          : 'text-muted-foreground/40 border-transparent hover:border-border hover:bg-muted/50'
+                        'shrink-0 flex items-center justify-center w-7 h-7 rounded-xl transition-all duration-150',
+                        'bg-primary text-primary-foreground',
+                        'shadow-[0_1px_8px_rgba(139,92,246,0.35)]',
+                        'hover:brightness-110 hover:shadow-[0_2px_12px_rgba(139,92,246,0.45)]',
+                        'disabled:opacity-25 disabled:cursor-not-allowed disabled:shadow-none'
                       )}
                     >
-                      {autoWatch
-                        ? <Eye    className="w-3.5 h-3.5" />
-                        : <EyeOff className="w-3.5 h-3.5" />
-                      }
+                      <Send className="w-3.5 h-3.5" />
                     </button>
-
-                    {/* Push send/stop to the right */}
-                    <div className="flex-1" />
-
-                    {aiStreaming ? (
-                      <button
-                        onClick={() => window.api.ai.cancel()}
-                        title="Stop generation"
-                        className="shrink-0 p-1.5 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors"
-                      >
-                        <Square className="w-3.5 h-3.5" />
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleSubmit}
-                        disabled={!input.trim()}
-                        title="Send (Enter)"
-                        className="shrink-0 p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/85 disabled:opacity-25 disabled:cursor-not-allowed transition-all shadow-sm shadow-primary/20"
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </div>
-                <p className="text-[11px] text-muted-foreground/40 mt-1.5 px-1">
-                  Enter to send · Shift+Enter for newline
-                </p>
-              </>
+              </div>
             )}
           </div>
         </>
