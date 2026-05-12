@@ -285,14 +285,6 @@ Output files in `dist/`.
 - [x] **Connection Health Monitor** — ping dashboard with live latency badges directly on the home screen
 - [x] **Smart sidebar sorting** — open sessions always on top, sorted by last connected
 - [x] **Terminal search counter** — live `n / total` result count with no-match indicator
-
-### Planned
-- [ ] Command snippets library
-- [ ] Persistent ARIA memory across sessions
-- [ ] Network topology map from ARIA discoveries
-- [ ] Config diff (running vs startup / device vs device)
-- [ ] Team collaboration — shared connection libraries
-
 ---
 
 ## Contributing
