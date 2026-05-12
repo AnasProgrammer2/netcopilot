@@ -3,6 +3,14 @@ import path from 'path'
 import os from 'os'
 import { readFile, writeFile } from 'fs/promises'
 
+function showSaveDialog(win: BrowserWindow | null | undefined, opts: Electron.SaveDialogOptions) {
+  return win ? dialog.showSaveDialog(win, opts) : dialog.showSaveDialog(opts)
+}
+
+function showOpenDialog(win: BrowserWindow | null | undefined, opts: Electron.OpenDialogOptions) {
+  return win ? dialog.showOpenDialog(win, opts) : dialog.showOpenDialog(opts)
+}
+
 export function setupFileDialogHandlers(
   ipcMain: IpcMain,
   getWindow: () => BrowserWindow | null
@@ -10,7 +18,7 @@ export function setupFileDialogHandlers(
   ipcMain.handle('dialog:export', async (_, content: string, filename = 'netcopilot-connections.json') => {
     const win = getWindow() ?? undefined
     try {
-      const result = await dialog.showSaveDialog(win!, {
+      const result = await showSaveDialog(win, {
         title: 'Export Connections',
         defaultPath: filename,
         filters: [{ name: 'JSON', extensions: ['json'] }]
@@ -26,7 +34,7 @@ export function setupFileDialogHandlers(
   ipcMain.handle('dialog:import', async () => {
     const win = getWindow() ?? undefined
     try {
-      const result = await dialog.showOpenDialog(win!, {
+      const result = await showOpenDialog(win, {
         title: 'Import Connections',
         filters: [{ name: 'JSON', extensions: ['json'] }],
         properties: ['openFile']
@@ -41,7 +49,7 @@ export function setupFileDialogHandlers(
   ipcMain.handle('dialog:selectFolder', async () => {
     const win = getWindow() ?? undefined
     try {
-      const result = await dialog.showOpenDialog(win!, {
+      const result = await showOpenDialog(win, {
         title: 'Select Log Folder',
         defaultPath: app.getPath('documents'),
         properties: ['openDirectory', 'createDirectory']
@@ -61,7 +69,7 @@ export function setupFileDialogHandlers(
   ipcMain.handle('dialog:read-text-file', async (_, opts: { title?: string; extensions?: string[] } = {}) => {
     const win = getWindow() ?? undefined
     try {
-      const result = await dialog.showOpenDialog(win!, {
+      const result = await showOpenDialog(win, {
         title: opts.title ?? 'Select File',
         filters: [
           { name: 'Key Files', extensions: opts.extensions ?? ['pem', 'key', 'pub', 'ppk', ''] },
@@ -79,7 +87,7 @@ export function setupFileDialogHandlers(
     const win = getWindow() ?? undefined
     if (pickFile) {
       try {
-        const result = await dialog.showOpenDialog(win!, {
+        const result = await showOpenDialog(win, {
           title: 'Select SSH Config File',
           defaultPath: path.join(os.homedir(), '.ssh', 'config'),
           filters: [

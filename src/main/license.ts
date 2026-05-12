@@ -66,6 +66,7 @@ export async function verifyLicenseOnline(licenseKey: string): Promise<LicenseSt
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({ licenseKey: licenseKey.trim().toUpperCase(), deviceId }),
+    signal:  AbortSignal.timeout(15_000),
   })
 
   if (!res.ok) {

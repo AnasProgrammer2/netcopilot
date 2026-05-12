@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, globalShortcut, nativeTheme, nativeImage } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, nativeTheme, nativeImage } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { setupStoreHandlers } from './store'
@@ -65,6 +65,15 @@ function createWindow(): void {
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown') return
     const mod = process.platform === 'darwin' ? input.meta : input.control
+
+    // Block DevTools shortcuts in-window only (not OS-globally)
+    if (!process.env['ELECTRON_RENDERER_URL']) {
+      if (input.key === 'F12' || (mod && input.shift && input.key === 'I')) {
+        event.preventDefault()
+        return
+      }
+    }
+
     if (!mod) return
     if (!mainWindow) return
     const level = mainWindow.webContents.getZoomLevel()
@@ -90,13 +99,11 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  // Block DevTools in production
+  // Block DevTools in production (close if opened via other means)
   if (!process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.webContents.on('devtools-opened', () => {
       mainWindow?.webContents.closeDevTools()
     })
-    globalShortcut.register('CommandOrControl+Shift+I', () => {/* blocked */})
-    globalShortcut.register('F12', () => {/* blocked */})
   }
 
   if (process.env['ELECTRON_RENDERER_URL']) {
@@ -164,6 +171,3 @@ app.on('window-all-closed', () => {
   }
 })
 
-app.on('will-quit', () => {
-  globalShortcut.unregisterAll()
-})

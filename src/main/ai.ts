@@ -641,11 +641,16 @@ async function callBackendTurn(
     max_tokens: 8096,
   }
 
+  const timeoutSignal = AbortSignal.timeout(30_000)
+  const fetchSignal = _abortController?.signal
+    ? AbortSignal.any([_abortController.signal, timeoutSignal])
+    : timeoutSignal
+
   const response = await fetch(`${API_BASE}/api/ai/chat`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify(body),
-    signal:  _abortController?.signal ?? undefined,
+    signal:  fetchSignal,
   })
 
   if (!response.ok || !response.body) {

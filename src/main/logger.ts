@@ -4,13 +4,17 @@ import path from 'path'
 
 const openLogs = new Map<string, WriteStream>()
 
+function showSaveDialog(win: BrowserWindow | null | undefined, opts: Electron.SaveDialogOptions) {
+  return win ? dialog.showSaveDialog(win, opts) : dialog.showSaveDialog(opts)
+}
+
 export function setupLogHandlers(ipcMain: IpcMain, getWindow: () => BrowserWindow | null): void {
   ipcMain.handle('log:start', async (_, sessionName: string) => {
     const win = getWindow()
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
     const defaultName = `${sessionName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${timestamp}.log`
 
-    const result = await dialog.showSaveDialog(win!, {
+    const result = await showSaveDialog(win, {
       title: 'Save Session Log',
       defaultPath: path.join(app.getPath('documents'), defaultName),
       filters: [
