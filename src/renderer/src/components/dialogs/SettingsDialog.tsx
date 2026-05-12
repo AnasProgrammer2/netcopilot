@@ -1102,36 +1102,6 @@ function AiSection(): JSX.Element {
     setTimeout(() => setSettingsSaved(false), 2500)
   }
 
-  const permissionOptions: { id: AiPermission; label: string; desc: string; icon: JSX.Element }[] = [
-    {
-      id:    'troubleshoot',
-      label: 'Troubleshoot',
-      desc:  'Read-only commands only — show, ping, ls, ps, etc. Safe for monitoring.',
-      icon:  <ShieldCheck className="w-4 h-4 text-amber-400" />,
-    },
-    {
-      id:    'full-access',
-      label: 'Full Access',
-      desc:  'Any command including configuration changes. Use with caution.',
-      icon:  <Wrench className="w-4 h-4 text-red-400" />,
-    },
-  ]
-
-  const approvalOptions: { id: AiApproval; label: string; desc: string; icon: JSX.Element }[] = [
-    {
-      id:    'ask',
-      label: 'Ask before each command',
-      desc:  'AI shows the command and waits for your approval before running.',
-      icon:  <Sparkles className="w-4 h-4 text-primary" />,
-    },
-    {
-      id:    'auto',
-      label: 'Auto-approve all',
-      desc:  'AI executes commands immediately without asking. Fastest workflow.',
-      icon:  <Zap className="w-4 h-4 text-emerald-400" />,
-    },
-  ]
-
   return (
     <div className="space-y-6">
       <SectionHeader
@@ -1213,57 +1183,64 @@ function AiSection(): JSX.Element {
         )}
       </SettingsGroup>
 
-      {/* Permission Mode */}
+      {/* Agent Mode — unified 3-option selector */}
       <SettingsGroup label="Agent Mode">
         <div className="space-y-2">
-          {permissionOptions.map((opt) => (
-            <button
-              key={opt.id}
-              onClick={() => setAiPermission(opt.id)}
-              className={cn(
-                'w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-colors',
-                aiPermission === opt.id
-                  ? 'border-primary/50 bg-primary/10'
-                  : 'border-border hover:border-border/80 hover:bg-accent/50'
-              )}
-            >
-              <div className="mt-0.5 shrink-0">{opt.icon}</div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-foreground">{opt.label}</span>
-                  {aiPermission === opt.id && <Check className="w-3 h-3 text-primary" />}
+          {[
+            {
+              permission: 'troubleshoot' as AiPermission,
+              approval:   'ask'          as AiApproval,
+              label: 'Read Only',
+              desc:  'Diagnose and inspect — read-only commands only (show, ping, ls…). Nothing is changed on the device.',
+              icon:  <ShieldCheck className="w-4 h-4 text-emerald-400" />,
+              badge: 'Safest',
+              badgeCls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+            },
+            {
+              permission: 'full-access'  as AiPermission,
+              approval:   'ask'          as AiApproval,
+              label: 'Fix Mode',
+              desc:  'ARIA can apply configuration changes, but pauses and asks your approval before running each command.',
+              icon:  <Wrench className="w-4 h-4 text-amber-400" />,
+              badge: 'Confirm each step',
+              badgeCls: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+            },
+            {
+              permission: 'full-access'  as AiPermission,
+              approval:   'auto'         as AiApproval,
+              label: 'Auto Pilot',
+              desc:  'ARIA executes commands automatically without stopping. Fastest workflow — use only on non-production devices.',
+              icon:  <Zap className="w-4 h-4 text-red-400" />,
+              badge: 'Use with caution',
+              badgeCls: 'text-red-400 bg-red-500/10 border-red-500/20',
+            },
+          ].map((opt) => {
+            const isActive = aiPermission === opt.permission && aiApproval === opt.approval
+            return (
+              <button
+                key={opt.label}
+                onClick={() => { setAiPermission(opt.permission); setAiApproval(opt.approval) }}
+                className={cn(
+                  'w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-colors',
+                  isActive
+                    ? 'border-primary/50 bg-primary/10'
+                    : 'border-border hover:border-border/80 hover:bg-accent/50'
+                )}
+              >
+                <div className="mt-0.5 shrink-0">{opt.icon}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-foreground">{opt.label}</span>
+                    <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full border font-medium', opt.badgeCls)}>
+                      {opt.badge}
+                    </span>
+                    {isActive && <Check className="w-3 h-3 text-primary ml-auto shrink-0" />}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{opt.desc}</p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{opt.desc}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </SettingsGroup>
-
-      {/* Approval Setting */}
-      <SettingsGroup label="Command Execution">
-        <div className="space-y-2">
-          {approvalOptions.map((opt) => (
-            <button
-              key={opt.id}
-              onClick={() => setAiApproval(opt.id)}
-              className={cn(
-                'w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-colors',
-                aiApproval === opt.id
-                  ? 'border-primary/50 bg-primary/10'
-                  : 'border-border hover:border-border/80 hover:bg-accent/50'
-              )}
-            >
-              <div className="mt-0.5 shrink-0">{opt.icon}</div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-foreground">{opt.label}</span>
-                  {aiApproval === opt.id && <Check className="w-3 h-3 text-primary" />}
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{opt.desc}</p>
-              </div>
-            </button>
-          ))}
+              </button>
+            )
+          })}
         </div>
       </SettingsGroup>
 

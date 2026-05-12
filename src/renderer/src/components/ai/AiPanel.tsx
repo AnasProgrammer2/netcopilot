@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { nanoid } from 'nanoid'
-import { X, Send, Sparkles, Trash2, Square, ShieldCheck, Wrench, AlertCircle, ChevronDown, Check, Eye, EyeOff, ShieldAlert, RotateCcw, Download } from 'lucide-react'
+import { X, Send, Sparkles, Trash2, Square, ShieldCheck, Wrench, AlertCircle, ChevronDown, Check, Eye, EyeOff, ShieldAlert, RotateCcw, Download, Zap } from 'lucide-react'
 import { useAppStore, AiMessage as AiMessageType, AiPermission, AiApproval } from '../../store'
 import { cn, stripAnsi } from '../../lib/utils'
 import { AiMessage } from './AiMessage'
@@ -47,6 +47,21 @@ function formatTokens(n: number): string {
   return String(n)
 }
 
+// ── Unified agent mode (combines permission + approval) ────────────────────────
+type AiMode = 'read-only' | 'fix' | 'auto-pilot'
+
+function modeToPermission(m: AiMode): AiPermission {
+  return m === 'read-only' ? 'troubleshoot' : 'full-access'
+}
+function modeToApproval(m: AiMode): AiApproval {
+  return m === 'auto-pilot' ? 'auto' : 'ask'
+}
+function permApprovalToMode(p: AiPermission, a: AiApproval): AiMode {
+  if (p === 'troubleshoot') return 'read-only'
+  if (a === 'auto') return 'auto-pilot'
+  return 'fix'
+}
+
 export function AiPanel({ activeSession, splitSession, allSessions, getTerminalContext, sendToTerminal, sendToSession }: Props): JSX.Element {
   const {
     aiMessages, aiStreaming, aiAgentActive, aiPermission, aiApproval, aiBlacklist, aiTokens,
@@ -57,22 +72,24 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 
   // Per-session overrides — start from global settings, can be changed mid-chat
   // Reset to global defaults when conversation is cleared
-  const [sessionPermission, setSessionPermission] = useState<AiPermission>(aiPermission)
-  const [sessionApproval,   setSessionApproval]   = useState<AiApproval>(aiApproval)
-  const [sessionBlacklist,  setSessionBlacklist]  = useState<string[]>(aiBlacklist)
-  const [autoWatch,         setAutoWatch]          = useState(true)
-  const [historyCommands,   setHistoryCommands]    = useState<string[]>([])
-  const [privacyDismissed,  setPrivacyDismissed]  = useState(() =>
+  const [sessionMode,      setSessionMode]      = useState<AiMode>(() => permApprovalToMode(aiPermission, aiApproval))
+  const [sessionBlacklist, setSessionBlacklist] = useState<string[]>(aiBlacklist)
+  const [autoWatch,        setAutoWatch]         = useState(true)
+  const [historyCommands,  setHistoryCommands]   = useState<string[]>([])
+  const [privacyDismissed, setPrivacyDismissed]  = useState(() =>
     localStorage.getItem('aria-privacy-notice-accepted') === '1'
   )
+
+  // Derived — keeps the rest of the component working without changes
+  const sessionPermission = modeToPermission(sessionMode)
+  const sessionApproval   = modeToApproval(sessionMode)
   const prevMessageCount = useRef(0)
 
   // Sequential command queue — prevents race condition when auto-executing multiple commands
   const commandQueueRef = useRef<Promise<void>>(Promise.resolve())
   useEffect(() => {
     if (aiMessages.length === 0 && prevMessageCount.current > 0) {
-      setSessionPermission(aiPermission)
-      setSessionApproval(aiApproval)
+      setSessionMode(permApprovalToMode(aiPermission, aiApproval))
       setSessionBlacklist(aiBlacklist)
     }
     prevMessageCount.current = aiMessages.length
@@ -750,8 +767,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 
                 {/* Toolbar */}
                 <div className="flex items-center gap-0.5 px-2.5 pb-2.5 pt-1">
-                  <ModeSelector value={sessionPermission} onChange={setSessionPermission} />
-                  <ApprovalSelector value={sessionApproval} onChange={setSessionApproval} />
+                  <AgentModeSelector value={sessionMode} onChange={setSessionMode} />
                   <BlacklistButton blacklist={sessionBlacklist} onChange={setSessionBlacklist} />
 
                   <button
@@ -904,41 +920,26 @@ function PillSelect<T extends string>({
   )
 }
 
-function ModeSelector({ value, onChange }: { value: AiPermission; onChange: (v: AiPermission) => void }): JSX.Element {
+function AgentModeSelector({ value, onChange }: { value: AiMode; onChange: (v: AiMode) => void }): JSX.Element {
   return (
     <PillSelect
       value={value}
       onChange={onChange}
       options={[
         {
-          id: 'troubleshoot', label: 'Troubleshoot', short: 'Scan',
+          id: 'read-only',   label: 'Read Only',   short: 'Read Only',
           icon: <ShieldCheck className="w-3 h-3" />,
-          dimColor: 'text-amber-500/70', activeColor: 'text-amber-400',
+          dimColor: 'text-emerald-500/70', activeColor: 'text-emerald-400',
         },
         {
-          id: 'full-access', label: 'Full Access', short: 'Full',
+          id: 'fix',         label: 'Fix Mode',    short: 'Fix Mode',
           icon: <Wrench className="w-3 h-3" />,
-          dimColor: 'text-red-500/70', activeColor: 'text-red-400',
-        },
-      ]}
-    />
-  )
-}
-
-function ApprovalSelector({ value, onChange }: { value: AiApproval; onChange: (v: AiApproval) => void }): JSX.Element {
-  return (
-    <PillSelect
-      value={value}
-      onChange={onChange}
-      align="right"
-      options={[
-        {
-          id: 'ask',  label: 'Ask each time', short: 'Ask',
-          dimColor: 'text-primary/60',    activeColor: 'text-primary',
+          dimColor: 'text-amber-500/70',   activeColor: 'text-amber-400',
         },
         {
-          id: 'auto', label: 'Auto-approve',  short: 'Auto',
-          dimColor: 'text-emerald-500/60', activeColor: 'text-emerald-400',
+          id: 'auto-pilot',  label: 'Auto Pilot',  short: 'Auto Pilot',
+          icon: <Zap className="w-3 h-3" />,
+          dimColor: 'text-red-500/70',     activeColor: 'text-red-400',
         },
       ]}
     />
@@ -991,7 +992,7 @@ function BlacklistButton({ blacklist, onChange }: { blacklist: string[]; onChang
         )}
       >
         <ShieldAlert className="w-3 h-3" />
-        <span>Patterns</span>
+        <span>Blocked</span>
         {activeCount > 0 && (
           <span className="text-[11px] opacity-70">({activeCount})</span>
         )}
