@@ -4,14 +4,32 @@
   <strong>The first AI agent built for network engineers.</strong>
 </p>
 
+<!-- Status -->
 <p align="center">
-  <a href="https://github.com/AnasProgrammer2/netcopilot/releases/latest"><img src="https://img.shields.io/github/v/release/AnasProgrammer2/netcopilot?style=flat-square&color=8B5CF6&label=latest" alt="Latest Release" /></a>
-  <a href="https://github.com/AnasProgrammer2/netcopilot/releases"><img src="https://img.shields.io/github/downloads/AnasProgrammer2/netcopilot/total?style=flat-square&color=22c55e&label=downloads" alt="Downloads" /></a>
-  <a href="https://github.com/AnasProgrammer2/netcopilot"><img src="https://img.shields.io/github/stars/AnasProgrammer2/netcopilot?style=flat-square&color=f59e0b" alt="Stars" /></a>
-  <a href="https://github.com/AnasProgrammer2/netcopilot/network/members"><img src="https://img.shields.io/github/forks/AnasProgrammer2/netcopilot?style=flat-square&color=06b6d4" alt="Forks" /></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-BSL--1.1-blue?style=flat-square" alt="License" /></a>
-  <a href="https://github.com/AnasProgrammer2/netcopilot/actions"><img src="https://img.shields.io/github/actions/workflow/status/AnasProgrammer2/netcopilot/release.yml?style=flat-square&label=build" alt="Build" /></a>
-  <a href="https://github.com/AnasProgrammer2/netcopilot"><img src="https://hits.sh/github.com/AnasProgrammer2/netcopilot.svg?style=flat-square&label=visits&color=8B5CF6" alt="Visits" /></a>
+  <a href="https://github.com/AnasProgrammer2/netcopilot/releases/latest"><img src="https://img.shields.io/github/v/release/AnasProgrammer2/netcopilot?style=for-the-badge&color=8B5CF6&label=Latest&labelColor=1a1625" alt="Latest Release" /></a>
+  <a href="https://github.com/AnasProgrammer2/netcopilot/releases"><img src="https://img.shields.io/github/downloads/AnasProgrammer2/netcopilot/total?style=for-the-badge&color=22c55e&label=Downloads&labelColor=1a1625" alt="Downloads" /></a>
+  <a href="https://github.com/AnasProgrammer2/netcopilot/actions"><img src="https://img.shields.io/github/actions/workflow/status/AnasProgrammer2/netcopilot/release.yml?style=for-the-badge&label=Build&labelColor=1a1625" alt="Build" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-BSL--1.1-3b82f6?style=for-the-badge&labelColor=1a1625" alt="License" /></a>
+</p>
+
+<!-- Community -->
+<p align="center">
+  <a href="https://github.com/AnasProgrammer2/netcopilot/stargazers"><img src="https://img.shields.io/github/stars/AnasProgrammer2/netcopilot?style=flat-square&color=f59e0b&logo=github&logoColor=white&labelColor=1a1625" alt="Stars" /></a>
+  <a href="https://github.com/AnasProgrammer2/netcopilot/network/members"><img src="https://img.shields.io/github/forks/AnasProgrammer2/netcopilot?style=flat-square&color=06b6d4&logo=git&logoColor=white&labelColor=1a1625" alt="Forks" /></a>
+  <a href="https://github.com/AnasProgrammer2/netcopilot/graphs/contributors"><img src="https://img.shields.io/github/contributors/AnasProgrammer2/netcopilot?style=flat-square&color=8B5CF6&labelColor=1a1625" alt="Contributors" /></a>
+  <a href="https://github.com/AnasProgrammer2/netcopilot/issues"><img src="https://img.shields.io/github/issues/AnasProgrammer2/netcopilot?style=flat-square&color=ef4444&labelColor=1a1625" alt="Open Issues" /></a>
+  <a href="https://github.com/AnasProgrammer2/netcopilot/commits/main"><img src="https://img.shields.io/github/last-commit/AnasProgrammer2/netcopilot?style=flat-square&color=22c55e&logo=git&logoColor=white&labelColor=1a1625" alt="Last Commit" /></a>
+  <a href="https://github.com/AnasProgrammer2/netcopilot"><img src="https://hits.sh/github.com/AnasProgrammer2/netcopilot.svg?style=flat-square&label=visits&color=8B5CF6&labelColor=1a1625" alt="Visits" /></a>
+</p>
+
+<!-- Platforms & Stack -->
+<p align="center">
+  <img src="https://img.shields.io/badge/macOS-Apple%20Silicon%20%26%20Intel-000000?style=flat-square&logo=apple&logoColor=white&labelColor=1a1625" alt="macOS" />
+  <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=flat-square&logo=windows&logoColor=white&labelColor=1a1625" alt="Windows" />
+  <img src="https://img.shields.io/badge/Linux-AppImage-FCC624?style=flat-square&logo=linux&logoColor=black&labelColor=1a1625" alt="Linux" />
+  <img src="https://img.shields.io/badge/Electron-32-47848F?style=flat-square&logo=electron&logoColor=white&labelColor=1a1625" alt="Electron" />
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black&labelColor=1a1625" alt="React" />
+  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white&labelColor=1a1625" alt="TypeScript" />
 </p>
 
 <p align="center">
