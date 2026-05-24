@@ -58,11 +58,13 @@ Pre-built binaries for all platforms — no build step required.
   </a>
 </p>
 
-| Platform | File | Architecture |
-|:--------:|:----:|:------------:|
-| macOS | `.dmg` | Apple Silicon (arm64) / Intel (x64) |
-| Windows | `.exe` installer | x64 |
-| Linux | `.AppImage` / `.deb` | x64 |
+| Platform | File | Architecture | Code Signing |
+|:--------:|:----:|:------------:|:------------:|
+| macOS | `.dmg` | Apple Silicon (arm64) / Intel (x64) | ✅ Signed & Notarized by Apple |
+| Windows | `.exe` installer | x64 | ⏳ Pending (see note below) |
+| Linux | `.AppImage` / `.deb` | x64 | — (not required) |
+
+> **Windows users:** the current Windows build is unsigned, so SmartScreen may display a "Windows protected your PC" warning. Click **More info → Run anyway** to continue. Free Windows code signing for NetCopilot has been requested from the [SignPath Foundation](https://signpath.org/) — once approved, all future Windows releases will be signed by [SignPath.io](https://signpath.io/) with a certificate issued by the SignPath Foundation.
 
 ---
 
@@ -335,6 +337,14 @@ This project is licensed under the **Business Source License 1.1 (BSL-1.1)**.
 > **Why BSL?** The source code is fully visible so you can verify NetCopilot never exfiltrates your credentials, passwords, or SSH keys. BSL ensures no one can take this codebase and launch a competing commercial product without a license.
 
 See the [LICENSE](./LICENSE) file for full details.
+
+---
+
+## Acknowledgments
+
+- **macOS code signing & notarization** — courtesy of the [Apple Developer Program](https://developer.apple.com).
+- **Windows code signing** — pending free OSS code signing from the [SignPath Foundation](https://signpath.org/), with signing services provided by [SignPath.io](https://signpath.io/).
+- Built on the shoulders of giants: [Electron](https://www.electronjs.org/), [React](https://react.dev/), [xterm.js](https://xtermjs.org/), [ssh2](https://github.com/mscdex/ssh2), [better-sqlite3-multiple-ciphers](https://github.com/m4heshd/better-sqlite3-multiple-ciphers), and the [Anthropic Claude](https://www.anthropic.com/) API.
 
 ---
 
