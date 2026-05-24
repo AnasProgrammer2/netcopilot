@@ -4,7 +4,7 @@ import {
   X, Monitor, Terminal, Network, Lock, Info, FileText,
   Sun, Moon, Laptop, Check, FolderOpen,
   Sparkles, Eye, EyeOff, ShieldCheck, Wrench, Zap,
-  RefreshCw, ArrowUpCircle, AlertCircle, Minus, Plus, ChevronDown
+  RefreshCw, ArrowUpCircle, AlertCircle, Minus, Plus, ChevronDown, Keyboard
 } from 'lucide-react'
 import { useAppStore, AiPermission, AiApproval } from '../../store'
 import { cn, getInstallerUrl } from '../../lib/utils'
@@ -35,6 +35,16 @@ interface AppSettings {
   logStripAnsi: boolean
   logTimestamp: boolean
   terminalTheme: string
+  backgroundImage: string | null
+  backgroundOpacity: number
+  backgroundBlur: number
+  quickConnect: string
+  settings: string
+  newTab: string
+  closeTab: string
+  toggleAi: string
+  toggleSplit: string
+  toggleSidebar: string
 }
 
 const DEFAULTS: AppSettings = {
@@ -61,6 +71,16 @@ const DEFAULTS: AppSettings = {
   logStripAnsi: true,
   logTimestamp: false,
   terminalTheme: 'netcopilot',
+  backgroundImage: null,
+  backgroundOpacity: 0.5,
+  backgroundBlur: 5,
+  quickConnect: 'Mod+K',
+  settings: 'Mod+,',
+  newTab: 'Mod+T',
+  closeTab: 'Mod+W',
+  toggleAi: 'Mod+Shift+A',
+  toggleSplit: 'Mod+D',
+  toggleSidebar: 'Mod+B',
 }
 
 const inputCls = 'w-full px-3 py-2 rounded-lg bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40 transition-colors'
@@ -83,15 +103,16 @@ const FONT_FAMILIES = [
   'monospace'
 ]
 
-type SettingsSection = 'appearance' | 'terminal' | 'connection' | 'logging' | 'security' | 'ai' | 'about'
+type SettingsSection = 'appearance' | 'terminal' | 'connection' | 'logging' | 'keybindings' | 'security' | 'ai' | 'about'
 
 const NAV: { id: SettingsSection; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'appearance', label: 'Appearance', icon: Monitor   },
   { id: 'terminal',   label: 'Terminal',   icon: Terminal  },
   { id: 'connection', label: 'Connection', icon: Network   },
   { id: 'logging',    label: 'Logging',    icon: FileText  },
+  { id: 'keybindings',label: 'Shortcuts',  icon: Keyboard  },
   { id: 'security',   label: 'Security',   icon: Lock      },
-  { id: 'ai',         label: 'ARIA (AI)',    icon: Sparkles  },
+  { id: 'ai',         label: 'ARIA (AI)',  icon: Sparkles  },
   { id: 'about',      label: 'About',      icon: Info      },
 ]
 
@@ -182,6 +203,7 @@ export function SettingsDialog(): JSX.Element {
             {section === 'terminal'   && <TerminalSection   settings={settings} update={update} />}
             {section === 'connection' && <ConnectionSection settings={settings} update={update} />}
             {section === 'logging'    && <LoggingSection    settings={settings} update={update} />}
+            {section === 'keybindings'&& <KeybindingsSection settings={settings} update={update} />}
             {section === 'security'   && <SecuritySection   settings={settings} update={update} />}
             {section === 'ai'         && <AiSection />}
             {section === 'about'      && <AboutSection />}
@@ -429,7 +451,146 @@ function TerminalSection({ settings, update }: SectionProps) {
           displayWidth="w-20"
         />
       </Group>
+
+      <Group title="Background Image">
+        <div className="flex gap-2 mb-4">
+          <input
+             type="file"
+             accept="image/*"
+             id="term-bg-upload"
+             className="hidden"
+             onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) {
+                  const reader = new FileReader()
+                  reader.onload = (ev) => {
+                    const img = new Image()
+                    img.onload = () => {
+                      const canvas = document.createElement('canvas')
+                      let { width, height } = img
+                      const max = 1280
+                      if (width > max || height > max) {
+                        if (width > height) { height = Math.round(height * (max / width)); width = max; }
+                        else { width = Math.round(width * (max / height)); height = max; }
+                      }
+                      canvas.width = width
+                      canvas.height = height
+                      const ctx = canvas.getContext('2d')
+                      if (ctx) {
+                        // Bake the blur into the image so we don't pay CSS `filter: blur()` cost
+                        // on every xterm frame (which was freezing the entire compositor).
+                        const blurPx = Math.max(0, Math.min(20, settings.backgroundBlur ?? 0))
+                        if (blurPx > 0) {
+                          // @ts-ignore — `filter` is supported in Chromium (Electron)
+                          ctx.filter = `blur(${blurPx}px)`
+                        }
+                        ctx.drawImage(img, 0, 0, width, height)
+                        update('backgroundImage', canvas.toDataURL('image/jpeg', 0.8))
+                      }
+                    }
+                    img.src = ev.target?.result as string
+                  }
+                  reader.readAsDataURL(file)
+                }
+             }}
+          />
+          <button
+             onClick={() => document.getElementById('term-bg-upload')?.click()}
+             className="px-4 py-2 text-sm bg-secondary text-foreground rounded-lg border border-border hover:bg-accent transition-colors"
+          >
+             {settings.backgroundImage ? 'Change Image' : 'Select Image...'}
+          </button>
+          {settings.backgroundImage && (
+            <button
+               onClick={() => update('backgroundImage', null)}
+               className="px-4 py-2 text-sm bg-red-500/10 text-red-500 rounded-lg border border-red-500/20 hover:bg-red-500/20 transition-colors cursor-pointer"
+            >
+               Remove
+            </button>
+          )}
+        </div>
+        {settings.backgroundImage && (
+          <div className="space-y-4">
+            <SliderRow
+              min={0} max={1} step={0.05}
+              value={settings.backgroundOpacity}
+              onChange={(v) => update('backgroundOpacity', v)}
+              display={`${Math.round(settings.backgroundOpacity * 100)}% Opacity`}
+            />
+            <SliderRow
+              min={0} max={20} step={1}
+              value={settings.backgroundBlur}
+              onChange={(v) => update('backgroundBlur', v)}
+              display={`${settings.backgroundBlur}px Blur`}
+            />
+          </div>
+        )}
+      </Group>
     </>
+  )
+}
+
+// ─── Section: Keybindings ──────────────────────────────────────────────────────
+function KeybindingsSection({ settings, update }: SectionProps) {
+  return (
+    <>
+      <Group title="Keyboard Shortcuts">
+        <div className="space-y-3">
+          <KeybindingRow label="Quick Connect" value={settings.quickConnect} onChange={(v) => update('quickConnect', v)} />
+          <KeybindingRow label="Settings" value={settings.settings} onChange={(v) => update('settings', v)} />
+          <KeybindingRow label="New Tab" value={settings.newTab} onChange={(v) => update('newTab', v)} />
+          <KeybindingRow label="Close Tab" value={settings.closeTab} onChange={(v) => update('closeTab', v)} />
+          <KeybindingRow label="Toggle AI Panel" value={settings.toggleAi} onChange={(v) => update('toggleAi', v)} />
+          <KeybindingRow label="Toggle Split View" value={settings.toggleSplit} onChange={(v) => update('toggleSplit', v)} />
+          <KeybindingRow label="Toggle Sidebar" value={settings.toggleSidebar} onChange={(v) => update('toggleSidebar', v)} />
+        </div>
+      </Group>
+    </>
+  )
+}
+
+function KeybindingRow({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [editing, setEditing] = useState(false)
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    if (e.key === 'Escape') {
+      setEditing(false)
+      return
+    }
+
+    const modifiers: string[] = []
+    if (e.metaKey || e.ctrlKey) modifiers.push('Mod')
+    if (e.shiftKey) modifiers.push('Shift')
+    if (e.altKey) modifiers.push('Alt')
+
+    const key = e.key
+    if (['Meta', 'Control', 'Shift', 'Alt'].includes(key)) return
+
+    const keyUpper = key.toUpperCase()
+    onChange([...modifiers, keyUpper].join('+'))
+    setEditing(false)
+  }
+
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-sm font-medium text-muted-foreground">{label}</span>
+      <button
+        onClick={() => setEditing(true)}
+        onKeyDown={editing ? handleKeyDown : undefined}
+        onBlur={() => setEditing(false)}
+        className={cn(
+          "px-3 py-1.5 rounded-lg border text-sm font-mono transition-colors min-w-[120px] text-center cursor-pointer",
+          editing 
+            ? "border-primary bg-primary/10 text-primary ring-2 ring-primary/20 outline-none" 
+            : "border-border bg-secondary hover:bg-accent text-foreground"
+        )}
+      >
+        {editing ? 'Press shortcut...' : value.replace(/Mod/g, navigator.platform.toLowerCase().includes('mac') ? '⌘' : 'Ctrl')}
+      </button>
+    </div>
   )
 }
 

@@ -24,11 +24,11 @@ const onSerialClosed = makeFanout<[string]>('serial:closed')
 const onSerialError  = makeFanout<[string, string]>('serial:error')
 const onSftpProgress = makeFanout<[string, string, number, number]>('sftp:progress')
 const onSftpClosed   = makeFanout<[string]>('sftp:closed')
-const onAiChunk     = makeFanout<[string]>('ai:chunk')
-const onAiDone      = makeFanout<[{ inputTokens: number; outputTokens: number } | undefined]>('ai:done')
-const onAiToolCall  = makeFanout<[{ id: string; command: string; reason: string; targetSession?: string }]>('ai:tool-call')
-const onAiError     = makeFanout<[string]>('ai:error')
-const onAiPlan      = makeFanout<[{ objective: string; steps: string[] }]>('ai:plan')
+const onAiChunk     = makeFanout<[{ sessionId: string; text: string }]>('ai:chunk')
+const onAiDone      = makeFanout<[{ sessionId: string; inputTokens?: number; outputTokens?: number }]>('ai:done')
+const onAiToolCall  = makeFanout<[{ sessionId: string; id: string; command: string; reason: string; targetSession?: string; policyBlock?: string }]>('ai:tool-call')
+const onAiError     = makeFanout<[{ sessionId: string; message: string }]>('ai:error')
+const onAiPlan      = makeFanout<[{ sessionId: string; objective: string; steps: string[] }]>('ai:plan')
 const onWindowMaximized  = makeFanout<[boolean]>('window:maximized-change')
 const onUpdaterAvailable = makeFanout<[{ version: string; releaseDate: string; releaseNotes: string | null }]>('updater:update-available')
 const onUpdaterError     = makeFanout<[string]>('updater:error')
@@ -196,7 +196,7 @@ const api = {
   // AI Copilot
   ai: {
     chat:          (payload: unknown)                   => ipcRenderer.invoke('ai:chat', payload),
-    cancel:        ()                                   => ipcRenderer.send('ai:cancel'),
+    cancel:        (sessionId?: string)                 => ipcRenderer.send('ai:cancel', sessionId),
     toolResult:    (callId: string, output: string)     => ipcRenderer.invoke('ai:tool-result', callId, output),
     resetBlacklist: ()                                  => ipcRenderer.invoke('ai:reset-blacklist'),
     exportMarkdown: (payload: unknown)                  => ipcRenderer.invoke('ai:export-markdown', payload),

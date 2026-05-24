@@ -16,6 +16,7 @@ import { cn, stripAnsi } from '../../lib/utils'
 import { DEFAULT_TERMINAL_COLS, DEFAULT_TERMINAL_ROWS } from '../../types'
 import { terminalRegistry } from '../../lib/terminalRegistry'
 import { getTerminalTheme } from '../../lib/terminalThemes'
+import { aiBridge } from '../../lib/aiBridge'
 
 interface Props {
   session: Session
@@ -48,7 +49,16 @@ export function TerminalTab({ session }: Props): JSX.Element {
 
   // ── Terminal theme background (for overlay divs) ─────────────────────────────
   const [termBg, setTermBg] = useState<string>(
-    () => getTerminalTheme(useAppStore.getState().terminalSettings.terminalTheme).colors.background
+    () => {
+      const ts = useAppStore.getState().terminalSettings;
+      return ts.backgroundImage ? 'transparent' : getTerminalTheme(ts.terminalTheme).colors.background;
+    }
+  )
+  const [bgImage, setBgImage] = useState<string | null>(
+    () => useAppStore.getState().terminalSettings.backgroundImage
+  )
+  const [bgOpacity, setBgOpacity] = useState<number>(
+    () => useAppStore.getState().terminalSettings.backgroundOpacity
   )
 
   // ── Search state ─────────────────────────────────────────────────────────────
@@ -89,9 +99,13 @@ export function TerminalTab({ session }: Props): JSX.Element {
       term.options.cursorBlink = ts.cursorBlink
       term.options.cursorStyle = ts.cursorStyle
       term.options.scrollback  = ts.scrollback
-      const themeColors = getTerminalTheme(ts.terminalTheme).colors
+      const themeColors = { ...getTerminalTheme(ts.terminalTheme).colors }
+      if (ts.backgroundImage) themeColors.background = 'transparent'
       term.options.theme = themeColors
-      setTermBg(themeColors.background)
+      term.options.allowTransparency = !!ts.backgroundImage
+      setTermBg(themeColors.background!)
+      setBgImage(ts.backgroundImage)
+      setBgOpacity(ts.backgroundOpacity)
       fitRef.current?.fit()
     })
   }, [])
@@ -233,13 +247,11 @@ export function TerminalTab({ session }: Props): JSX.Element {
     const proto = session.connection.protocol
 
     const fireProstActive = (context: string) => {
-      const { aiPanelOpen, aiStreaming, aiAgentActive, activeSessionId } = useAppStore.getState()
-      const autoWatch = (window as unknown as Record<string, unknown>)['__aiAutoWatch']
-      if (!aiPanelOpen || aiStreaming || aiAgentActive || activeSessionId !== session.id || !autoWatch) return
+      const { aiPanelOpen, aiStreaming, aiAgentActive, activeSessionId, aiAutoWatch } = useAppStore.getState()
+      if (!aiPanelOpen || aiStreaming || aiAgentActive || activeSessionId !== session.id || !aiAutoWatch) return
       if (context === lastAnalyzed) return
       lastAnalyzed = context
-      const proactive = (window as unknown as Record<string, unknown>)['__aiSendProactive']
-      if (typeof proactive === 'function') proactive(context)
+      aiBridge.emit('proactive', { context, sessionId: session.id })
     }
 
     // Track keystrokes — two triggers: typing pause + Enter→output
@@ -360,8 +372,10 @@ export function TerminalTab({ session }: Props): JSX.Element {
     if (!containerRef.current || termRef.current) return
 
     // Read settings at effect-execution time (not from closure) to get the
-    // freshest values even if loadSettings() completed after the first render
     const ts: TerminalSettings = useAppStore.getState().terminalSettings
+    const themeColors = { ...getTerminalTheme(ts.terminalTheme).colors }
+    if (ts.backgroundImage) themeColors.background = 'transparent'
+
     const term = new Terminal({
       fontFamily:  `"${ts.fontFamily}", "Cascadia Code", Consolas, monospace`,
       fontSize:    ts.fontSize,
@@ -370,8 +384,9 @@ export function TerminalTab({ session }: Props): JSX.Element {
       cursorStyle: ts.cursorStyle,
       cursorWidth: ts.cursorStyle === 'bar' ? 2 : 1,
       scrollback:  ts.scrollback,
-      theme:       getTerminalTheme(ts.terminalTheme).colors,
-      allowProposedApi: true
+      theme:       themeColors,
+      allowProposedApi: true,
+      allowTransparency: !!ts.backgroundImage
     })
 
     const fitAddon    = new FitAddon()
@@ -979,10 +994,22 @@ export function TerminalTab({ session }: Props): JSX.Element {
 
       {/* Terminal */}
       <div className="relative flex-1 w-full min-h-0 overflow-hidden">
+        {bgImage && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage: `url(${bgImage})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              opacity: bgOpacity,
+              zIndex: 0
+            }}
+          />
+        )}
         <div
           ref={containerRef}
           onContextMenu={handleContextMenu}
-          className="w-full h-full"
+          className="relative z-10 w-full h-full"
           style={{ background: termBg, fontVariantLigatures: 'none' }}
         />
 

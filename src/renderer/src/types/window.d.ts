@@ -181,15 +181,15 @@ declare global {
     }
     ai: {
       chat(payload: unknown): Promise<void>
-      cancel(): void
+      cancel(sessionId?: string): void
       toolResult(callId: string, output: string): Promise<void>
       resetBlacklist(): Promise<string[]>
       exportMarkdown(payload: { host: string; messages: Array<{ role: string; content: string; toolCalls?: Array<{ command: string; output?: string }> }> }): Promise<{ success: boolean; filePath?: string }>
-      onChunk(cb: (chunk: string) => void): () => void
-      onDone(cb: (usage?: { inputTokens: number; outputTokens: number }) => void): () => void
-      onToolCall(cb: (call: { id: string; command: string; reason: string; targetSession?: string }) => void): () => void
-      onError(cb: (error: string) => void): () => void
-      onPlan(cb: (plan: { objective: string; steps: string[] }) => void): () => void
+      onChunk(cb: (evt: { sessionId: string; text: string }) => void): () => void
+      onDone(cb: (evt: { sessionId: string; inputTokens?: number; outputTokens?: number }) => void): () => void
+      onToolCall(cb: (call: { sessionId: string; id: string; command: string; reason: string; targetSession?: string; policyBlock?: string }) => void): () => void
+      onError(cb: (evt: { sessionId: string; message: string }) => void): () => void
+      onPlan(cb: (plan: { sessionId: string; objective: string; steps: string[] }) => void): () => void
     }
     window: {
       minimize(): Promise<void>

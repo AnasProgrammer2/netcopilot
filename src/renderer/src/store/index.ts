@@ -16,6 +16,7 @@ export interface AiToolCall {
   status:         'pending' | 'approved' | 'blocked' | 'running' | 'done'
   output?:        string
   targetSession?: string  // session ID to run command on (multi-session support)
+  policyBlock?:   string  // set when main-process policy gate rejected the command
 }
 
 export interface AiPlan {
@@ -40,6 +41,9 @@ export interface TerminalSettings {
   scrollback: number
   lineHeight: number
   terminalTheme: string
+  backgroundImage: string | null
+  backgroundOpacity: number
+  backgroundBlur: number
 }
 
 export interface ConnectionSettings {
@@ -59,6 +63,29 @@ export const DEFAULT_TERMINAL_SETTINGS: TerminalSettings = {
   scrollback: 5000,
   lineHeight: 1.4,
   terminalTheme: 'netcopilot',
+  backgroundImage: null,
+  backgroundOpacity: 0.5,
+  backgroundBlur: 5,
+}
+
+export interface KeybindingSettings {
+  quickConnect: string
+  settings: string
+  newTab: string
+  closeTab: string
+  toggleAi: string
+  toggleSplit: string
+  toggleSidebar: string
+}
+
+export const DEFAULT_KEYBINDING_SETTINGS: KeybindingSettings = {
+  quickConnect: 'Mod+K',
+  settings: 'Mod+,',
+  newTab: 'Mod+T',
+  closeTab: 'Mod+W',
+  toggleAi: 'Mod+Shift+A',
+  toggleSplit: 'Mod+D',
+  toggleSidebar: 'Mod+B'
 }
 
 export const DEFAULT_CONNECTION_SETTINGS: ConnectionSettings = {
@@ -86,6 +113,7 @@ interface AppState {
   // Live settings (read from store on boot)
   terminalSettings: TerminalSettings
   connectionSettings: ConnectionSettings
+  keybindingSettings: KeybindingSettings
 
   // UI state
   sidebarWidth: number
@@ -188,6 +216,7 @@ interface AppState {
   aiPermission: AiPermission
   aiApproval:   AiApproval
   aiBlacklist:  string[]
+  aiAutoWatch:  boolean
   aiMessages:   AiMessage[]
   aiStreaming:  boolean
   aiAgentActive: boolean
@@ -197,12 +226,14 @@ interface AppState {
   setAiPermission:   (p: AiPermission) => void
   setAiApproval:     (a: AiApproval) => void
   setAiBlacklist:    (list: string[]) => void
+  setAiAutoWatch:    (v: boolean) => void
   addAiMessage:      (msg: AiMessage) => void
   addAiPlan:         (plan: AiPlan) => void
   appendAiChunk:     (chunk: string) => void
   finalizeAiStream:  (usage?: { inputTokens: number; outputTokens: number }) => void
   updateAiToolCall:  (msgId: string, callId: string, patch: Partial<AiToolCall>) => void
   clearAiMessages:   () => void
+  truncateAiMessagesAfter: (msgId: string, includeMsg?: boolean) => void
   setAiStreaming:    (v: boolean) => void
   setAiAgentActive:  (v: boolean) => void
 }
@@ -218,6 +249,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeSessionId: null,
   terminalSettings: { ...DEFAULT_TERMINAL_SETTINGS },
   connectionSettings: { ...DEFAULT_CONNECTION_SETTINGS },
+  keybindingSettings: { ...DEFAULT_KEYBINDING_SETTINGS },
 
   // License initial state
   licenseKey:    '',
@@ -242,6 +274,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   aiPermission: 'troubleshoot',
   aiApproval:   'ask',
   aiBlacklist:  [],
+  aiAutoWatch:  true,
   aiMessages:   [],
   aiStreaming:  false,
   aiAgentActive: false,
@@ -520,16 +553,30 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadSettings: async () => {
     const ts: Partial<TerminalSettings> = {}
     const cs: Partial<ConnectionSettings> = {}
+    const ks: Partial<KeybindingSettings> = {}
     const termKeys = Object.keys(DEFAULT_TERMINAL_SETTINGS) as (keyof TerminalSettings)[]
     const connKeys = Object.keys(DEFAULT_CONNECTION_SETTINGS) as (keyof ConnectionSettings)[]
+    const keyKeys = Object.keys(DEFAULT_KEYBINDING_SETTINGS) as (keyof KeybindingSettings)[]
 
     for (const k of termKeys) {
       const v = await window.api.store.getSetting(k)
       if (v !== undefined && v !== null) ts[k] = v as never
     }
+
+    // Safety: drop oversized background image (>2MB base64) — old uploads pre-blur-bake
+    // could lock up the GPU/compositor. Force the user to re-upload via the new path.
+    if (typeof ts.backgroundImage === 'string' && ts.backgroundImage.length > 2_000_000) {
+      console.warn('[settings] Dropping oversized backgroundImage (', ts.backgroundImage.length, 'bytes )')
+      ts.backgroundImage = null
+      try { await window.api.store.setSetting('backgroundImage', null) } catch { /* ignore */ }
+    }
     for (const k of connKeys) {
       const v = await window.api.store.getSetting(k)
       if (v !== undefined && v !== null) cs[k] = v as never
+    }
+    for (const k of keyKeys) {
+      const v = await window.api.store.getSetting(k)
+      if (v !== undefined && v !== null) ks[k] = v as never
     }
 
     const sidebarWidth  = (await window.api.store.getSetting('sidebarWidth')  as number | null) ?? 260
@@ -547,6 +594,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({
       terminalSettings: { ...DEFAULT_TERMINAL_SETTINGS, ...ts },
       connectionSettings: { ...DEFAULT_CONNECTION_SETTINGS, ...cs },
+      keybindingSettings: { ...DEFAULT_KEYBINDING_SETTINGS, ...ks },
       sidebarWidth,
       aiPermission,
       aiApproval,
@@ -569,12 +617,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   applySettings: (patch) => {
     const ts: Partial<TerminalSettings> = {}
     const cs: Partial<ConnectionSettings> = {}
+    const ks: Partial<KeybindingSettings> = {}
     const termKeys = Object.keys(DEFAULT_TERMINAL_SETTINGS)
     const connKeys = Object.keys(DEFAULT_CONNECTION_SETTINGS)
+    const keyKeys = Object.keys(DEFAULT_KEYBINDING_SETTINGS)
 
     for (const [k, v] of Object.entries(patch)) {
       if (termKeys.includes(k)) ts[k as keyof TerminalSettings] = v as never
       if (connKeys.includes(k)) cs[k as keyof ConnectionSettings] = v as never
+      if (keyKeys.includes(k)) ks[k as keyof KeybindingSettings] = v as never
     }
 
     if (Object.keys(ts).length) {
@@ -582,6 +633,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     if (Object.keys(cs).length) {
       set((s) => ({ connectionSettings: { ...s.connectionSettings, ...cs } }))
+    }
+    if (Object.keys(ks).length) {
+      set((s) => ({ keybindingSettings: { ...s.keybindingSettings, ...ks } }))
     }
     if ('sidebarWidth' in patch) set({ sidebarWidth: patch.sidebarWidth as number })
     if ('accentColor'  in patch) applyAccentColor(patch.accentColor as string)
@@ -687,9 +741,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAiPermission: (p) => set({ aiPermission: p }),
   setAiApproval:   (a) => set({ aiApproval: a }),
   setAiBlacklist:  (list) => set({ aiBlacklist: list }),
+  setAiAutoWatch:  (v) => set({ aiAutoWatch: v }),
   setAiStreaming:   (v) => set({ aiStreaming: v }),
   setAiAgentActive: (v) => set({ aiAgentActive: v }),
   clearAiMessages: () => set({ aiMessages: [], aiTokens: { input: 0, output: 0 }, aiAgentActive: false }),
+
+  /**
+   * Drop every message AFTER the given msgId (used for Edit & Retry / Regenerate).
+   * If `includeMsg` is true, the message itself is also removed — useful for Edit
+   * where we want to replace the user's last message.
+   */
+  truncateAiMessagesAfter: (msgId, includeMsg = false) => set((state) => {
+    const idx = state.aiMessages.findIndex(m => m.id === msgId)
+    if (idx < 0) return {}
+    const endExclusive = includeMsg ? idx : idx + 1
+    return { aiMessages: state.aiMessages.slice(0, endExclusive) }
+  }),
 
   addAiMessage: (msg) =>
     set((state) => ({ aiMessages: [...state.aiMessages, msg] })),

@@ -23,6 +23,7 @@ export default function App(): JSX.Element {
     licenseValid,
     sidebarCollapsed, sidebarWidth, setSidebarCollapsed,
     selectedConnectionIds, clearSelection,
+    keybindingSettings,
   } = useAppStore()
   const [masterLocked, setMasterLocked] = useState<boolean | null>(null)
   const [locked, setLocked] = useState(false)
@@ -92,10 +93,26 @@ export default function App(): JSX.Element {
     }
   }, [])
 
+  const matchKeybinding = (e: KeyboardEvent, binding: string) => {
+    if (!binding) return false
+    const parts = binding.split('+')
+    const key = parts[parts.length - 1].toLowerCase()
+    const requiresMod = parts.includes('Mod') || parts.includes('CmdOrCtrl') || parts.includes('Ctrl') || parts.includes('Cmd')
+    const requiresShift = parts.includes('Shift')
+    const requiresAlt = parts.includes('Alt')
+
+    const hasMod = e.metaKey || e.ctrlKey
+    const hasShift = e.shiftKey
+    const hasAlt = e.altKey
+
+    return e.key.toLowerCase() === key &&
+           requiresMod === hasMod &&
+           requiresShift === hasShift &&
+           requiresAlt === hasAlt
+  }
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey
-
       // Escape — clear multi-select
       if (e.key === 'Escape' && selectedConnectionIds.size > 0) {
         clearSelection()
@@ -103,7 +120,7 @@ export default function App(): JSX.Element {
       }
 
       // ? — Help dialog (only when not typing in an input)
-      if (e.key === '?' && !mod) {
+      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey) {
         const tag = (e.target as HTMLElement).tagName
         if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
           setHelpTab('shortcuts')
@@ -112,33 +129,22 @@ export default function App(): JSX.Element {
         return
       }
 
-      if (!mod) return
-
-      // ⌘K / Ctrl+K — Quick Connect
-      if (e.key === 'k') {
+      if (matchKeybinding(e, keybindingSettings.quickConnect)) {
         e.preventDefault()
         setQuickConnectOpen(true)
-      }
-      // ⌘, / Ctrl+, — Settings
-      else if (e.key === ',') {
+      } else if (matchKeybinding(e, keybindingSettings.settings)) {
         e.preventDefault()
         setSettingsOpen(true)
-      }
-      // ⌘T / Ctrl+T — New tab (Quick Connect)
-      else if (e.key === 't') {
+      } else if (matchKeybinding(e, keybindingSettings.newTab)) {
         e.preventDefault()
         setQuickConnectOpen(true)
-      }
-      // ⌘W / Ctrl+W — Close active tab
-      else if (e.key === 'w') {
+      } else if (matchKeybinding(e, keybindingSettings.closeTab)) {
         e.preventDefault()
         if (activeSessionId) {
           if (activeSessionId === splitSessionId) setSplitSession(null)
           closeSession(activeSessionId)
         }
-      }
-      // ⌘Shift+A / Ctrl+Shift+A — Toggle ARIA panel
-      else if (e.shiftKey && e.key === 'A') {
+      } else if (matchKeybinding(e, keybindingSettings.toggleAi)) {
         e.preventDefault()
         if (!aiPanelOpen && !licenseValid) {
           toast.error('License key required', {
@@ -148,9 +154,7 @@ export default function App(): JSX.Element {
           return
         }
         setAiPanelOpen(!aiPanelOpen)
-      }
-      // ⌘D / Ctrl+D — Toggle split view
-      else if (e.key === 'd') {
+      } else if (matchKeybinding(e, keybindingSettings.toggleSplit)) {
         e.preventDefault()
         if (splitSessionId) {
           setSplitSession(null)
@@ -158,14 +162,10 @@ export default function App(): JSX.Element {
           const other = sessions.find(s => s.id !== activeSessionId)
           if (other) setSplitSession(other.id)
         }
-      }
-      // ⌘B / Ctrl+B — Toggle sidebar
-      else if (e.key === 'b') {
+      } else if (matchKeybinding(e, keybindingSettings.toggleSidebar)) {
         e.preventDefault()
         setSidebarCollapsed(!sidebarCollapsed)
-      }
-      // ⌘1-9 / Ctrl+1-9 — Switch to tab N
-      else if (e.key >= '1' && e.key <= '9') {
+      } else if ((e.metaKey || e.ctrlKey) && e.key >= '1' && e.key <= '9') {
         const idx = parseInt(e.key) - 1
         if (idx < sessions.length) {
           e.preventDefault()
@@ -179,6 +179,7 @@ export default function App(): JSX.Element {
       closeSession, setSplitSession, setActiveSession,
       sidebarCollapsed, setSidebarCollapsed,
       selectedConnectionIds, clearSelection,
+      keybindingSettings,
     ]  )
 
   useEffect(() => {

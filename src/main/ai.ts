@@ -17,6 +17,7 @@ interface SessionInfo {
 }
 
 interface ChatPayload {
+  sessionId:       string   // active terminal session — keys the per-run state map
   messages:        AnthropicMessage[]
   terminalContext: string
   deviceType:      string
@@ -42,8 +43,153 @@ interface ToolCall {
 
 const API_BASE = 'https://api.netcopilot.app'
 
-let _abortController: AbortController | null = null
-let _pendingToolResolve: ((output: string) => void) | null = null
+// Hard cap on agentic loop iterations — prevents runaway token usage if the
+// model gets stuck calling tools indefinitely.
+const MAX_AGENT_TURNS = 25
+
+/**
+ * Per-session run state. Keying by sessionId means two terminal sessions can
+ * have independent ARIA conversations running in parallel — abort and tool
+ * resolution don't trample each other. Starting a new chat for the SAME
+ * session aborts the previous run for that session only.
+ */
+interface AiRunState {
+  abortController: AbortController
+  pendingTools:    Map<string, (output: string) => void>
+}
+
+const _runs = new Map<string, AiRunState>()
+
+function getOrCreateRun(sessionId: string): AiRunState {
+  let run = _runs.get(sessionId)
+  if (!run) {
+    run = { abortController: new AbortController(), pendingTools: new Map() }
+    _runs.set(sessionId, run)
+  }
+  return run
+}
+
+function disposeRun(sessionId: string, reason: string): void {
+  const run = _runs.get(sessionId)
+  if (!run) return
+  for (const [, resolver] of run.pendingTools) resolver(reason)
+  run.pendingTools.clear()
+  _runs.delete(sessionId)
+}
+
+function abortRun(sessionId: string, reason: string): void {
+  const run = _runs.get(sessionId)
+  if (!run) return
+  run.abortController.abort()
+  for (const [, resolver] of run.pendingTools) resolver(reason)
+  run.pendingTools.clear()
+  _runs.delete(sessionId)
+}
+
+function abortAllRuns(reason: string): void {
+  for (const sessionId of [..._runs.keys()]) abortRun(sessionId, reason)
+}
+
+/** Locate which session a tool-result belongs to by searching all runs. */
+function settlePending(callId: string, output: string): boolean {
+  for (const [, run] of _runs) {
+    const resolver = run.pendingTools.get(callId)
+    if (resolver) {
+      run.pendingTools.delete(callId)
+      resolver(output)
+      return true
+    }
+  }
+  return false
+}
+
+// ── Read-only verb whitelist (used as a server-side floor in troubleshoot mode)
+// Mirrors the prose in the system prompt. Matched against the FIRST token of
+// the command (case-insensitive). Anything that doesn't start with one of
+// these in troubleshoot mode is rejected before reaching the terminal.
+const READ_ONLY_VERBS = new Set<string>([
+  'show', 'display', 'get', 'view', 'list', 'print',
+  'ping', 'traceroute', 'tracert', 'mtr', 'pathping',
+  'ls', 'll', 'ps', 'df', 'du', 'top', 'htop', 'cat', 'less', 'more', 'tail', 'head',
+  'grep', 'egrep', 'fgrep', 'awk', 'sed', 'wc', 'find', 'locate',
+  'ss', 'netstat', 'ip', 'ifconfig', 'arp', 'route', 'hostname', 'uname', 'uptime',
+  'journalctl', 'dmesg', 'dig', 'nslookup', 'host', 'resolvectl', 'getent',
+  'tcpdump', 'lsof', 'whoami', 'who', 'w', 'id', 'env', 'date',
+  // PowerShell read-only prefix
+  'get-', 'test-', 'measure-', 'compare-', 'find-', 'select-',
+])
+
+function isReadOnlyCommand(cmd: string): boolean {
+  const trimmed = cmd.trim().toLowerCase()
+  if (!trimmed) return false
+  // Take the first word; for PowerShell Get-Foo style, match the prefix
+  const firstWord = trimmed.split(/[\s|;&]/)[0] ?? ''
+  if (READ_ONLY_VERBS.has(firstWord)) return true
+  // PowerShell prefix match
+  for (const v of READ_ONLY_VERBS) {
+    if (v.endsWith('-') && firstWord.startsWith(v)) return true
+  }
+  return false
+}
+
+/**
+ * Robust blacklist check: tokenises the command and matches each pattern as
+ * a word-boundary regex (case-insensitive). Falls back to substring match
+ * for multi-word patterns (e.g. "write erase", "/system reset-configuration").
+ * Catches the simple obfuscation cases that plain `.includes()` misses.
+ */
+function isBlacklisted(command: string, patterns: string[]): boolean {
+  const normalised = command.toLowerCase().replace(/\s+/g, ' ').trim()
+  for (const raw of patterns) {
+    const p = raw.trim().toLowerCase()
+    if (!p) continue
+    if (p.includes(' ') || p.includes('/')) {
+      // Multi-word or path-like patterns: substring match on normalised cmd
+      if (normalised.includes(p)) return true
+    } else {
+      // Single token: word-boundary match so "route" doesn't trigger on "router"
+      const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const re = new RegExp(`(^|[^a-z0-9_-])${escaped}([^a-z0-9_-]|$)`, 'i')
+      if (re.test(normalised)) return true
+    }
+  }
+  return false
+}
+
+/**
+ * Server-side policy enforcement gate. Called BEFORE forwarding any
+ * `run_command` / `run_commands` invocation to the renderer. Returns:
+ *   - null  → command is allowed; proceed to execute
+ *   - string → command rejected; the string is the result fed back to Claude
+ */
+function enforcePolicy(
+  command:    string,
+  permission: AiPermission,
+  blacklist:  string[],
+): string | null {
+  if (!command || typeof command !== 'string') {
+    return '(rejected by safety policy: empty or non-string command)'
+  }
+  if (isBlacklisted(command, blacklist)) {
+    return '(rejected by server-side blacklist — refine or ask the user to whitelist this command)'
+  }
+  if (permission === 'troubleshoot' && !isReadOnlyCommand(command)) {
+    return '(rejected: troubleshoot mode allows read-only commands only. Switch to Fix Mode or Auto Pilot for state-changing operations.)'
+  }
+  return null
+}
+
+function loadStoredBlacklist(): string[] {
+  try {
+    const db = getDb()
+    const row = db.prepare("SELECT value FROM settings WHERE key = 'ai.blacklist'").get() as { value?: string } | undefined
+    if (!row?.value) return DEFAULT_AI_BLACKLIST
+    const parsed = JSON.parse(row.value)
+    return Array.isArray(parsed) ? parsed as string[] : DEFAULT_AI_BLACKLIST
+  } catch {
+    return DEFAULT_AI_BLACKLIST
+  }
+}
 
 // ── Tool definitions ─────────────────────────────────────────────────────────
 
@@ -630,6 +776,7 @@ async function callBackendTurn(
   systemPrompt: string,
   messages:     AnthropicMessage[],
   licenseKey:   string,
+  run:          AiRunState,
   onChunk:      (text: string) => void,
 ): Promise<TurnResult> {
   const body = {
@@ -638,20 +785,49 @@ async function callBackendTurn(
     system:     systemPrompt,
     messages,
     tools:      [CREATE_PLAN_TOOL, RUN_COMMAND_TOOL, RUN_COMMANDS_TOOL],
-    max_tokens: 8096,
+    max_tokens: 8192,
   }
 
-  const timeoutSignal = AbortSignal.timeout(30_000)
-  const fetchSignal = _abortController?.signal
-    ? AbortSignal.any([_abortController.signal, timeoutSignal])
-    : timeoutSignal
+  // Retry transient backend failures (5xx, network resets) with exponential
+  // backoff. Don't retry 4xx (bad request / auth / quota) or aborts.
+  const RETRY_DELAYS_MS = [400, 1200, 3000]
+  let response: Response | null = null
+  let lastErr:  unknown          = null
 
-  const response = await fetch(`${API_BASE}/api/ai/chat`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(body),
-    signal:  fetchSignal,
-  })
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    if (run.abortController.signal.aborted) throw new Error('aborted')
+
+    const timeoutSignal = AbortSignal.timeout(30_000)
+    const fetchSignal = AbortSignal.any([run.abortController.signal, timeoutSignal])
+
+    try {
+      response = await fetch(`${API_BASE}/api/ai/chat`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(body),
+        signal:  fetchSignal,
+      })
+    } catch (err) {
+      lastErr = err
+      // Aborts and timeouts surface as DOMException with name AbortError /
+      // TimeoutError. Only retry network errors, not user aborts.
+      if (err instanceof Error && err.name === 'AbortError' && run.abortController.signal.aborted) throw err
+      if (attempt < RETRY_DELAYS_MS.length) {
+        await new Promise(r => setTimeout(r, RETRY_DELAYS_MS[attempt]))
+        continue
+      }
+      throw err
+    }
+
+    // Retry on 5xx and 429 (rate-limit); 4xx (except 429) is the caller's fault
+    if (!response.ok && (response.status >= 500 || response.status === 429) && attempt < RETRY_DELAYS_MS.length) {
+      await new Promise(r => setTimeout(r, RETRY_DELAYS_MS[attempt]))
+      continue
+    }
+    break
+  }
+
+  if (!response) throw lastErr instanceof Error ? lastErr : new Error('Network failure')
 
   if (!response.ok || !response.body) {
     let reason = `HTTP ${response.status}`
@@ -671,28 +847,39 @@ async function callBackendTurn(
   let currentText   = ''
 
   for await (const { event, data } of parseSSE(response.body)) {
-    if (_abortController?.signal.aborted) break
+    if (run.abortController.signal.aborted) break
 
     let parsed: Record<string, unknown>
-    try { parsed = JSON.parse(data) } catch { continue }
+    try { parsed = JSON.parse(data) } catch {
+      console.warn('[ai] dropped malformed SSE frame for event:', event)
+      continue
+    }
 
     switch (event) {
       case 'chunk': {
-        const text = parsed.text as string
+        if (typeof parsed.text !== 'string') {
+          console.warn('[ai] chunk event missing text field — dropped')
+          break
+        }
+        const text = parsed.text
         currentText += text
         textCollected += text
         onChunk(text)
         break
       }
       case 'tool_call': {
+        if (typeof parsed.id !== 'string' || typeof parsed.name !== 'string' || typeof parsed.input !== 'object' || parsed.input === null) {
+          console.warn('[ai] tool_call event malformed — dropped:', parsed)
+          break
+        }
         // Flush any accumulated text into a text block first
         if (currentText) {
           contentBlocks.push({ type: 'text', text: currentText })
           currentText = ''
         }
         const tc: ToolCall = {
-          id:    parsed.id as string,
-          name:  parsed.name as string,
+          id:    parsed.id,
+          name:  parsed.name,
           input: parsed.input,
         }
         toolCalls.push(tc)
@@ -709,14 +896,16 @@ async function callBackendTurn(
           contentBlocks.push({ type: 'text', text: currentText })
           currentText = ''
         }
-        inputTokens  = (parsed.inputTokens  as number) || 0
-        outputTokens = (parsed.outputTokens as number) || 0
-        stopReason   = (parsed.stopReason   as string) || 'end_turn'
+        inputTokens  = typeof parsed.inputTokens  === 'number' ? parsed.inputTokens  : 0
+        outputTokens = typeof parsed.outputTokens === 'number' ? parsed.outputTokens : 0
+        stopReason   = typeof parsed.stopReason   === 'string' ? parsed.stopReason   : 'end_turn'
         break
       }
       case 'error': {
-        throw new Error((parsed.message as string) || 'Backend error')
+        throw new Error(typeof parsed.message === 'string' ? parsed.message : 'Backend error')
       }
+      default:
+        console.warn('[ai] unknown SSE event type:', event)
     }
   }
 
@@ -725,16 +914,17 @@ async function callBackendTurn(
 
 // ── Wait for tool result from renderer ────────────────────────────────────────
 
-function waitForToolResult(timeoutMs = 300_000): Promise<string> {
+function waitForToolResult(run: AiRunState, callId: string, timeoutMs = 300_000): Promise<string> {
   return new Promise<string>((resolve) => {
     const timer = setTimeout(() => {
-      _pendingToolResolve = null
-      resolve('(no response — command was not approved or timed out)')
+      if (run.pendingTools.delete(callId)) {
+        resolve('(no response — command was not approved or timed out)')
+      }
     }, timeoutMs)
-    _pendingToolResolve = (out: string) => {
+    run.pendingTools.set(callId, (out: string) => {
       clearTimeout(timer)
       resolve(out)
-    }
+    })
   })
 }
 
@@ -748,22 +938,36 @@ async function runAiLoop(
   const systemPrompt = buildSystemPrompt(payload)
   let   messages     = compressConversation([...payload.messages] as AnthropicMessage[])
 
-  _abortController = new AbortController()
+  const sessionId = payload.sessionId
+  const run       = getOrCreateRun(sessionId)
 
   let totalInputTokens  = 0
   let totalOutputTokens = 0
+  let turnCount         = 0
+
+  // Snapshot the persisted blacklist once per chat — used as the server-side
+  // safety floor regardless of what the renderer sends.
+  const storedBlacklist = loadStoredBlacklist()
 
   try {
-    while (true) {
-      if (_abortController.signal.aborted) break
+    while (turnCount < MAX_AGENT_TURNS) {
+      if (run.abortController.signal.aborted) break
+      turnCount++
+
+      // Re-compress every few turns so long agentic sessions don't blow up
+      // the message array (compressConversation is a no-op below 40 msgs).
+      if (turnCount > 1 && turnCount % 5 === 0) {
+        messages = compressConversation(messages)
+      }
 
       const turn = await callBackendTurn(
         systemPrompt,
         messages,
         licenseKey,
+        run,
         (text) => {
-          if (!_abortController?.signal.aborted) {
-            getWindow()?.webContents.send('ai:chunk', text)
+          if (!run.abortController.signal.aborted) {
+            getWindow()?.webContents.send('ai:chunk', { sessionId, text })
           }
         },
       )
@@ -771,11 +975,12 @@ async function runAiLoop(
       totalInputTokens  += turn.inputTokens
       totalOutputTokens += turn.outputTokens
 
-      if (_abortController.signal.aborted) break
+      if (run.abortController.signal.aborted) break
 
       // No tool calls → done
       if (turn.toolCalls.length === 0) {
         getWindow()?.webContents.send('ai:done', {
+          sessionId,
           inputTokens:  totalInputTokens,
           outputTokens: totalOutputTokens,
         })
@@ -789,12 +994,13 @@ async function runAiLoop(
       const toolResults: unknown[] = []
 
       for (const toolBlock of turn.toolCalls) {
-        if (_abortController.signal.aborted) break
+        if (run.abortController.signal.aborted) break
 
         // create_plan: send to renderer, auto-acknowledge
         if (toolBlock.name === 'create_plan') {
           const planInput = toolBlock.input as { objective: string; steps: string[] }
           getWindow()?.webContents.send('ai:plan', {
+            sessionId,
             objective: planInput.objective,
             steps:     planInput.steps,
           })
@@ -815,16 +1021,28 @@ async function runAiLoop(
 
           const allOutputs: string[] = []
           for (const cmd of batchInput.commands) {
-            if (_abortController.signal.aborted) break
+            if (run.abortController.signal.aborted) break
 
+            const subCallId = `${toolBlock.id}_${allOutputs.length}`
+            const policyResult = enforcePolicy(cmd.command, payload.permission, storedBlacklist)
+
+            // Always surface the attempt to the renderer so the user can see
+            // exactly what the agent tried to do — even if we block it.
             getWindow()?.webContents.send('ai:tool-call', {
-              id:            `${toolBlock.id}_${allOutputs.length}`,
+              sessionId,
+              id:            subCallId,
               command:       cmd.command,
               reason:        cmd.reason,
               targetSession: batchInput.target_session,
+              policyBlock:   policyResult ?? undefined,
             })
 
-            const output = await waitForToolResult()
+            if (policyResult) {
+              allOutputs.push(`> ${cmd.command}\n${policyResult}`)
+              continue
+            }
+
+            const output = await waitForToolResult(run, subCallId)
             allOutputs.push(`> ${cmd.command}\n${output}`)
           }
 
@@ -840,17 +1058,35 @@ async function runAiLoop(
         // run_command: send to renderer, wait for execution result
         const input = toolBlock.input as { command: string; reason: string; target_session?: string }
 
+        const policyResult = enforcePolicy(input.command, payload.permission, storedBlacklist)
+
         getWindow()?.webContents.send('ai:tool-call', {
+          sessionId,
           id:            toolBlock.id,
           command:       input.command,
           reason:        input.reason,
           targetSession: input.target_session,
+          policyBlock:   policyResult ?? undefined,
         })
 
-        const output = await waitForToolResult()
+        if (policyResult) {
+          toolResults.push({
+            type:        'tool_result',
+            tool_use_id: toolBlock.id,
+            content:     policyResult,
+          })
+          continue
+        }
 
-        // Retry logic: if output looks empty/failed and command is read-only, add a hint
-        const looksEmpty = !output || output === '(no output)' || output.trim().length < 5
+        const output = await waitForToolResult(run, toolBlock.id)
+
+        // Retry logic: if output looks truly empty AND the command is a read-only
+        // verb, add a hint to help the model self-correct. The previous `< 5`
+        // threshold was too aggressive — short legitimate outputs like "0" or
+        // "PONG" or a prompt return tripped it. Now we only flag literal empty
+        // or our own sentinel string.
+        const trimmed    = output.trim()
+        const looksEmpty = !trimmed || trimmed === '(no output)'
         const retriable  = /^(show|display|get|ping|traceroute|ls|ps|df|ip\s|ss\s|netstat)/i.test(input.command.trim())
 
         if (looksEmpty && retriable) {
@@ -868,18 +1104,30 @@ async function runAiLoop(
         }
       }
 
-      if (_abortController.signal.aborted) break
+      if (run.abortController.signal.aborted) break
 
       // Add tool results and loop for Claude's next response
       messages.push({ role: 'user', content: toolResults })
     }
+
+    // If we exited because we hit the turn cap, let the renderer know.
+    if (turnCount >= MAX_AGENT_TURNS) {
+      getWindow()?.webContents.send('ai:error', {
+        sessionId,
+        message: `Agent loop stopped after ${MAX_AGENT_TURNS} turns (safety cap). Ask a more specific question or break the task into smaller steps.`,
+      })
+      getWindow()?.webContents.send('ai:done', {
+        sessionId,
+        inputTokens:  totalInputTokens,
+        outputTokens: totalOutputTokens,
+      })
+    }
   } catch (err: unknown) {
     if (err instanceof Error && err.name !== 'AbortError') {
-      getWindow()?.webContents.send('ai:error', (err as Error).message)
+      getWindow()?.webContents.send('ai:error', { sessionId, message: (err as Error).message })
     }
   } finally {
-    _abortController    = null
-    _pendingToolResolve = null
+    disposeRun(sessionId, '(stream ended)')
   }
 }
 
@@ -889,36 +1137,44 @@ export function setupAiHandlers(
   ipcMain:   IpcMain,
   getWindow: () => BrowserWindow | null,
 ): void {
-  // Start a chat turn (streaming)
+  // Start a chat turn (streaming) — keyed by sessionId so multiple terminal
+  // sessions can have ARIA running in parallel without trampling each other.
   ipcMain.handle('ai:chat', async (_, payload: ChatPayload) => {
-    _abortController?.abort()
-    _pendingToolResolve = null
+    if (!payload?.sessionId) {
+      getWindow()?.webContents.send('ai:error', { sessionId: '', message: 'Missing sessionId in ai:chat payload' })
+      return
+    }
+    // Supersede any in-flight chat for THIS session only.
+    abortRun(payload.sessionId, '(superseded by new chat turn)')
 
     const licenseKey = await loadLicenseKey()
     if (!licenseKey) {
-      getWindow()?.webContents.send('ai:error', 'No license key. Get yours at netcopilot.app/register then add it in Settings → ARIA.')
-      getWindow()?.webContents.send('ai:done')
+      getWindow()?.webContents.send('ai:error', {
+        sessionId: payload.sessionId,
+        message:   'No license key. Get yours at netcopilot.app/register then add it in Settings → ARIA.',
+      })
+      getWindow()?.webContents.send('ai:done', { sessionId: payload.sessionId })
       return
     }
 
     runAiLoop(payload, licenseKey, getWindow).catch((err) => {
-      getWindow()?.webContents.send('ai:error', `Unexpected error: ${String(err)}`)
-      getWindow()?.webContents.send('ai:done')
+      getWindow()?.webContents.send('ai:error', { sessionId: payload.sessionId, message: `Unexpected error: ${String(err)}` })
+      getWindow()?.webContents.send('ai:done', { sessionId: payload.sessionId })
     })
   })
 
-  // Cancel current stream
-  ipcMain.on('ai:cancel', () => {
-    _abortController?.abort()
-    _pendingToolResolve?.('(cancelled by user)')
-    _pendingToolResolve = null
+  // Cancel a stream. Cancels the specified session, or all sessions if omitted.
+  ipcMain.on('ai:cancel', (_, sessionId?: string) => {
+    if (sessionId) abortRun(sessionId, '(cancelled by user)')
+    else            abortAllRuns('(cancelled by user)')
   })
 
-  // Receive tool execution result from renderer
-  ipcMain.handle('ai:tool-result', (_, _callId: string, output: string) => {
-    if (_pendingToolResolve) {
-      _pendingToolResolve(output)
-      _pendingToolResolve = null
+  // Receive tool execution result from renderer — keyed by callId so batched
+  // commands (run_commands) don't trample each other's resolvers.
+  ipcMain.handle('ai:tool-result', (_, callId: string, output: string) => {
+    if (!settlePending(callId, output)) {
+      // Late or unknown — could be a stale reply from a cancelled turn.
+      console.warn('[ai] tool-result for unknown callId:', callId)
     }
   })
 

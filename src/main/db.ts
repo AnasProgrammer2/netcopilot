@@ -166,7 +166,20 @@ function migrateFromJson(db: Database.Database): void {
         settings?: Record<string, unknown>
       }
 
-      // Wrap all inserts in a single transaction so a crash mid-migration
+      // Pre-read credentials.json before transaction block to avoid synchronous FS I/O inside SQLite transaction
+      let parsedCredentials: Record<string, string> | undefined = undefined
+      const credPath = path.join(path.dirname(jsonPath), 'credentials.json')
+      if (existsSync(credPath)) {
+        try {
+          const credRaw = readFileSync(credPath, 'utf-8')
+          const credData = JSON.parse(credRaw) as { credentials?: Record<string, string> }
+          parsedCredentials = credData.credentials
+        } catch (e) {
+          console.error('[db] Failed to read credentials.json during migration prep:', e)
+        }
+      }
+
+      // Wrap all inserts and the completion marker in a single transaction so a crash mid-migration
       // rolls back everything and migrated_v1 stays unset → retry on next launch
       const migrate = db.transaction(() => {
         const insertGroup = db.prepare(`
@@ -211,25 +224,23 @@ function migrateFromJson(db: Database.Database): void {
           insertSetting.run({ key, value: JSON.stringify(value) })
         }
 
-        // Migrate credentials.json — same folder as the config.json we found
-        const credPath = path.join(path.dirname(jsonPath), 'credentials.json')
-        if (existsSync(credPath)) {
-          try {
-            const credRaw = readFileSync(credPath, 'utf-8')
-            const credData = JSON.parse(credRaw) as { credentials?: Record<string, string> }
-            const insertCred = db.prepare(
-              "INSERT OR IGNORE INTO settings (key, value) VALUES (@key, @value)"
-            )
-            for (const [k, v] of Object.entries(credData.credentials ?? {})) {
-              if (safeStorage.isEncryptionAvailable()) {
-                const encrypted = safeStorage.encryptString(v)
-                insertCred.run({ key: `cred:${k}`, value: JSON.stringify(encrypted.toString('base64')) })
-              } else {
-                insertCred.run({ key: `cred:${k}`, value: JSON.stringify(v) })
-              }
+        // Migrate parsed credentials inside the transaction
+        if (parsedCredentials) {
+          const insertCred = db.prepare(
+            "INSERT OR IGNORE INTO settings (key, value) VALUES (@key, @value)"
+          )
+          for (const [k, v] of Object.entries(parsedCredentials)) {
+            if (safeStorage.isEncryptionAvailable()) {
+              const encrypted = safeStorage.encryptString(v)
+              insertCred.run({ key: `cred:${k}`, value: JSON.stringify(encrypted.toString('base64')) })
+            } else {
+              insertCred.run({ key: `cred:${k}`, value: JSON.stringify(v) })
             }
-          } catch {/* ignore credential migration errors */}
+          }
         }
+
+        // Include the completion marker inside the transaction for absolute atomicity
+        db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('migrated_v1', 'true')").run()
       })
 
       migrate()
@@ -239,10 +250,10 @@ function migrateFromJson(db: Database.Database): void {
       // Do NOT set migrated_v1 on failure — allow retry on next launch
       return
     }
+  } else {
+    // Mark migration complete if no config.json exists to migrate
+    db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('migrated_v1', 'true')").run()
   }
-
-  // Mark migration complete only after a successful (or skipped) migration
-  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('migrated_v1', 'true')").run()
 }
 
 // ── Row ↔ Domain object helpers ───────────────────────────────────────────────

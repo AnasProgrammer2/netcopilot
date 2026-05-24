@@ -43,14 +43,29 @@ const activeForwards = new Map<string, ForwardServer>() // key = forwardId
 // ── SOCKS proxy handler ───────────────────────────────────────────────────────
 
 function handleSocksConnection(sock: net.Socket, sshClient: Client): void {
-  sock.on('error', () => sock.destroy())
+  let cleaned = false
+  const cleanup = () => {
+    if (cleaned) return
+    cleaned = true
+    sock.removeListener('data', onGreeting)
+    sock.destroy()
+  }
+
+  sock.on('error', cleanup)
+  sock.on('close', cleanup)
 
   let buf = Buffer.alloc(0)
 
   const onGreeting = (chunk: Buffer) => {
     buf = Buffer.concat([buf, chunk])
+    if (buf.length > 1024) {
+      cleanup()
+      return
+    }
     if (buf.length < 2) return
     sock.removeListener('data', onGreeting)
+    sock.off('error', cleanup)
+    sock.off('close', cleanup)
 
     if (buf[0] === 0x04) {
       handleSocks4(sock, sshClient, buf)
@@ -67,10 +82,25 @@ function handleSocksConnection(sock: net.Socket, sshClient: Client): void {
 }
 
 function handleSocks5Request(sock: net.Socket, sshClient: Client): void {
+  let cleaned = false
+  const cleanup = () => {
+    if (cleaned) return
+    cleaned = true
+    sock.removeListener('data', onRequest)
+    sock.destroy()
+  }
+
+  sock.on('error', cleanup)
+  sock.on('close', cleanup)
+
   let buf = Buffer.alloc(0)
 
   const onRequest = (chunk: Buffer) => {
     buf = Buffer.concat([buf, chunk])
+    if (buf.length > 1024) {
+      cleanup()
+      return
+    }
     if (buf.length < 4) return
 
     if (buf[0] !== 0x05 || buf[1] !== 0x01) {
@@ -110,6 +140,8 @@ function handleSocks5Request(sock: net.Socket, sshClient: Client): void {
     }
 
     sock.removeListener('data', onRequest)
+    sock.off('error', cleanup)
+    sock.off('close', cleanup)
     const remaining = buf.slice(end)
 
     sshClient.forwardOut('127.0.0.1', 0, host, port, (err, stream) => {
@@ -120,10 +152,22 @@ function handleSocks5Request(sock: net.Socket, sshClient: Client): void {
       }
       sock.write(Buffer.from([0x05, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0]))
       if (remaining.length > 0) stream.write(remaining)
+
+      let closed = false
+      const cleanupPipe = () => {
+        if (closed) return
+        closed = true
+        sock.destroy()
+        stream.destroy()
+      }
+
       sock.pipe(stream)
       stream.pipe(sock)
-      stream.on('close', () => sock.destroy())
-      sock.on('close', () => stream.destroy())
+
+      sock.on('close', cleanupPipe)
+      sock.on('error', cleanupPipe)
+      stream.on('close', cleanupPipe)
+      stream.on('error', cleanupPipe)
     })
   }
 
@@ -146,10 +190,22 @@ function handleSocks4(sock: net.Socket, sshClient: Client, buf: Buffer): void {
       return
     }
     sock.write(Buffer.from([0x00, 0x5a, 0, 0, 0, 0, 0, 0]))
+
+    let closed = false
+    const cleanupPipe = () => {
+      if (closed) return
+      closed = true
+      sock.destroy()
+      stream.destroy()
+    }
+
     sock.pipe(stream)
     stream.pipe(sock)
-    stream.on('close', () => sock.destroy())
-    sock.on('close', () => stream.destroy())
+
+    sock.on('close', cleanupPipe)
+    sock.on('error', cleanupPipe)
+    stream.on('close', cleanupPipe)
+    stream.on('error', cleanupPipe)
   })
 }
 

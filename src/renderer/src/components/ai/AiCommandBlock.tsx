@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Terminal, CheckCircle2, XCircle, Loader2, ShieldAlert, Play } from 'lucide-react'
-import { cn } from '../../lib/utils'
+import { cn, isCommandBlacklisted } from '../../lib/utils'
 import { AiToolCall } from '../../store'
 import { useAppStore } from '../../store'
 
@@ -17,9 +17,7 @@ export function AiCommandBlock({ call, approval, blacklist, onApprove, onBlock }
   const [expanded, setExpanded] = useState(false)
   const sessions = useAppStore(s => s.sessions)
 
-  const isBlacklisted = blacklist.some((pattern) =>
-    call.command.toLowerCase().includes(pattern.toLowerCase())
-  )
+  const isBlacklisted = isCommandBlacklisted(call.command, blacklist)
 
   // Find target session name for multi-session display
   const targetSessionName = call.targetSession
@@ -52,6 +50,14 @@ export function AiCommandBlock({ call, approval, blacklist, onApprove, onBlock }
       <div className="px-3 py-1.5 text-muted-foreground border-t border-border/40 leading-relaxed">
         {call.reason}
       </div>
+
+      {/* Server-side policy rejection — already blocked by main process */}
+      {call.policyBlock && (
+        <div className="flex items-start gap-2 px-3 py-2 border-t border-red-500/20 bg-red-500/5 text-red-400">
+          <ShieldAlert className="w-3 h-3 shrink-0 mt-0.5" />
+          <span className="text-[11px] leading-relaxed">{call.policyBlock}</span>
+        </div>
+      )}
 
       {/* Action buttons — only when pending */}
       {call.status === 'pending' && (

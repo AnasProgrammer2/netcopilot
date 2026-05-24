@@ -1,6 +1,6 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { User, Eye, Copy, Check, Sparkles } from 'lucide-react'
+import { User, Eye, Copy, Check, Sparkles, Pencil, RotateCcw } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -14,8 +14,12 @@ interface Props {
   message:          AiMessageType
   approval:         'ask' | 'auto' | 'blacklist'
   blacklist:        string[]
+  isLastUser?:      boolean
+  isLastAssistant?: boolean
   onApproveCommand: (msgId: string, callId: string) => void
   onBlockCommand:   (msgId: string, callId: string) => void
+  onEditUser?:      (msgId: string) => void
+  onRegenerate?:    () => void
 }
 
 /** Returns 'rtl' if the text starts with Arabic/Hebrew chars, else 'ltr' */
@@ -25,12 +29,28 @@ function detectDir(text: string): 'rtl' | 'ltr' {
   return rtlPattern.test(firstWord) ? 'rtl' : 'ltr'
 }
 
-export function AiMessage({ message, approval, blacklist, onApproveCommand, onBlockCommand }: Props): JSX.Element {
+export function AiMessage({
+  message, approval, blacklist, isLastUser, isLastAssistant,
+  onApproveCommand, onBlockCommand, onEditUser, onRegenerate,
+}: Props): JSX.Element {
+  const [copied, setCopied] = useState(false)
   const isUser      = message.role === 'user'
+  const isAssistant = message.role === 'assistant'
   const isProactive = message.role === 'auto'
   const isPlan      = message.role === 'plan'
   const dir         = detectDir(message.content)
   const isRtl       = dir === 'rtl'
+
+  const copyMessage = () => {
+    const text = message.content + (message.toolCalls?.length
+      ? '\n\n' + message.toolCalls.map(tc =>
+          `$ ${tc.command}${tc.output ? '\n' + tc.output : ''}`
+        ).join('\n\n')
+      : '')
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   // Plan messages render as a standalone card (no avatar bubble)
   if (isPlan && message.plan) {
@@ -73,10 +93,11 @@ export function AiMessage({ message, approval, blacklist, onApproveCommand, onBl
           </span>
         )}
 
-        {/* Markdown content */}
+        {/* Markdown content — user msgs stay plain, assistant + auto get
+            full markdown (auto-watch now renders bullets / code-blocks too) */}
         {message.content && (
           <div className="prose-ai">
-            {isUser || isProactive ? (
+            {isUser ? (
               <span className="whitespace-pre-wrap break-words">
                 {message.content}
               </span>
@@ -103,6 +124,50 @@ export function AiMessage({ message, approval, blacklist, onApproveCommand, onBl
                 onBlock={(callId)   => onBlockCommand(message.id, callId)}
               />
             ))}
+          </div>
+        )}
+
+        {/* Action toolbar — Copy always visible on hover; Edit/Regenerate
+            only on the LAST user/assistant message so the chat history stays
+            uncluttered. Excluded for proactive Auto-Watch and Plan cards. */}
+        {!isProactive && !message.streaming && (
+          <div
+            dir="ltr"
+            className={cn(
+              'flex items-center gap-1 mt-1.5 -mb-0.5 opacity-0 group-hover:opacity-100 transition-opacity',
+              isUser || isRtl ? 'justify-start' : 'justify-end'
+            )}
+          >
+            <button
+              onClick={copyMessage}
+              title={copied ? 'Copied' : 'Copy message'}
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground/60 hover:text-foreground hover:bg-muted/40 transition-colors"
+            >
+              {copied
+                ? <><Check className="w-3 h-3 text-emerald-400" /><span className="text-emerald-400">Copied</span></>
+                : <><Copy className="w-3 h-3" /><span>Copy</span></>
+              }
+            </button>
+            {isUser && isLastUser && onEditUser && (
+              <button
+                onClick={() => onEditUser(message.id)}
+                title="Edit & retry"
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground/60 hover:text-primary hover:bg-primary/10 transition-colors"
+              >
+                <Pencil className="w-3 h-3" />
+                <span>Edit</span>
+              </button>
+            )}
+            {isAssistant && isLastAssistant && onRegenerate && (
+              <button
+                onClick={onRegenerate}
+                title="Regenerate response"
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground/60 hover:text-primary hover:bg-primary/10 transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Regenerate</span>
+              </button>
+            )}
           </div>
         )}
       </div>

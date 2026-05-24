@@ -3,12 +3,13 @@ import { createPortal } from 'react-dom'
 import { nanoid } from 'nanoid'
 import { X, Send, Sparkles, Trash2, Square, ShieldCheck, Wrench, AlertCircle, ChevronDown, Check, Eye, EyeOff, ShieldAlert, RotateCcw, Download, Zap } from 'lucide-react'
 import { useAppStore, AiMessage as AiMessageType, AiPermission, AiApproval } from '../../store'
-import { cn, stripAnsi } from '../../lib/utils'
+import { cn, stripAnsi, isCommandBlacklisted } from '../../lib/utils'
 import { AiMessage } from './AiMessage'
 import { Session } from '../../types'
 import { terminalRegistry } from '../../lib/terminalRegistry'
 import { detectDeviceType } from '../../lib/deviceDetector'
 import { DeviceType } from '../../types'
+import { aiBridge } from '../../lib/aiBridge'
 
 // ── Quick Commands per device type ────────────────────────────────────────────
 const QUICK_COMMANDS: Record<DeviceType | 'default', string[]> = {
@@ -64,17 +65,19 @@ function permApprovalToMode(p: AiPermission, a: AiApproval): AiMode {
 
 export function AiPanel({ activeSession, splitSession, allSessions, getTerminalContext, sendToTerminal, sendToSession }: Props): JSX.Element {
   const {
-    aiMessages, aiStreaming, aiAgentActive, aiPermission, aiApproval, aiBlacklist, aiTokens,
+    aiMessages, aiStreaming, aiAgentActive, aiPermission, aiApproval, aiBlacklist, aiAutoWatch, aiTokens,
     licenseValid, licensePlan,
     addAiMessage, appendAiChunk, finalizeAiStream, updateAiToolCall, clearAiMessages,
-    setAiStreaming, setAiAgentActive, setAiPanelOpen,
+    truncateAiMessagesAfter,
+    setAiStreaming, setAiAgentActive, setAiPanelOpen, setAiAutoWatch,
   } = useAppStore()
 
   // Per-session overrides — start from global settings, can be changed mid-chat
   // Reset to global defaults when conversation is cleared
   const [sessionMode,      setSessionMode]      = useState<AiMode>(() => permApprovalToMode(aiPermission, aiApproval))
   const [sessionBlacklist, setSessionBlacklist] = useState<string[]>(aiBlacklist)
-  const [autoWatch,        setAutoWatch]         = useState(true)
+  const autoWatch = aiAutoWatch
+  const setAutoWatch = setAiAutoWatch
   const [historyCommands,  setHistoryCommands]   = useState<string[]>([])
   const [privacyDismissed, setPrivacyDismissed]  = useState(() =>
     localStorage.getItem('aria-privacy-notice-accepted') === '1'
@@ -87,6 +90,20 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 
   // Sequential command queue — prevents race condition when auto-executing multiple commands
   const commandQueueRef = useRef<Promise<void>>(Promise.resolve())
+
+  // Refs mirror per-session state so the long-lived IPC `onToolCall` closure
+  // (registered once on mount) always sees the latest values without needing
+  // to re-subscribe every time the user changes a toggle.
+  const sessionApprovalRef  = useRef<AiApproval>(sessionApproval)
+  const sessionBlacklistRef = useRef<string[]>(sessionBlacklist)
+  const autoWatchRef        = useRef<boolean>(autoWatch)
+  const activeSessionIdRef  = useRef<string | null>(activeSession?.id ?? null)
+
+  useEffect(() => { sessionApprovalRef.current  = sessionApproval  }, [sessionApproval])
+  useEffect(() => { sessionBlacklistRef.current = sessionBlacklist }, [sessionBlacklist])
+  useEffect(() => { autoWatchRef.current        = autoWatch        }, [autoWatch])
+  useEffect(() => { activeSessionIdRef.current  = activeSession?.id ?? null }, [activeSession?.id])
+
   useEffect(() => {
     if (aiMessages.length === 0 && prevMessageCount.current > 0) {
       setSessionMode(permApprovalToMode(aiPermission, aiApproval))
@@ -103,19 +120,6 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       setHistoryCommands(rows.map(r => r.command))
     }).catch(() => {/* ignore */})
   }, [activeSession?.connection.deviceType])
-
-  // Sync per-session flags to window bridge so closed effects can read latest values
-  useEffect(() => {
-    (window as unknown as Record<string, unknown>)['__aiAutoWatch'] = autoWatch
-  }, [autoWatch])
-
-  useEffect(() => {
-    (window as unknown as Record<string, unknown>)['__sessionApproval'] = sessionApproval
-  }, [sessionApproval])
-
-  useEffect(() => {
-    (window as unknown as Record<string, unknown>)['__sessionBlacklist'] = sessionBlacklist
-  }, [sessionBlacklist])
 
   const [input, setInput] = useState('')
   const bottomRef    = useRef<HTMLDivElement>(null)
@@ -142,34 +146,45 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
     }
   }, [aiMessages])
 
-  // Subscribe to AI IPC events
+  // Subscribe to AI IPC events. All events are scoped by sessionId; we filter
+  // to the currently active session via `activeSessionIdRef` so other sessions'
+  // ARIA chats don't bleed into this panel's UI.
   useEffect(() => {
-    const offChunk = window.api.ai.onChunk((chunk) => {
-      appendAiChunk(chunk)
+    const forActiveSession = (sessionId: string) => sessionId === activeSessionIdRef.current
+
+    const offChunk = window.api.ai.onChunk(({ sessionId, text }) => {
+      if (!forActiveSession(sessionId)) return
+      appendAiChunk(text)
     })
 
-    const offDone = window.api.ai.onDone((usage) => {
+    const offDone = window.api.ai.onDone(({ sessionId, inputTokens, outputTokens }) => {
+      if (!forActiveSession(sessionId)) return
+      const usage = (typeof inputTokens === 'number' && typeof outputTokens === 'number')
+        ? { inputTokens, outputTokens } : undefined
       useAppStore.getState().finalizeAiStream(usage)
       useAppStore.getState().setAiAgentActive(false)
     })
 
-    const offError = window.api.ai.onError((err) => {
+    const offError = window.api.ai.onError(({ sessionId, message }) => {
+      if (!forActiveSession(sessionId)) return
       useAppStore.getState().finalizeAiStream()
       useAppStore.getState().setAiAgentActive(false)
       useAppStore.getState().addAiMessage({
         id: nanoid(),
         role: 'assistant',
-        content: `⚠️ ${err}`,
+        content: `⚠️ ${message}`,
       })
     })
 
-    const offPlan = window.api.ai.onPlan(({ objective, steps }) => {
+    const offPlan = window.api.ai.onPlan(({ sessionId, objective, steps }) => {
+      if (!forActiveSession(sessionId)) return
       // Finalize any streaming text before showing the plan card
       useAppStore.getState().finalizeAiStream()
       useAppStore.getState().addAiPlan({ objective, steps })
     })
 
-    const offToolCall = window.api.ai.onToolCall(async ({ id, command, reason, targetSession }) => {
+    const offToolCall = window.api.ai.onToolCall(async ({ sessionId, id, command, reason, targetSession, policyBlock }) => {
+      if (!forActiveSession(sessionId)) return
       // First finalize any streaming message (Claude is done generating text for this turn)
       finalizeAiStream()
 
@@ -190,20 +205,24 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       const targetMsg = lastMsg
       if (!targetMsg) return
 
-      const toolCall = { id, command, reason, status: 'pending' as const, targetSession }
+      const toolCall = { id, command, reason, status: 'pending' as const, targetSession, policyBlock }
 
       // Attach the tool call to the assistant message
       updateAiToolCall(targetMsg.id, id, toolCall)
 
-      // Read latest per-session values from window bridge (avoids stale closure)
-      const currentApproval   = (window as unknown as Record<string, unknown>)['__sessionApproval']  as AiApproval ?? 'ask'
-      const currentBlacklist  = (window as unknown as Record<string, unknown>)['__sessionBlacklist'] as string[] ?? []
+      // Already rejected by the main-process policy gate — the main side
+      // has already pushed the rejection back to Claude. Just reflect it in
+      // the UI so the user can see what was attempted and why it was blocked.
+      if (policyBlock) {
+        updateAiToolCall(targetMsg.id, id, { status: 'blocked', output: policyBlock })
+        return
+      }
 
-      const isBlacklisted = currentBlacklist.some((p) =>
-        p.trim() && command.toLowerCase().includes(p.trim().toLowerCase())
-      )
+      // Read latest per-session values from refs (avoids stale closure)
+      const currentApproval  = sessionApprovalRef.current
+      const currentBlacklist = sessionBlacklistRef.current
 
-      if (isBlacklisted) {
+      if (isCommandBlacklisted(command, currentBlacklist)) {
         updateAiToolCall(targetMsg.id, id, { status: 'blocked' })
         await window.api.ai.toolResult(id, '(command blocked by blacklist)')
         return
@@ -245,6 +264,18 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       let timer: ReturnType<typeof setTimeout>
       let offData: (() => void) | null = null
       let settled = false
+      let chunkCount = 0
+      let lastChunkAt = Date.now()
+
+      // Adaptive idle threshold:
+      //   • Fast path  (300ms) — short single-shot outputs that arrive in 1-2 chunks
+      //   • Normal     (900ms) — typical multi-line show commands
+      //   • Slow path  (2200ms) — long streams that arrive over time
+      const idleFor = (): number => {
+        if (chunkCount <= 1) return 300
+        if (chunkCount <  6) return 900
+        return 2200
+      }
 
       const finish = async () => {
         if (settled) return
@@ -264,8 +295,25 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         resolve()
       }
 
-      // Detect --More-- paging prompts and automatically advance through them
-      const MORE_PATTERN = /--\s*[Mm]ore\s*--|<--- More --->|\s+---- More ----/
+      // Detect pager prompts across vendors / Unix tools and auto-advance.
+      // Covered:
+      //   • Cisco / Junos / Arista:  --More--, <--- More --->, ---- More ----
+      //   • Huawei / Nokia:          ---- More ----, Press 'Q' to quit
+      //   • Linux less / more:        :, lines N-M, (END), Press SPACE to continue
+      //   • Generic:                  Press any key, Press RETURN to continue
+      const MORE_PATTERN = new RegExp(
+        [
+          '--\\s*[Mm]ore\\s*--',
+          '<---\\s*More\\s*--->',
+          '----+\\s*More\\s*----+',
+          'Press\\s+(?:SPACE|any\\s+key|RETURN|<space>|\\[space\\])\\s+(?:to\\s+continue|for\\s+more)?',
+          '\\(END\\)',
+          'lines\\s+\\d+-\\d+',
+          ':\\s*$',                 // less/more bare colon prompt
+          '\\bMORE\\b\\s*:',        // Windows `more` pager
+        ].join('|'),
+        'm'
+      )
 
       const sendData = (d: string) => {
         if (targetSessionId && sendToSession) sendToSession(targetSessionId, d)
@@ -280,6 +328,8 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       // Collect terminal output from the correct session only
       offData = collectTerminalOutput((data) => {
         output += data
+        chunkCount++
+        lastChunkAt = Date.now()
         clearTimeout(timer)
 
         // Keep scrolling to bottom as output arrives
@@ -295,14 +345,16 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
           return
         }
 
-        timer = setTimeout(finish, 2000)
+        timer = setTimeout(finish, idleFor())
       }, resolvedSessionId)
 
       // Send the command to the correct session
       sendData(command + '\r')
+      lastChunkAt = Date.now()
 
-      // Safety timeout: if no output arrives in 8s, finish anyway
+      // Safety timeout: if no output arrives at all in 8s, finish anyway
       timer = setTimeout(finish, 8000)
+      void lastChunkAt
     })
   }, [updateAiToolCall, sendToTerminal, sendToSession, activeSession, allSessions])
 
@@ -318,6 +370,49 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
     await window.api.ai.toolResult(callId, '(command skipped by user)')
   }, [updateAiToolCall])
 
+  /**
+   * Edit & Retry: prefill the input box with the user message text, drop that
+   * message and everything after it, and focus the input so the user can edit
+   * and press Enter to re-send. Aborts any in-flight stream first.
+   */
+  const handleEditUserMessage = useCallback((msgId: string) => {
+    const msg = useAppStore.getState().aiMessages.find(m => m.id === msgId)
+    if (!msg) return
+    if (aiStreaming || aiAgentActive) window.api.ai.cancel(activeSession?.id)
+    truncateAiMessagesAfter(msgId, /* includeMsg */ true)
+    setInput(msg.content)
+    setTimeout(() => {
+      inputRef.current?.focus()
+      // Auto-resize textarea to fit content
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto'
+        inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 144) + 'px'
+      }
+    }, 50)
+  }, [aiStreaming, aiAgentActive, activeSession?.id, truncateAiMessagesAfter])
+
+  /**
+   * Regenerate: drop the last assistant message (and any trailing junk), then
+   * re-send the conversation as-is so the model produces a fresh answer.
+   */
+  const handleRegenerate = useCallback(() => {
+    const msgs = useAppStore.getState().aiMessages
+    let lastAsstIdx = -1
+    let lastUserIdx = -1
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (lastAsstIdx === -1 && msgs[i].role === 'assistant') lastAsstIdx = i
+      if (lastUserIdx === -1 && msgs[i].role === 'user')      lastUserIdx = i
+      if (lastAsstIdx !== -1 && lastUserIdx !== -1) break
+    }
+    if (lastAsstIdx < 0 || lastUserIdx < 0 || lastUserIdx > lastAsstIdx) return
+    if (aiStreaming || aiAgentActive) window.api.ai.cancel(activeSession?.id)
+    // Drop the last assistant message (and any auto/plan messages after the user msg)
+    truncateAiMessagesAfter(msgs[lastUserIdx].id, /* includeMsg */ false)
+    userScrolled.current = false
+    sendMessage('', /* isProactive */ false, undefined, /* isRegenerate */ true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiStreaming, aiAgentActive, activeSession?.id, truncateAiMessagesAfter])
+
   /** Always reads fresh store state to avoid stale-closure issues with async state updates */
   const buildMessages = () => {
     return useAppStore.getState().aiMessages
@@ -331,8 +426,8 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       .filter((m) => m.content.trim())  // drop empty assistant shells (created as tool call anchors)
   }
 
-  const sendMessage = useCallback(async (text: string, isProactive = false, proactiveContext?: string) => {
-    if (!text.trim() && !isProactive) return
+  const sendMessage = useCallback(async (text: string, isProactive = false, proactiveContext?: string, isRegenerate = false) => {
+    if (!text.trim() && !isProactive && !isRegenerate) return
 
     // Block if no valid license
     if (!licenseValid) {
@@ -346,7 +441,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       return
     }
 
-    if (!isProactive) {
+    if (!isProactive && !isRegenerate) {
       addAiMessage({ id: nanoid(), role: 'user', content: text })
     }
 
@@ -376,6 +471,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       }
 
       await window.api.ai.chat({
+        sessionId:       activeSession?.id ?? '',
         messages,
         terminalContext: ctx,
         deviceType:      resolvedDeviceType,
@@ -398,21 +494,17 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addAiMessage, setAiStreaming, finalizeAiStream, getTerminalContext, activeSession, sessionPermission])
 
-  // Keep sessionApproval accessible from the closed onToolCall effect via a window bridge
+  // Subscribe to proactive analysis triggers from TerminalTab (Auto Watch).
+  // Bridge replaces the previous `window.__aiSendProactive` global.
   useEffect(() => {
-    (window as unknown as Record<string, unknown>)['__sessionApproval'] = sessionApproval
-  }, [sessionApproval])
-
-  // Expose sendMessage so TerminalTab can trigger proactive analysis
-  useEffect(() => {
-    (window as unknown as Record<string, unknown>)['__aiSendProactive'] = (ctx: string) => {
+    return aiBridge.on('proactive', ({ context, sessionId }) => {
+      // Only react if Auto Watch is on and the event is for the active session
+      if (!autoWatchRef.current) return
+      if (sessionId !== activeSessionIdRef.current) return
       const msg: AiMessageType = { id: nanoid(), role: 'auto', content: `Analyzing output...` }
       addAiMessage(msg)
-      sendMessage('', true, ctx)
-    }
-    return () => {
-      delete (window as unknown as Record<string, unknown>)['__aiSendProactive']
-    }
+      sendMessage('', true, context)
+    })
   }, [sendMessage, addAiMessage])
 
   const handleSubmit = () => {
@@ -576,16 +668,30 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
               </div>
             )}
 
-            {aiMessages.map((msg) => (
-              <AiMessage
-                key={msg.id}
-                message={msg}
-                approval={sessionApproval}
-                blacklist={sessionBlacklist}
-                onApproveCommand={handleApproveCommand}
-                onBlockCommand={handleBlockCommand}
-              />
-            ))}
+            {(() => {
+              // Pre-compute the index of the last user and last assistant message
+              // so the action toolbar (Edit / Regenerate) only renders once.
+              let lastUserIdx = -1, lastAsstIdx = -1
+              for (let i = aiMessages.length - 1; i >= 0; i--) {
+                if (lastUserIdx === -1 && aiMessages[i].role === 'user')      lastUserIdx = i
+                if (lastAsstIdx === -1 && aiMessages[i].role === 'assistant') lastAsstIdx = i
+                if (lastUserIdx !== -1 && lastAsstIdx !== -1) break
+              }
+              return aiMessages.map((msg, i) => (
+                <AiMessage
+                  key={msg.id}
+                  message={msg}
+                  approval={sessionApproval}
+                  blacklist={sessionBlacklist}
+                  isLastUser={i === lastUserIdx && !aiStreaming && !aiAgentActive}
+                  isLastAssistant={i === lastAsstIdx && !aiStreaming && !aiAgentActive}
+                  onApproveCommand={handleApproveCommand}
+                  onBlockCommand={handleBlockCommand}
+                  onEditUser={handleEditUserMessage}
+                  onRegenerate={handleRegenerate}
+                />
+              ))
+            })()}
 
             {/* Waiting for first token — last message is user and we're streaming */}
             {(() => {
@@ -771,7 +877,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                   <BlacklistButton blacklist={sessionBlacklist} onChange={setSessionBlacklist} />
 
                   <button
-                    onClick={() => setAutoWatch(v => !v)}
+                    onClick={() => setAutoWatch(!autoWatch)}
                     title={autoWatch ? 'Auto Watch ON — click to disable' : 'Auto Watch OFF — click to enable'}
                     className={cn(
                       'flex items-center justify-center w-6 h-6 rounded-lg transition-all',
@@ -792,7 +898,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 
                   {aiStreaming ? (
                     <button
-                      onClick={() => window.api.ai.cancel()}
+                      onClick={() => window.api.ai.cancel(activeSession?.id)}
                       title="Stop generation"
                       className="shrink-0 flex items-center gap-1.5 px-2.5 h-7 rounded-xl text-[11px] font-medium bg-red-500/12 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/35 transition-all"
                     >
