@@ -1,0 +1,91 @@
+name: 🐛 Bug Report
+description: Report a reproducible bug or regression in NetCopilot.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report! Please fill out the sections below so we can fix it fast.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear and concise description of the bug.
+      placeholder: When I clicked X, Y happened instead of Z…
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce this on our machines?
+      placeholder: |
+        1. Open NetCopilot
+        2. Click on …
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: I expected the terminal to …
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Windows 11
+        - Windows 10
+        - Linux (specify distro below)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: NetCopilot version
+      description: "Find it in Settings → About"
+      placeholder: "e.g. 0.13.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: protocol
+    attributes:
+      label: Protocol involved
+      options:
+        - SSH
+        - Telnet
+        - Serial
+        - ARIA (AI)
+        - Not protocol-specific
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Screenshots
+      description: |
+        If applicable, attach screenshots or paste any error output from DevTools console.
+        DO NOT include passwords, IPs, or other sensitive data.
+      render: shell
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched [existing issues](https://github.com/AnasProgrammer2/netcopilot/issues) and didn't find a duplicate.
+          required: true
+        - label: I'm running the latest version from [Releases](https://github.com/AnasProgrammer2/netcopilot/releases).
+          required: true

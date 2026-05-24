@@ -1,0 +1,56 @@
+name: ✨ Feature Request
+description: Suggest a new feature, improvement, or vendor support.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea to make NetCopilot better? Let's hear it.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the pain point you're hitting today.
+      placeholder: As a network engineer, I often need to …
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you like NetCopilot to behave?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you've tried, or how other tools handle this.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Terminal / Connection
+        - ARIA (AI agent)
+        - Device Highlighting
+        - Connection Management (groups, snippets, etc.)
+        - Logging
+        - Security / Master Password
+        - Settings / Theming
+        - Platform-specific (Mac/Win/Linux)
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched [existing issues](https://github.com/AnasProgrammer2/netcopilot/issues) and didn't find a duplicate.
+          required: true

@@ -1,0 +1,42 @@
+name: 🔌 Vendor / Device Support Request
+description: Request support for a network vendor or device type ARIA doesn't know yet.
+labels: ["vendor", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to request ARIA awareness or syntax highlighting for a vendor that isn't currently in the playbook.
+        Current supported vendors: Cisco (IOS/IOS-XE/NX-OS/ASA), Juniper, Arista, Nokia SR-OS, Huawei VRP, MikroTik, HP/Aruba ProCurve, Fortinet, Palo Alto, F5, Linux, Windows.
+
+  - type: input
+    id: vendor
+    attributes:
+      label: Vendor / Platform
+      placeholder: "e.g. Extreme Networks EXOS, Dell SONiC, Versa SD-WAN"
+    validations:
+      required: true
+
+  - type: textarea
+    id: signature-commands
+    attributes:
+      label: Signature commands
+      description: List 5–10 commands ARIA should recognise (show/diagnose style).
+      render: text
+      placeholder: |
+        show version
+        show interfaces statistics
+        show route-policy
+    validations:
+      required: true
+
+  - type: textarea
+    id: common-issues
+    attributes:
+      label: Common root causes / failure modes
+      description: What are the most frequent problems engineers debug on this platform?
+
+  - type: textarea
+    id: docs
+    attributes:
+      label: Documentation links
+      description: Official command references or cheat sheets we can use to build the playbook.
