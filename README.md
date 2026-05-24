@@ -8,8 +8,10 @@
   <a href="https://github.com/AnasProgrammer2/netcopilot/releases/latest"><img src="https://img.shields.io/github/v/release/AnasProgrammer2/netcopilot?style=flat-square&color=8B5CF6&label=latest" alt="Latest Release" /></a>
   <a href="https://github.com/AnasProgrammer2/netcopilot/releases"><img src="https://img.shields.io/github/downloads/AnasProgrammer2/netcopilot/total?style=flat-square&color=22c55e&label=downloads" alt="Downloads" /></a>
   <a href="https://github.com/AnasProgrammer2/netcopilot"><img src="https://img.shields.io/github/stars/AnasProgrammer2/netcopilot?style=flat-square&color=f59e0b" alt="Stars" /></a>
+  <a href="https://github.com/AnasProgrammer2/netcopilot/network/members"><img src="https://img.shields.io/github/forks/AnasProgrammer2/netcopilot?style=flat-square&color=06b6d4" alt="Forks" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-BSL--1.1-blue?style=flat-square" alt="License" /></a>
   <a href="https://github.com/AnasProgrammer2/netcopilot/actions"><img src="https://img.shields.io/github/actions/workflow/status/AnasProgrammer2/netcopilot/release.yml?style=flat-square&label=build" alt="Build" /></a>
+  <a href="https://github.com/AnasProgrammer2/netcopilot"><img src="https://hits.sh/github.com/AnasProgrammer2/netcopilot.svg?style=flat-square&label=visits&color=8B5CF6" alt="Visits" /></a>
 </p>
 
 <p align="center">
