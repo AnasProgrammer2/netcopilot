@@ -1,19 +1,44 @@
+# Dependencies & build output
 node_modules/
 out/
 dist/
+
+# Build cache
+*.tsbuildinfo
+
+# Environment files — NEVER commit real secrets
 .env
+.env.*
+!.env.example
 *.local
+
+# OS junk
 .DS_Store
+Thumbs.db
 
 # Database files — never commit user data
 *.db
 *.sqlite
 *.sqlite3
 
+# Signing certificates / provisioning / keys — NEVER commit
+*.cer
+*.crt
+*.pem
+*.p12
+*.p8
+*.key
+*.keystore
+*.jks
+*.mobileprovision
+*.provisionprofile
+resources/embedded.provisionprofile
+
 # AI tool config (local dev tools)
 CLAUDE.md
 .claude/
 .cursor/
+.agents/
 
 # Fastlane
 fastlane/.env
@@ -23,5 +48,14 @@ fastlane/screenshots
 fastlane/test_output
 Gemfile.lock
 
-# MAS provisioning profile — generated during CI, never commit
-resources/embedded.provisionprofile
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
