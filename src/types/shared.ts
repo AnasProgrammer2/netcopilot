@@ -93,6 +93,22 @@ export interface Connection {
   autoReconnect?: boolean
   reconnectDelay?: number
   proxyConfig?: ProxyConfig
+  // SSH Advanced Settings
+  agentForwarding?: boolean
+  keepAliveInterval?: number
+  keepAliveCountMax?: number
+  readyTimeout?: number
+  // ProxyJump chain for SSH config import
+  proxyJumpChain?: string[]
+  // Anti-idle / keepalive
+  antiIdle?: boolean
+  antiIdleInterval?: number
+  antiIdleString?: string
+  // Zmodem
+  zmodemEnabled?: boolean
+  // Terminal display
+  trueColorEnabled?: boolean
+  sixelEnabled?: boolean
   createdAt: number
   updatedAt: number
   lastConnectedAt?: number

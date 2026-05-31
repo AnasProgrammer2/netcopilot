@@ -17,6 +17,7 @@ function makeFanout<T extends unknown[]>(channel: string): (cb: (...args: T) => 
 
 const onSshData    = makeFanout<[string, string]>('ssh:data')
 const onSshClosed  = makeFanout<[string]>('ssh:closed')
+const onZmodemDetect = makeFanout<[string, { type: 'receive' | 'send' }]>('zmodem:detected')
 const onTelnetData   = makeFanout<[string, string]>('telnet:data')
 const onTelnetClosed = makeFanout<[string]>('telnet:closed')
 const onSerialData   = makeFanout<[string, string]>('serial:data')
@@ -74,6 +75,21 @@ const api = {
     forwardStopSession: (sessionId: string) => ipcRenderer.invoke('ssh:forward-stop-session', sessionId),
     onData:   onSshData,
     onClosed: onSshClosed,
+  },
+
+  // Zmodem (lrzsz file transfer over terminal)
+  zmodem: {
+    receiveStart: (sessionId: string, suggestedName?: string) =>
+      ipcRenderer.invoke('zmodem:receive-start', sessionId, suggestedName),
+    sendStart: (sessionId: string) =>
+      ipcRenderer.invoke('zmodem:send-start', sessionId),
+    processData: (sessionId: string, data: string) =>
+      ipcRenderer.invoke('zmodem:process-data', sessionId, data),
+    abort: (sessionId: string) =>
+      ipcRenderer.invoke('zmodem:abort', sessionId),
+    status: (sessionId: string) =>
+      ipcRenderer.invoke('zmodem:status', sessionId),
+    onDetect: onZmodemDetect,
   },
 
   // Telnet

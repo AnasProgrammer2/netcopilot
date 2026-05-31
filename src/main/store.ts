@@ -30,7 +30,18 @@ export function setupStoreHandlers(ipcMain: IpcMain): void {
           startup_commands = @startup_commands, enable_password = @enable_password,
           serial_config = @serial_config, auto_reconnect = @auto_reconnect,
           reconnect_delay = @reconnect_delay, updated_at = @updated_at,
-          last_connected_at = @last_connected_at
+          last_connected_at = @last_connected_at,
+          -- SSH Advanced
+          agent_forwarding = @agent_forwarding, keepalive_interval = @keepalive_interval,
+          keepalive_count_max = @keepalive_count_max, ready_timeout = @ready_timeout,
+          proxy_jump_chain = @proxy_jump_chain,
+          -- Anti-idle
+          anti_idle = @anti_idle, anti_idle_interval = @anti_idle_interval,
+          anti_idle_string = @anti_idle_string,
+          -- Zmodem
+          zmodem_enabled = @zmodem_enabled,
+          -- Terminal display
+          true_color_enabled = @true_color_enabled, sixel_enabled = @sixel_enabled
         WHERE id = @id
       `).run(row)
     } else {
@@ -39,12 +50,18 @@ export function setupStoreHandlers(ipcMain: IpcMain): void {
         (id, name, host, port, protocol, username, auth_type, ssh_key_id, group_id,
          tags, notes, device_type, color, jump_host_id, startup_commands,
          enable_password, serial_config, auto_reconnect, reconnect_delay,
-         created_at, updated_at, last_connected_at)
+         created_at, updated_at, last_connected_at,
+         agent_forwarding, keepalive_interval, keepalive_count_max, ready_timeout,
+         proxy_jump_chain, anti_idle, anti_idle_interval, anti_idle_string,
+         zmodem_enabled, true_color_enabled, sixel_enabled)
         VALUES
         (@id, @name, @host, @port, @protocol, @username, @auth_type, @ssh_key_id, @group_id,
          @tags, @notes, @device_type, @color, @jump_host_id, @startup_commands,
          @enable_password, @serial_config, @auto_reconnect, @reconnect_delay,
-         @created_at, @updated_at, @last_connected_at)
+         @created_at, @updated_at, @last_connected_at,
+         @agent_forwarding, @keepalive_interval, @keepalive_count_max, @ready_timeout,
+         @proxy_jump_chain, @anti_idle, @anti_idle_interval, @anti_idle_string,
+         @zmodem_enabled, @true_color_enabled, @sixel_enabled)
       `).run(connToRow(connection))
     }
     return connection

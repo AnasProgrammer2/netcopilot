@@ -21,7 +21,22 @@ interface SshConnectPayload {
   rows?: number
   readyTimeout?: number
   keepaliveInterval?: number
+  keepaliveCountMax?: number
+  // SSH Agent Forwarding
+  agentForwarding?: boolean
+  agentSocketPath?: string
+  // Anti-idle
+  antiIdle?: boolean
+  antiIdleInterval?: number
+  antiIdleString?: string
+  // Terminal display features
+  trueColor?: boolean
+  sixel?: boolean
+  // Zmodem
+  zmodemEnabled?: boolean
+  // Jump Host
   jumpHost?: JumpHostPayload
+  // Proxy
   proxy?: {
     type: 'socks5' | 'socks4' | 'http'
     host: string
@@ -143,6 +158,14 @@ declare global {
         disconnect(sessionId: string): Promise<boolean>
         onProgress(cb: (sessionId: string, filePath: string, transferred: number, total: number) => void): () => void
         onClosed(cb: (sessionId: string) => void): () => void
+      }
+      zmodem: {
+        receiveStart(sessionId: string, suggestedName?: string): Promise<{ success: boolean; filePath?: string; cancelled?: boolean; error?: string }>
+        sendStart(sessionId: string): Promise<{ success: boolean; fileName?: string; fileSize?: number; cancelled?: boolean; error?: string }>
+        processData(sessionId: string, data: string): Promise<{ handled: boolean; complete?: boolean }>
+        abort(sessionId: string): Promise<{ success: boolean }>
+        status(sessionId: string): Promise<{ isReceiving: boolean; filePath?: string; fileSize?: number; bytesTransferred: number; progress: number } | null>
+        onDetect(cb: (evt: { sessionId: string; type: 'receive' | 'send' }) => void): () => void
       }
       telnet: {
         connect(payload: TelnetConnectPayload): Promise<{ success: boolean }>

@@ -74,6 +74,17 @@ function initSchema(db: Database.Database): void {
       auto_reconnect  INTEGER NOT NULL DEFAULT 1,
       reconnect_delay INTEGER NOT NULL DEFAULT 10,
       proxy_config    TEXT,
+      agent_forwarding INTEGER DEFAULT 0,
+      keepalive_interval INTEGER DEFAULT 30,
+      keepalive_count_max INTEGER DEFAULT 3,
+      ready_timeout   INTEGER DEFAULT 30,
+      proxy_jump_chain TEXT,
+      anti_idle       INTEGER DEFAULT 0,
+      anti_idle_interval INTEGER DEFAULT 60,
+      anti_idle_string TEXT,
+      zmodem_enabled  INTEGER DEFAULT 0,
+      true_color_enabled INTEGER DEFAULT 0,
+      sixel_enabled   INTEGER DEFAULT 0,
       created_at      INTEGER NOT NULL,
       updated_at      INTEGER NOT NULL,
       last_connected_at INTEGER
@@ -127,6 +138,31 @@ function initSchema(db: Database.Database): void {
   const colNames = new Set(cols.map(c => c.name))
   if (!colNames.has('proxy_config')) {
     db.exec("ALTER TABLE connections ADD COLUMN proxy_config TEXT")
+  }
+
+  // Migration for new SSH Advanced Settings columns
+  const newColumns = [
+    { name: 'agent_forwarding', type: 'INTEGER DEFAULT 0' },
+    { name: 'keepalive_interval', type: 'INTEGER DEFAULT 30' },
+    { name: 'keepalive_count_max', type: 'INTEGER DEFAULT 3' },
+    { name: 'ready_timeout', type: 'INTEGER DEFAULT 30' },
+    { name: 'proxy_jump_chain', type: 'TEXT' },
+    { name: 'anti_idle', type: 'INTEGER DEFAULT 0' },
+    { name: 'anti_idle_interval', type: 'INTEGER DEFAULT 60' },
+    { name: 'anti_idle_string', type: 'TEXT' },
+    { name: 'zmodem_enabled', type: 'INTEGER DEFAULT 0' },
+    { name: 'true_color_enabled', type: 'INTEGER DEFAULT 0' },
+    { name: 'sixel_enabled', type: 'INTEGER DEFAULT 0' },
+  ]
+
+  for (const col of newColumns) {
+    if (!colNames.has(col.name)) {
+      try {
+        db.exec(`ALTER TABLE connections ADD COLUMN ${col.name} ${col.type}`)
+      } catch (e) {
+        console.warn(`[db] Failed to add column ${col.name}:`, e)
+      }
+    }
   }
 
   const blRow = db
@@ -282,6 +318,21 @@ export function rowToConnection(row: Row): Connection {
     autoReconnect:    Boolean(row.auto_reconnect),
     reconnectDelay:   row.reconnect_delay as number,
     proxyConfig:      row.proxy_config ? safeJsonParse(row.proxy_config as string, undefined) : undefined,
+    // SSH Advanced Settings
+    agentForwarding:  Boolean(row.agent_forwarding),
+    keepAliveInterval: (row.keepalive_interval as number) ?? 30,
+    keepAliveCountMax: (row.keepalive_count_max as number) ?? 3,
+    readyTimeout:     (row.ready_timeout as number) ?? 30,
+    proxyJumpChain:   row.proxy_jump_chain ? safeJsonParse(row.proxy_jump_chain as string, undefined) : undefined,
+    // Anti-idle
+    antiIdle:         Boolean(row.anti_idle),
+    antiIdleInterval: (row.anti_idle_interval as number) ?? 60,
+    antiIdleString:   (row.anti_idle_string as string) || undefined,
+    // Zmodem
+    zmodemEnabled:    Boolean(row.zmodem_enabled),
+    // Terminal display
+    trueColorEnabled: Boolean(row.true_color_enabled),
+    sixelEnabled:     Boolean(row.sixel_enabled),
     createdAt:        row.created_at as number,
     updatedAt:        row.updated_at as number,
     lastConnectedAt:  (row.last_connected_at as number) || undefined,
@@ -310,6 +361,21 @@ export function connToRow(c: Connection): Row {
     auto_reconnect:   c.autoReconnect   ? 1 : 0,
     reconnect_delay:  c.reconnectDelay  ?? 10,
     proxy_config:     c.proxyConfig     ? JSON.stringify(c.proxyConfig) : null,
+    // SSH Advanced Settings
+    agent_forwarding:    c.agentForwarding ? 1 : 0,
+    keepalive_interval:  c.keepAliveInterval ?? 30,
+    keepalive_count_max: c.keepAliveCountMax ?? 3,
+    ready_timeout:       c.readyTimeout ?? 30,
+    proxy_jump_chain:    c.proxyJumpChain ? JSON.stringify(c.proxyJumpChain) : null,
+    // Anti-idle
+    anti_idle:           c.antiIdle ? 1 : 0,
+    anti_idle_interval:  c.antiIdleInterval ?? 60,
+    anti_idle_string:    c.antiIdleString ?? null,
+    // Zmodem
+    zmodem_enabled:      c.zmodemEnabled ? 1 : 0,
+    // Terminal display
+    true_color_enabled:  c.trueColorEnabled ? 1 : 0,
+    sixel_enabled:       c.sixelEnabled ? 1 : 0,
     created_at:       c.createdAt,
     updated_at:       c.updatedAt,
     last_connected_at: c.lastConnectedAt ?? null,

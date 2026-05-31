@@ -613,9 +613,25 @@ export function TerminalTab({ session }: Props): JSX.Element {
             privateKey: privateKey  ?? undefined,
             passphrase: conn.authType === 'key+password' && password ? password : undefined,
             cols, rows,
-            readyTimeout:      cs.connectTimeout    * 1000,
-            keepaliveInterval: cs.keepaliveInterval * 1000,
+            // Connection timeouts and keepalive
+            readyTimeout:      (conn.readyTimeout ?? cs.connectTimeout) * 1000,
+            keepaliveInterval: (conn.keepAliveInterval ?? cs.keepaliveInterval) * 1000,
+            keepaliveCountMax: conn.keepAliveCountMax ?? 3,
+            // SSH Agent Forwarding
+            agentForwarding: conn.agentForwarding,
+            agentSocketPath: undefined, // Auto-detect from environment
+            // Anti-idle settings
+            antiIdle: conn.antiIdle,
+            antiIdleInterval: conn.antiIdleInterval,
+            antiIdleString: conn.antiIdleString,
+            // Terminal display features
+            trueColor: conn.trueColorEnabled,
+            sixel: conn.sixelEnabled,
+            // Zmodem file transfer
+            zmodemEnabled: conn.zmodemEnabled,
+            // Jump host configuration
             jumpHost: jumpHostConfig,
+            // Proxy configuration
             proxy: conn.proxyConfig?.type && conn.proxyConfig.type !== 'none' ? {
               type: conn.proxyConfig.type,
               host: conn.proxyConfig.host,

@@ -131,7 +131,21 @@ export function ConnectionDialog(): JSX.Element {
         serialConfig: isSerial ? (form.serialConfig ?? DEFAULT_SERIAL) : undefined,
         autoReconnect: form.autoReconnect ?? true,
         reconnectDelay: form.reconnectDelay ?? 10,
-        proxyConfig: form.proxyConfig?.type && form.proxyConfig.type !== 'none' ? form.proxyConfig : undefined
+        proxyConfig: form.proxyConfig?.type && form.proxyConfig.type !== 'none' ? form.proxyConfig : undefined,
+        // SSH Advanced Settings
+        agentForwarding: form.agentForwarding,
+        keepAliveInterval: form.keepAliveInterval,
+        keepAliveCountMax: form.keepAliveCountMax,
+        readyTimeout: form.readyTimeout,
+        // Anti-idle
+        antiIdle: form.antiIdle,
+        antiIdleInterval: form.antiIdleInterval,
+        antiIdleString: form.antiIdleString,
+        // Zmodem
+        zmodemEnabled: form.zmodemEnabled,
+        // Terminal display
+        trueColorEnabled: form.trueColorEnabled,
+        sixelEnabled: form.sixelEnabled
       } as Omit<Connection, 'id' | 'createdAt' | 'updatedAt'> & { id?: string })
 
       if (password && (form.authType === 'password' || form.authType === 'key+password')) {
@@ -548,6 +562,177 @@ export function ConnectionDialog(): JSX.Element {
                   )}
                 </div>
               )}
+
+              {/* SSH Settings - Only for SSH protocol */}
+              {form.protocol === 'ssh' && (
+                <div className="space-y-3 pt-1 border-t border-border">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    SSH Advanced
+                  </p>
+
+                  {/* SSH Agent Forwarding */}
+                  <label className="flex items-center gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.agentForwarding ?? false}
+                      onChange={(e) => update('agentForwarding', e.target.checked)}
+                      className="w-4 h-4 rounded accent-primary"
+                    />
+                    <span className="text-sm text-foreground">
+                      Enable SSH Agent Forwarding
+                    </span>
+                  </label>
+                  {form.agentForwarding && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Forwards your local SSH agent to the remote host. Allows connecting to other hosts from the remote without storing keys there.
+                    </p>
+                  )}
+
+                  {/* Keep-Alive Settings */}
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <Field label="Keep-alive Interval (seconds)">
+                      <input
+                        type="number"
+                        min={0}
+                        max={3600}
+                        value={form.keepAliveInterval ?? 30}
+                        onChange={(e) => update('keepAliveInterval', parseInt(e.target.value) || 30)}
+                        className={inputClass}
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        0 to disable. Sends keepalive packets to prevent connection timeout.
+                      </p>
+                    </Field>
+                    <Field label="Keep-alive Count Max">
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={form.keepAliveCountMax ?? 3}
+                        onChange={(e) => update('keepAliveCountMax', parseInt(e.target.value) || 3)}
+                        className={inputClass}
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Max missed keepalives before disconnecting.
+                      </p>
+                    </Field>
+                  </div>
+
+                  <Field label="Ready Timeout (seconds)">
+                    <input
+                      type="number"
+                      min={1}
+                      max={300}
+                      value={form.readyTimeout ?? 30}
+                      onChange={(e) => update('readyTimeout', parseInt(e.target.value) || 30)}
+                      className={inputClass}
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Timeout for SSH handshake completion.
+                    </p>
+                  </Field>
+                </div>
+              )}
+
+              {/* Anti-Idle */}
+              <div className="space-y-3 pt-1 border-t border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Anti-Idle (Session Keep-Alive)
+                </p>
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.antiIdle ?? false}
+                    onChange={(e) => update('antiIdle', e.target.checked)}
+                    className="w-4 h-4 rounded accent-primary"
+                  />
+                  <span className="text-sm text-foreground">
+                    Send anti-idle data to prevent session timeout
+                  </span>
+                </label>
+                {form.antiIdle && (
+                  <>
+                    <Field label="Anti-Idle Interval (seconds)">
+                      <input
+                        type="number"
+                        min={10}
+                        max={3600}
+                        value={form.antiIdleInterval ?? 60}
+                        onChange={(e) => update('antiIdleInterval', parseInt(e.target.value) || 60)}
+                        className={inputClass}
+                      />
+                    </Field>
+                    <Field label="Anti-Idle String">
+                      <input
+                        value={form.antiIdleString ?? '\x00'}
+                        onChange={(e) => update('antiIdleString', e.target.value)}
+                        placeholder="\x00 for null byte"
+                        className={cn(inputClass, 'font-mono')}
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Sent at intervals to keep session alive. Default is null byte (invisible).
+                      </p>
+                    </Field>
+                  </>
+                )}
+              </div>
+
+              {/* Zmodem File Transfer */}
+              <div className="space-y-3 pt-1 border-t border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  File Transfer (Zmodem)
+                </p>
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.zmodemEnabled ?? false}
+                    onChange={(e) => update('zmodemEnabled', e.target.checked)}
+                    className="w-4 h-4 rounded accent-primary"
+                  />
+                  <span className="text-sm text-foreground">
+                    Enable Zmodem (lrzsz) file transfers
+                  </span>
+                </label>
+                {form.zmodemEnabled && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Allows sending/receiving files over terminal using rz/sz commands. Requires lrzsz on the remote host.
+                  </p>
+                )}
+              </div>
+
+              {/* Terminal Display Features */}
+              <div className="space-y-3 pt-1 border-t border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Terminal Display
+                </p>
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.trueColorEnabled ?? false}
+                    onChange={(e) => update('trueColorEnabled', e.target.checked)}
+                    className="w-4 h-4 rounded accent-primary"
+                  />
+                  <span className="text-sm text-foreground">
+                    Enable True Color (24-bit color)
+                  </span>
+                </label>
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.sixelEnabled ?? false}
+                    onChange={(e) => update('sixelEnabled', e.target.checked)}
+                    className="w-4 h-4 rounded accent-primary"
+                  />
+                  <span className="text-sm text-foreground">
+                    Enable Sixel Graphics
+                  </span>
+                </label>
+                {(form.trueColorEnabled || form.sixelEnabled) && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Advanced terminal features. Requires remote support (e.g., tmux 3.4+, modern terminals).
+                  </p>
+                )}
+              </div>
 
               {/* Auto Reconnect */}
               <div className="space-y-3 pt-1 border-t border-border">

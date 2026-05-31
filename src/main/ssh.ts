@@ -2,18 +2,77 @@ import { IpcMain, BrowserWindow } from 'electron'
 import { Client, ClientChannel, ConnectConfig } from 'ssh2'
 import { DEFAULT_TERMINAL_COLS, DEFAULT_TERMINAL_ROWS } from '../types/shared'
 import * as net from 'net'
+import * as os from 'os'
+import * as path from 'path'
+import * as fs from 'fs'
+import { handleZmodemDetection, setupZmodemHandlers } from './zmodem'
 
 interface ActiveSession {
-  client:     Client
-  jumpClient: Client | null   // non-null when tunnelled via jump host
-  stream:     ClientChannel
-  flushTimer: ReturnType<typeof setTimeout> | null
+  client:       Client
+  jumpClient:   Client | null   // non-null when tunnelled via jump host
+  stream:       ClientChannel
+  flushTimer:   ReturnType<typeof setTimeout> | null
+  // Keep-alive / Anti-idle
+  keepAliveTimer: ReturnType<typeof setInterval> | null
+  antiIdleTimer:  ReturnType<typeof setInterval> | null
+  // Agent forwarding
+  agentSocket?:   string
+  agentListener?: net.Server
+  // Connection config reference for reconnect
+  connectionConfig?: SshConnectionConfig
+}
+
+interface SshConnectionConfig {
+  sessionId: string
+  host: string
+  port: number
+  username: string
+  password?: string
+  privateKey?: string
+  passphrase?: string
+  cols?: number
+  rows?: number
+  readyTimeout?: number
+  keepaliveInterval?: number
+  keepaliveCountMax?: number
+  agentForwarding?: boolean
+  agentSocketPath?: string
+  antiIdle?: boolean
+  antiIdleInterval?: number
+  antiIdleString?: string
+  jumpHost?: {
+    host: string
+    port: number
+    username: string
+    password?: string
+    privateKey?: string
+    passphrase?: string
+    agentForwarding?: boolean
+    agentSocketPath?: string
+  }
+  proxy?: {
+    type: 'socks5' | 'socks4' | 'http'
+    host: string
+    port: number
+    username?: string
+    password?: string
+  }
 }
 
 function teardownSession(sessionId: string): void {
   const session = activeSessions.get(sessionId)
   if (!session) return
+
+  // Clear all timers
   if (session.flushTimer) clearTimeout(session.flushTimer)
+  if (session.keepAliveTimer) clearInterval(session.keepAliveTimer)
+  if (session.antiIdleTimer) clearInterval(session.antiIdleTimer)
+
+  // Close agent forwarding socket
+  if (session.agentListener) {
+    try { session.agentListener.close() } catch { /* ignore */ }
+  }
+
   session.stream.removeAllListeners()
   session.client.removeAllListeners()
   try { session.client.end() } catch { /* already closed */ }
@@ -30,6 +89,165 @@ function teardownSession(sessionId: string): void {
       activeForwards.delete(id)
     }
   }
+}
+
+// ── SSH Agent Forwarding ────────────────────────────────────────────────────
+
+function getDefaultAgentSocket(): string | undefined {
+  // Check SSH_AUTH_SOCK environment variable
+  if (process.env.SSH_AUTH_SOCK) {
+    return process.env.SSH_AUTH_SOCK
+  }
+
+  // macOS: common agent socket locations
+  if (process.platform === 'darwin') {
+    const macosPaths = [
+      path.join(os.tmpdir(), 'com.apple.launchd.*/Listeners'),
+      path.join(os.homedir(), '.ssh/agent.*')
+    ]
+    for (const pattern of macosPaths) {
+      try {
+        const resolved = pattern.includes('*') ? resolveGlob(pattern) : pattern
+        if (resolved && fs.existsSync(resolved)) {
+          return resolved
+        }
+      } catch { /* ignore */ }
+    }
+  }
+
+  // Linux: common agent socket locations
+  if (process.platform === 'linux') {
+    const linuxPaths = [
+      path.join(os.tmpdir(), `ssh-*/agent.*`),
+      path.join(os.homedir(), '.ssh/agent.*'),
+      path.join(os.homedir(), '.gnupg/S.gpg-agent.ssh')
+    ]
+    for (const pattern of linuxPaths) {
+      try {
+        const resolved = pattern.includes('*') ? resolveGlob(pattern) : pattern
+        if (resolved && fs.existsSync(resolved)) {
+          return resolved
+        }
+      } catch { /* ignore */ }
+    }
+  }
+
+  // Windows: Pageant or OpenSSH agent
+  if (process.platform === 'win32') {
+    // Windows uses named pipes, handled differently by ssh2
+    return undefined
+  }
+
+  return undefined
+}
+
+function resolveGlob(pattern: string): string | undefined {
+  // Simple glob resolver for common agent socket patterns
+  const dir = path.dirname(pattern)
+  const base = path.basename(pattern)
+  const prefix = base.split('*')[0]
+  const suffix = base.split('*')[1] || ''
+
+  try {
+    const entries = fs.readdirSync(dir)
+    for (const entry of entries) {
+      if (entry.startsWith(prefix) && entry.endsWith(suffix)) {
+        const fullPath = path.join(dir, entry)
+        if (fs.statSync(fullPath).isDirectory() && pattern.includes('/*/')) {
+          // One level deeper
+          const subEntries = fs.readdirSync(fullPath)
+          for (const sub of subEntries) {
+            if (sub.startsWith('agent.')) {
+              return path.join(fullPath, sub)
+            }
+          }
+        } else if (fs.existsSync(fullPath)) {
+          return fullPath
+        }
+      }
+    }
+  } catch { /* ignore */ }
+  return undefined
+}
+
+function setupAgentForwarding(
+  client: Client,
+  sessionId: string,
+  agentSocketPath?: string
+): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    const socketPath = agentSocketPath || getDefaultAgentSocket()
+    if (!socketPath || !fs.existsSync(socketPath)) {
+      resolve(undefined)
+      return
+    }
+
+  // Request agent forwarding from server
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (client as any).openssh_agent(socketPath, (err: Error | undefined, _agentStream: unknown) => {
+      if (err) {
+        console.warn(`[SSH] Agent forwarding failed for ${sessionId}:`, err.message)
+        resolve(undefined)
+        return
+      }
+
+      console.log(`[SSH] Agent forwarding enabled for ${sessionId} via ${socketPath}`)
+      resolve(socketPath)
+    })
+  })
+}
+
+// ── Keep-Alive & Anti-Idle ───────────────────────────────────────────────────
+
+function setupKeepAlive(
+  session: ActiveSession,
+  intervalMs: number = 30000,
+  countMax: number = 3
+): void {
+  if (session.keepAliveTimer) {
+    clearInterval(session.keepAliveTimer)
+  }
+
+  let failures = 0
+  session.keepAliveTimer = setInterval(() => {
+    if (!activeSessions.has(session.client as unknown as string)) {
+      clearInterval(session.keepAliveTimer!)
+      return
+    }
+
+    try {
+      // Send SSH keepalive request
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pingFn = (session.client as any).openssh_ping
+      if (typeof pingFn === 'function') {
+        pingFn(() => { failures = 0 }) // Reset on success
+      }
+    } catch {
+      failures++
+      if (failures >= countMax) {
+        // Connection appears dead, trigger disconnect
+        teardownSession((session.client as unknown as { _sessionId: string })._sessionId || '')
+      }
+    }
+  }, intervalMs)
+}
+
+function setupAntiIdle(
+  session: ActiveSession,
+  intervalSec: number = 60,
+  idleString: string = '\x00'
+): void {
+  if (session.antiIdleTimer) {
+    clearInterval(session.antiIdleTimer)
+  }
+
+  session.antiIdleTimer = setInterval(() => {
+    if (session.stream && activeSessions.has((session.client as unknown as { _sessionId: string })._sessionId || '')) {
+      try {
+        session.stream.write(idleString)
+      } catch { /* ignore write errors */ }
+    }
+  }, intervalSec * 1000)
 }
 
 const activeSessions   = new Map<string, ActiveSession>()
@@ -300,6 +518,17 @@ export function setupSshHandlers(
         rows?: number
         readyTimeout?: number
         keepaliveInterval?: number
+        keepaliveCountMax?: number
+        agentForwarding?: boolean
+        agentSocketPath?: string
+        antiIdle?: boolean
+        antiIdleInterval?: number
+        antiIdleString?: string
+        // True color and sixel support
+        trueColor?: boolean
+        sixel?: boolean
+        // Zmodem file transfer
+        zmodemEnabled?: boolean
         jumpHost?: {
           host: string
           port: number
@@ -307,6 +536,8 @@ export function setupSshHandlers(
           password?: string
           privateKey?: string
           passphrase?: string
+          agentForwarding?: boolean
+          agentSocketPath?: string
         }
         proxy?: {
           type: 'socks5' | 'socks4' | 'http'
@@ -334,9 +565,12 @@ export function setupSshHandlers(
           host: string, port: number, username: string,
           password?: string, privateKey?: string, passphrase?: string,
           readyTimeout?: number, keepaliveInterval?: number,
+          keepaliveCountMax?: number,
           sock?: NodeJS.ReadableStream
         ): ConnectConfig => {
-          const cfg: ConnectConfig = { host, port, username, readyTimeout, keepaliveInterval }
+          const cfg: ConnectConfig = {
+            host, port, username, readyTimeout, keepaliveInterval, keepaliveCountMax
+          }
           if (sock) cfg.sock = sock as never
           if (privateKey) {
             cfg.privateKey = privateKey
@@ -347,9 +581,19 @@ export function setupSshHandlers(
           return cfg
         }
 
-        const openShell = (client: Client, jumpClient: Client | null) => {
-          const termOptions = { term: 'xterm-256color', cols: payload.cols || DEFAULT_TERMINAL_COLS, rows: payload.rows || DEFAULT_TERMINAL_ROWS }
-          client.shell(termOptions, (err, stream) => {
+        const openShell = async (client: Client, jumpClient: Client | null) => {
+          // Build terminal type with feature flags
+          const termFeatures: string[] = ['xterm-256color']
+          if (payload.trueColor) termFeatures.push('tc')
+          if (payload.sixel) termFeatures.push('sixel')
+
+          const termOptions = {
+            term: termFeatures.join('-'),
+            cols: payload.cols || DEFAULT_TERMINAL_COLS,
+            rows: payload.rows || DEFAULT_TERMINAL_ROWS
+          }
+
+          client.shell(termOptions, async (err, stream) => {
             if (err) {
               client.end()
               jumpClient?.end()
@@ -357,7 +601,37 @@ export function setupSshHandlers(
             }
 
             let pending = ''
-            activeSessions.set(payload.sessionId, { client, jumpClient, stream, flushTimer: null })
+            const session: ActiveSession = {
+              client,
+              jumpClient,
+              stream,
+              flushTimer: null,
+              keepAliveTimer: null,
+              antiIdleTimer: null
+            }
+            activeSessions.set(payload.sessionId, session)
+
+            // Setup agent forwarding if requested
+            if (payload.agentForwarding) {
+              const agentPath = await setupAgentForwarding(client, payload.sessionId, payload.agentSocketPath)
+              session.agentSocket = agentPath
+            }
+
+            // Setup jump host agent forwarding if requested
+            if (jumpClient && payload.jumpHost?.agentForwarding) {
+              await setupAgentForwarding(jumpClient, `${payload.sessionId}-jump`, payload.jumpHost.agentSocketPath)
+            }
+
+            // Setup keep-alive at transport level
+            if (payload.keepaliveInterval && payload.keepaliveInterval > 0) {
+              setupKeepAlive(session, payload.keepaliveInterval * 1000, payload.keepaliveCountMax || 3)
+            }
+
+            // Setup anti-idle if requested
+            if (payload.antiIdle && payload.antiIdleInterval && payload.antiIdleInterval > 0) {
+              const idleString = payload.antiIdleString || '\x00'
+              setupAntiIdle(session, payload.antiIdleInterval, idleString)
+            }
 
             const flush = () => {
               const s = activeSessions.get(payload.sessionId)
@@ -372,7 +646,29 @@ export function setupSshHandlers(
               if (s && !s.flushTimer) s.flushTimer = setTimeout(flush, 4)
             }
 
-            stream.on('data', (data: Buffer) => { pending += data.toString('utf-8'); scheduleFlush() })
+            // Zmodem detection buffer
+            let zmodemBuffer = Buffer.alloc(0)
+            const ZMODEM_BUFFER_SIZE = 4096
+
+            stream.on('data', (data: Buffer) => {
+              // Check for Zmodem sequences if enabled
+              if (payload.zmodemEnabled) {
+                zmodemBuffer = Buffer.concat([zmodemBuffer, data])
+                if (zmodemBuffer.length > ZMODEM_BUFFER_SIZE) {
+                  zmodemBuffer = zmodemBuffer.slice(-ZMODEM_BUFFER_SIZE)
+                }
+
+                const detection = handleZmodemDetection(payload.sessionId, zmodemBuffer, true)
+                if (detection.detected) {
+                  // Notify renderer of Zmodem detection
+                  getWindow()?.webContents.send('zmodem:detected', payload.sessionId, { type: detection.type })
+                  // Keep data in stream (zmodem will handle it)
+                }
+              }
+
+              pending += data.toString('utf-8')
+              scheduleFlush()
+            })
             stream.stderr.on('data', (data: Buffer) => { pending += data.toString('utf-8'); scheduleFlush() })
             stream.on('close', () => {
               if (activeSessions.has(payload.sessionId)) {
@@ -421,6 +717,7 @@ export function setupSshHandlers(
                   payload.host, payload.port, payload.username,
                   payload.password, payload.privateKey, payload.passphrase,
                   payload.readyTimeout ?? 30000, payload.keepaliveInterval ?? 30000,
+                  payload.keepaliveCountMax ?? 3,
                   tunnel
                 ))
               }
@@ -430,7 +727,8 @@ export function setupSshHandlers(
           jumpClient.connect(buildConnectConfig(
             jh.host, jh.port, jh.username,
             jh.password, jh.privateKey, jh.passphrase,
-            payload.readyTimeout ?? 30000
+            payload.readyTimeout ?? 30000, payload.keepaliveInterval ?? 30000,
+            payload.keepaliveCountMax ?? 3
           ))
 
         } else {
@@ -443,6 +741,7 @@ export function setupSshHandlers(
               payload.host, payload.port, payload.username,
               payload.password, payload.privateKey, payload.passphrase,
               payload.readyTimeout ?? 30000, payload.keepaliveInterval ?? 30000,
+              payload.keepaliveCountMax ?? 3,
               sock
             ))
           }
@@ -565,4 +864,19 @@ export function setupSshHandlers(
     }
     return result
   })
+
+  // ── Zmodem File Transfer ────────────────────────────────────────────────────
+  // Setup handlers for lrzsz file transfers over terminal
+  setupZmodemHandlers(
+    ipcMain,
+    getWindow,
+    (sessionId: string, data: string) => {
+      const session = activeSessions.get(sessionId)
+      if (session?.stream) {
+        try {
+          session.stream.write(data)
+        } catch { /* ignore write errors on closed stream */ }
+      }
+    }
+  )
 }
