@@ -35,7 +35,7 @@ jobs:
           - os: macos-latest
             platform: mac
             build_cmd: npm run build && npx electron-builder --mac --x64 --arm64 --publish always
-          - os: windows-latest
+          - os: windows-2022
             platform: win
             build_cmd: npm run build && npx electron-builder --win --publish always
           - os: ubuntu-latest
@@ -71,7 +71,15 @@ jobs:
             libopenjp2-tools \
             libsecret-1-dev
 
+      # windows-latest ships VS 18 which @electron/node-gyp cannot detect yet.
+      # Pin windows-2022 and load MSVC before compiling native modules.
+      - name: Setup Windows build tools
+        if: matrix.platform == 'win'
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Install dependencies
+        env:
+          GYP_MSVS_VERSION: ${{ matrix.platform == 'win' && '2022' || '' }}
         run: npm ci
 
       - name: Typecheck & test
