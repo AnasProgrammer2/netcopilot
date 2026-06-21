@@ -26,6 +26,7 @@ export default function App(): JSX.Element {
     keybindingSettings,
   } = useAppStore()
   const [masterLocked, setMasterLocked] = useState<boolean | null>(null)
+  const [hasMasterPassword, setHasMasterPassword] = useState(false)
   const [locked, setLocked] = useState(false)
   const [helpOpen,    setHelpOpen]    = useState(false)
   const [helpTab,     setHelpTab]     = useState<'start' | 'aria' | 'shortcuts'>('start')
@@ -45,6 +46,7 @@ export default function App(): JSX.Element {
   // Check master password on startup
   useEffect(() => {
     window.api.auth.hasMasterPassword().then((has) => {
+      setHasMasterPassword(has)
       setMasterLocked(has) // true = show lock screen, false = skip
     })
   }, [])
@@ -193,13 +195,14 @@ export default function App(): JSX.Element {
   }
 
   // Capture keydown at window level while the idle-lock overlay is active so
-  // "press any key" works even when focus is inside the xterm.js canvas
+  // "press any key" works even when focus is inside the xterm.js canvas.
+  // Skipped when master password is required — user must submit the form.
   useEffect(() => {
-    if (!locked) return
+    if (!locked || hasMasterPassword) return
     const handleKey = () => unlock()
     window.addEventListener('keydown', handleKey, true) // capture phase
     return () => window.removeEventListener('keydown', handleKey, true)
-  }, [locked])
+  }, [locked, hasMasterPassword])
 
   // Show master password lock screen if needed
   if (masterLocked === null) return <div className="h-screen w-screen bg-background" /> // loading
@@ -305,7 +308,11 @@ export default function App(): JSX.Element {
         </div>
       )}
 
-      {locked && (
+      {locked && hasMasterPassword && (
+        <MasterPasswordLock variant="idle" onUnlocked={unlock} />
+      )}
+
+      {locked && !hasMasterPassword && (
         <div
           className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center cursor-pointer"
           onClick={unlock}

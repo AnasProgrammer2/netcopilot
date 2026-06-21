@@ -1,6 +1,7 @@
-import { ipcMain, BrowserWindow, shell } from 'electron'
+import { ipcMain, BrowserWindow } from 'electron'
 import { autoUpdater, UpdateInfo } from 'electron-updater'
 import log from 'electron-log'
+import { openExternalUrl } from './openExternalUrl'
 
 autoUpdater.logger = log
 autoUpdater.autoDownload = false
@@ -11,7 +12,7 @@ const isDev = !!process.env['ELECTRON_RENDERER_URL']
 export function setupAutoUpdater(getWindow: () => BrowserWindow | null): void {
   if (isDev) {
     ipcMain.handle('updater:check', async () => ({ success: false, error: 'Not available in dev mode' }))
-    ipcMain.handle('updater:open-release', (_e, url: string) => { shell.openExternal(url) })
+    ipcMain.handle('updater:open-release', (_e, url: string) => { openExternalUrl(url) })
     return
   }
 
@@ -56,12 +57,7 @@ export function setupAutoUpdater(getWindow: () => BrowserWindow | null): void {
   })
 
   ipcMain.handle('updater:open-release', (_e, url: string) => {
-    try {
-      const parsed = new URL(url)
-      if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
-        shell.openExternal(url)
-      }
-    } catch { /* malformed URL — ignore */ }
+    openExternalUrl(url)
   })
 
   // Auto-check on startup (production only, after 6s)

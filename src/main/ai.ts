@@ -3,10 +3,9 @@ import { writeFile } from 'fs/promises'
 import { getDb } from './db'
 import { DEFAULT_AI_BLACKLIST } from './aiDefaults'
 import { loadLicenseKey, getDeviceId } from './license'
+import { enforcePolicy, mergeBlacklists, type AiPermission } from '../shared/aiPolicy'
 
 // ── Types ────────────────────────────────────────────────────────────────────
-
-type AiPermission = 'troubleshoot' | 'full-access'
 
 interface SessionInfo {
   sessionId:  string
@@ -23,7 +22,8 @@ interface ChatPayload {
   deviceType:      string
   host:            string
   protocol:        string
-  permission:      AiPermission
+  permission:      AiPermission   // display hint from renderer — main loads authoritative value from DB
+  sessionBlacklist?: string[]     // per-session extras merged with persisted blacklist
   isProactive:     boolean
   sessions?:       SessionInfo[]
 }
@@ -103,80 +103,15 @@ function settlePending(callId: string, output: string): boolean {
   return false
 }
 
-// ── Read-only verb whitelist (used as a server-side floor in troubleshoot mode)
-// Mirrors the prose in the system prompt. Matched against the FIRST token of
-// the command (case-insensitive). Anything that doesn't start with one of
-// these in troubleshoot mode is rejected before reaching the terminal.
-const READ_ONLY_VERBS = new Set<string>([
-  'show', 'display', 'get', 'view', 'list', 'print',
-  'ping', 'traceroute', 'tracert', 'mtr', 'pathping',
-  'ls', 'll', 'ps', 'df', 'du', 'top', 'htop', 'cat', 'less', 'more', 'tail', 'head',
-  'grep', 'egrep', 'fgrep', 'awk', 'sed', 'wc', 'find', 'locate',
-  'ss', 'netstat', 'ip', 'ifconfig', 'arp', 'route', 'hostname', 'uname', 'uptime',
-  'journalctl', 'dmesg', 'dig', 'nslookup', 'host', 'resolvectl', 'getent',
-  'tcpdump', 'lsof', 'whoami', 'who', 'w', 'id', 'env', 'date',
-  // PowerShell read-only prefix
-  'get-', 'test-', 'measure-', 'compare-', 'find-', 'select-',
-])
-
-function isReadOnlyCommand(cmd: string): boolean {
-  const trimmed = cmd.trim().toLowerCase()
-  if (!trimmed) return false
-  // Take the first word; for PowerShell Get-Foo style, match the prefix
-  const firstWord = trimmed.split(/[\s|;&]/)[0] ?? ''
-  if (READ_ONLY_VERBS.has(firstWord)) return true
-  // PowerShell prefix match
-  for (const v of READ_ONLY_VERBS) {
-    if (v.endsWith('-') && firstWord.startsWith(v)) return true
+function loadStoredPermission(): AiPermission {
+  try {
+    const db = getDb()
+    const row = db.prepare("SELECT value FROM settings WHERE key = 'ai.permission'").get() as { value?: string } | undefined
+    if (row?.value === 'full-access' || row?.value === 'troubleshoot') return row.value
+    return 'troubleshoot'
+  } catch {
+    return 'troubleshoot'
   }
-  return false
-}
-
-/**
- * Robust blacklist check: tokenises the command and matches each pattern as
- * a word-boundary regex (case-insensitive). Falls back to substring match
- * for multi-word patterns (e.g. "write erase", "/system reset-configuration").
- * Catches the simple obfuscation cases that plain `.includes()` misses.
- */
-function isBlacklisted(command: string, patterns: string[]): boolean {
-  const normalised = command.toLowerCase().replace(/\s+/g, ' ').trim()
-  for (const raw of patterns) {
-    const p = raw.trim().toLowerCase()
-    if (!p) continue
-    if (p.includes(' ') || p.includes('/')) {
-      // Multi-word or path-like patterns: substring match on normalised cmd
-      if (normalised.includes(p)) return true
-    } else {
-      // Single token: word-boundary match so "route" doesn't trigger on "router"
-      const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      const re = new RegExp(`(^|[^a-z0-9_-])${escaped}([^a-z0-9_-]|$)`, 'i')
-      if (re.test(normalised)) return true
-    }
-  }
-  return false
-}
-
-/**
- * Server-side policy enforcement gate. Called BEFORE forwarding any
- * `run_command` / `run_commands` invocation to the renderer. Returns:
- *   - null  → command is allowed; proceed to execute
- *   - string → command rejected; the string is the result fed back to Claude
- */
-function enforcePolicy(
-  command:    string,
-  permission: AiPermission,
-  blacklist:  string[],
-): string | null {
-  if (!command || typeof command !== 'string') {
-    return '(rejected by safety policy: empty or non-string command)'
-  }
-  if (isBlacklisted(command, blacklist)) {
-    return '(rejected by server-side blacklist — refine or ask the user to whitelist this command)'
-  }
-  if (permission === 'troubleshoot' && !isReadOnlyCommand(command)) {
-    return '(rejected: troubleshoot mode allows read-only commands only. Switch to Fix Mode or Auto Pilot for state-changing operations.)'
-  }
-  return null
 }
 
 function loadStoredBlacklist(): string[] {
@@ -935,8 +870,11 @@ async function runAiLoop(
   licenseKey: string,
   getWindow:  () => BrowserWindow | null,
 ): Promise<void> {
-  const systemPrompt = buildSystemPrompt(payload)
-  let   messages     = compressConversation([...payload.messages] as AnthropicMessage[])
+  // Authoritative policy from DB — renderer payload is display-only.
+  const effectivePermission = loadStoredPermission()
+  const effectivePayload    = { ...payload, permission: effectivePermission }
+  const systemPrompt        = buildSystemPrompt(effectivePayload)
+  let   messages            = compressConversation([...payload.messages] as AnthropicMessage[])
 
   const sessionId = payload.sessionId
   const run       = getOrCreateRun(sessionId)
@@ -945,9 +883,8 @@ async function runAiLoop(
   let totalOutputTokens = 0
   let turnCount         = 0
 
-  // Snapshot the persisted blacklist once per chat — used as the server-side
-  // safety floor regardless of what the renderer sends.
-  const storedBlacklist = loadStoredBlacklist()
+  // Persisted blacklist + per-session extras from the renderer toolbar.
+  const effectiveBlacklist = mergeBlacklists(loadStoredBlacklist(), payload.sessionBlacklist)
 
   try {
     while (turnCount < MAX_AGENT_TURNS) {
@@ -1024,7 +961,7 @@ async function runAiLoop(
             if (run.abortController.signal.aborted) break
 
             const subCallId = `${toolBlock.id}_${allOutputs.length}`
-            const policyResult = enforcePolicy(cmd.command, payload.permission, storedBlacklist)
+            const policyResult = enforcePolicy(cmd.command, effectivePermission, effectiveBlacklist)
 
             // Always surface the attempt to the renderer so the user can see
             // exactly what the agent tried to do — even if we block it.
@@ -1058,7 +995,7 @@ async function runAiLoop(
         // run_command: send to renderer, wait for execution result
         const input = toolBlock.input as { command: string; reason: string; target_session?: string }
 
-        const policyResult = enforcePolicy(input.command, payload.permission, storedBlacklist)
+        const policyResult = enforcePolicy(input.command, effectivePermission, effectiveBlacklist)
 
         getWindow()?.webContents.send('ai:tool-call', {
           sessionId,

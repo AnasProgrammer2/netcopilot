@@ -478,6 +478,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         host:            conn?.host ?? 'unknown',
         protocol:        conn?.protocol ?? 'ssh',
         permission:      sessionPermission,
+        sessionBlacklist,
         isProactive,
         sessions: allSessions?.map(s => ({
           sessionId:  s.id,

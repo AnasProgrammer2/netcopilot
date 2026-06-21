@@ -34,6 +34,10 @@ interface AppSettings {
   logDirectory: string
   logStripAnsi: boolean
   logTimestamp: boolean
+  // Log Rotation
+  logRotationEnabled: boolean
+  logRotationSize: number
+  logRotationMaxFiles: number
   terminalTheme: string
   backgroundImage: string | null
   backgroundOpacity: number
@@ -70,6 +74,10 @@ const DEFAULTS: AppSettings = {
   logDirectory: '',
   logStripAnsi: true,
   logTimestamp: false,
+  // Log Rotation
+  logRotationEnabled: false,
+  logRotationSize: 10, // MB
+  logRotationMaxFiles: 10,
   terminalTheme: 'netcopilot',
   backgroundImage: null,
   backgroundOpacity: 0.5,
@@ -743,6 +751,63 @@ function LoggingSection({ settings, update }: SectionProps) {
           value={settings.logTimestamp}
           onChange={(v) => update('logTimestamp', v)}
         />
+
+        {/* Log Rotation */}
+        <div className="pt-4 border-t border-border">
+          <Toggle
+            label="Enable log rotation"
+            description="Automatically create new log files when they reach size limit"
+            value={settings.logRotationEnabled}
+            onChange={(v) => update('logRotationEnabled', v)}
+          />
+
+          {settings.logRotationEnabled && (
+            <div className="mt-3 space-y-3 pl-1">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                    Rotate at size (MB)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={1000}
+                    value={settings.logRotationSize}
+                    onChange={(e) => update('logRotationSize', Math.max(1, parseInt(e.target.value) || 10))}
+                    className={inputCls}
+                  />
+                  <p className="text-[10px] text-muted-foreground/60 mt-1">
+                    Create new file when current reaches this size
+                  </p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                    Max archived files
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={settings.logRotationMaxFiles}
+                    onChange={(e) => update('logRotationMaxFiles', Math.max(1, parseInt(e.target.value) || 10))}
+                    className={inputCls}
+                  />
+                  <p className="text-[10px] text-muted-foreground/60 mt-1">
+                    Delete oldest files after this limit
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-md bg-muted/30 border border-border/50">
+                <p className="text-[11px] text-muted-foreground">
+                  <span className="font-medium text-foreground">Example:</span> connection_2024-06-01_12-30.log
+                  reaches {settings.logRotationSize}MB → renamed to connection_2024-06-01_12-30.log.1,
+                  new file created. Oldest .log.{settings.logRotationMaxFiles} is deleted.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
       </Group>
 
       {/* Preview */}

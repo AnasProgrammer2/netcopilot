@@ -8,6 +8,7 @@ import * as fs from 'fs'
 import { handleZmodemDetection, setupZmodemHandlers } from './zmodem'
 
 interface ActiveSession {
+  sessionId:    string
   client:       Client
   jumpClient:   Client | null   // non-null when tunnelled via jump host
   stream:       ClientChannel
@@ -200,6 +201,7 @@ function setupAgentForwarding(
 // ── Keep-Alive & Anti-Idle ───────────────────────────────────────────────────
 
 function setupKeepAlive(
+  sessionId: string,
   session: ActiveSession,
   intervalMs: number = 30000,
   countMax: number = 3
@@ -210,7 +212,7 @@ function setupKeepAlive(
 
   let failures = 0
   session.keepAliveTimer = setInterval(() => {
-    if (!activeSessions.has(session.client as unknown as string)) {
+    if (!activeSessions.has(sessionId)) {
       clearInterval(session.keepAliveTimer!)
       return
     }
@@ -226,13 +228,14 @@ function setupKeepAlive(
       failures++
       if (failures >= countMax) {
         // Connection appears dead, trigger disconnect
-        teardownSession((session.client as unknown as { _sessionId: string })._sessionId || '')
+        teardownSession(sessionId)
       }
     }
   }, intervalMs)
 }
 
 function setupAntiIdle(
+  sessionId: string,
   session: ActiveSession,
   intervalSec: number = 60,
   idleString: string = '\x00'
@@ -242,7 +245,7 @@ function setupAntiIdle(
   }
 
   session.antiIdleTimer = setInterval(() => {
-    if (session.stream && activeSessions.has((session.client as unknown as { _sessionId: string })._sessionId || '')) {
+    if (session.stream && activeSessions.has(sessionId)) {
       try {
         session.stream.write(idleString)
       } catch { /* ignore write errors */ }
@@ -602,6 +605,7 @@ export function setupSshHandlers(
 
             let pending = ''
             const session: ActiveSession = {
+              sessionId: payload.sessionId,
               client,
               jumpClient,
               stream,
@@ -624,13 +628,13 @@ export function setupSshHandlers(
 
             // Setup keep-alive at transport level
             if (payload.keepaliveInterval && payload.keepaliveInterval > 0) {
-              setupKeepAlive(session, payload.keepaliveInterval * 1000, payload.keepaliveCountMax || 3)
+              setupKeepAlive(payload.sessionId, session, payload.keepaliveInterval * 1000, payload.keepaliveCountMax || 3)
             }
 
             // Setup anti-idle if requested
             if (payload.antiIdle && payload.antiIdleInterval && payload.antiIdleInterval > 0) {
               const idleString = payload.antiIdleString || '\x00'
-              setupAntiIdle(session, payload.antiIdleInterval, idleString)
+              setupAntiIdle(payload.sessionId, session, payload.antiIdleInterval, idleString)
             }
 
             const flush = () => {

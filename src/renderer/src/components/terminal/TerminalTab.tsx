@@ -117,6 +117,18 @@ export function TerminalTab({ session }: Props): JSX.Element {
       const ts    = await window.api.store.getSetting('logTimestamp')
       logStripAnsiRef.current = strip !== false   // default true
       logTimestampRef.current = ts === true
+
+      // Load and set rotation config globally
+      const rotEnabled = await window.api.store.getSetting('logRotationEnabled')
+      const rotSize = await window.api.store.getSetting('logRotationSize')
+      const rotMax = await window.api.store.getSetting('logRotationMaxFiles')
+      if (rotEnabled === true) {
+        await window.api.log.setRotationConfig({
+          enabled: true,
+          sizeMB: typeof rotSize === 'number' ? rotSize : 10,
+          maxFiles: typeof rotMax === 'number' ? rotMax : 10
+        })
+      }
     }
     load()
   }, [])
@@ -218,10 +230,22 @@ export function TerminalTab({ session }: Props): JSX.Element {
       if (!autoLog) return
       const logDir = (await window.api.store.getSetting('logDirectory') as string) || ''
       if (!logDir) return
+
+      // Load rotation settings
+      const rotEnabled = await window.api.store.getSetting('logRotationEnabled')
+      const rotSize = await window.api.store.getSetting('logRotationSize')
+      const rotMax = await window.api.store.getSetting('logRotationMaxFiles')
+
+      const rotationConfig = rotEnabled === true ? {
+        enabled: true,
+        sizeMB: typeof rotSize === 'number' ? rotSize : 10,
+        maxFiles: typeof rotMax === 'number' ? rotMax : 10
+      } : undefined
+
       const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)
       const safeName = session.connection.name.replace(/[^a-zA-Z0-9_-]/g, '_')
       const filePath = `${logDir}/${safeName}_${ts}.log`
-      const result = await window.api.log.startAt(filePath, session.connection.name)
+      const result = await window.api.log.startAt(filePath, session.connection.name, rotationConfig)
       if (result) {
         logPathRef.current = result
         setSessionLogging(session.id, result)

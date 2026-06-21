@@ -1,6 +1,6 @@
 {
   "name": "netcopilot",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "NetCopilot – AI-powered SSH/Telnet terminal for network engineers",
   "main": "./out/main/index.js",
   "author": {
@@ -14,6 +14,8 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
@@ -78,7 +80,8 @@
     "tailwindcss": "^3.4.4",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.5.2",
-    "vite": "^5.3.1"
+    "vite": "^5.3.1",
+    "vitest": "^4.1.9"
   },
   "build": {
     "appId": "com.netcopilot.app",

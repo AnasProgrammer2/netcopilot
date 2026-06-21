@@ -105,10 +105,11 @@ const api = {
 
   // Session Logging
   log: {
-    start:   (sessionName: string): Promise<string | null> => ipcRenderer.invoke('log:start', sessionName),
-    startAt: (filePath: string, sessionName: string): Promise<string | null> => ipcRenderer.invoke('log:startAt', filePath, sessionName),
+    start:   (sessionName: string, config?: { enabled: boolean; sizeMB: number; maxFiles: number }): Promise<string | null> => ipcRenderer.invoke('log:start', sessionName, config),
+    startAt: (filePath: string, sessionName: string, config?: { enabled: boolean; sizeMB: number; maxFiles: number }): Promise<string | null> => ipcRenderer.invoke('log:startAt', filePath, sessionName, config),
     append:  (filePath: string, data: string): Promise<boolean> => ipcRenderer.invoke('log:append', filePath, data),
-    stop:    (filePath: string): Promise<boolean> => ipcRenderer.invoke('log:stop', filePath)
+    stop:    (filePath: string): Promise<boolean> => ipcRenderer.invoke('log:stop', filePath),
+    setRotationConfig: (config: { enabled: boolean; sizeMB: number; maxFiles: number }): Promise<boolean> => ipcRenderer.invoke('log:set-rotation-config', config)
   },
 
   // File / folder dialogs

@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react'
 import { Lock, Eye, EyeOff } from 'lucide-react'
 import appIcon from '../assets/icon.png'
+import { cn } from '../lib/utils'
 
 interface Props {
   onUnlocked: () => void
+  variant?: 'startup' | 'idle'
 }
 
-export function MasterPasswordLock({ onUnlocked }: Props): JSX.Element {
+export function MasterPasswordLock({ onUnlocked, variant = 'startup' }: Props): JSX.Element {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -36,18 +38,35 @@ export function MasterPasswordLock({ onUnlocked }: Props): JSX.Element {
     }
   }
 
+  const isIdle = variant === 'idle'
+
   return (
-    <div className="fixed inset-0 z-[999] bg-background flex items-center justify-center">
+    <div className={cn(
+      'fixed inset-0 flex items-center justify-center',
+      isIdle ? 'z-[200] bg-black/85 backdrop-blur-md' : 'z-[999] bg-background'
+    )}>
       <div className={`flex flex-col items-center gap-6 w-80 ${shaking ? 'animate-shake' : ''}`}>
-        {/* Logo */}
-        <img src={appIcon} alt="NetCopilot" className="w-20 h-20" style={{ filter: 'drop-shadow(0 0 16px hsl(258 90% 66% / 0.4))' }} />
+        {!isIdle && (
+          <img src={appIcon} alt="NetCopilot" className="w-20 h-20" style={{ filter: 'drop-shadow(0 0 16px hsl(258 90% 66% / 0.4))' }} />
+        )}
 
         <div className="text-center">
-          <h1 className="text-xl font-semibold text-foreground">NetCopilot</h1>
-          <p className="text-sm text-muted-foreground mt-1 flex items-center justify-center gap-1.5">
-            <Lock className="w-3.5 h-3.5" />
-            Enter your master password
+          {!isIdle && <h1 className="text-xl font-semibold text-foreground">NetCopilot</h1>}
+          {isIdle && (
+            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 mx-auto mb-4">
+              <Lock className="w-8 h-8 text-white/70" />
+            </div>
+          )}
+          <p className={cn(
+            'text-sm mt-1 flex items-center justify-center gap-1.5',
+            isIdle ? 'text-white/70 font-semibold text-lg' : 'text-muted-foreground'
+          )}>
+            {!isIdle && <Lock className="w-3.5 h-3.5" />}
+            {isIdle ? 'Session Locked' : 'Enter your master password'}
           </p>
+          {isIdle && (
+            <p className="text-sm text-white/40 mt-1.5">Enter your master password to continue</p>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="w-full space-y-3">
@@ -58,19 +77,27 @@ export function MasterPasswordLock({ onUnlocked }: Props): JSX.Element {
               value={password}
               onChange={(e) => { setPassword(e.target.value); setError('') }}
               placeholder="Master password"
-              className="w-full px-4 py-3 pr-10 rounded-lg bg-card border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+              className={cn(
+                'w-full px-4 py-3 pr-10 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-primary',
+                isIdle
+                  ? 'bg-white/10 border-white/20 text-white placeholder:text-white/40'
+                  : 'bg-card border-border text-foreground placeholder:text-muted-foreground'
+              )}
             />
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className={cn(
+                'absolute right-3 top-1/2 -translate-y-1/2',
+                isIdle ? 'text-white/50 hover:text-white/80' : 'text-muted-foreground hover:text-foreground'
+              )}
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
 
           {error && (
-            <p className="text-xs text-destructive text-center">{error}</p>
+            <p className={cn('text-xs text-center', isIdle ? 'text-red-300' : 'text-destructive')}>{error}</p>
           )}
 
           <button

@@ -115,12 +115,13 @@ declare global {
         get(key: string): Promise<string | null>
         delete(key: string): Promise<boolean>
       }
-      log: {
-        start(sessionName: string): Promise<string | null>
-        startAt(filePath: string, sessionName: string): Promise<string | null>
-        append(filePath: string, data: string): Promise<boolean>
-        stop(filePath: string): Promise<boolean>
-      }
+  log: {
+    start(sessionName: string, config?: { enabled: boolean; sizeMB: number; maxFiles: number }): Promise<string | null>
+    startAt(filePath: string, sessionName: string, config?: { enabled: boolean; sizeMB: number; maxFiles: number }): Promise<string | null>
+    append(filePath: string, data: string): Promise<boolean>
+    stop(filePath: string): Promise<boolean>
+    setRotationConfig(config: { enabled: boolean; sizeMB: number; maxFiles: number }): Promise<boolean>
+  }
       file: {
         export(content: string, filename?: string): Promise<{ success: boolean; filePath?: string }>
         import(): Promise<string | null>
