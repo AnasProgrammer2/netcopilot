@@ -5,6 +5,27 @@ import { getDb, rowToConnection, connToRow, rowToGroup, rowToSshKey, rowToSnippe
 
 type Row = Record<string, unknown>
 
+const FORBIDDEN_SETTING_KEYS = ['license.key', 'masterPasswordHash', 'dbKey']
+
+export function getSetting<T = unknown>(key: string): T | undefined {
+  if (FORBIDDEN_SETTING_KEYS.includes(key) || key.startsWith('cred:')) return undefined
+  const row = getDb()
+    .prepare('SELECT value FROM settings WHERE key = ?')
+    .get(key) as { value: string } | undefined
+  if (!row) return undefined
+  try { return JSON.parse(row.value) as T } catch { return row.value as T }
+}
+
+export function setSetting(key: string, value: unknown): boolean {
+  const reserved = ['license.key', 'masterPasswordHash', 'dbKey', 'migrated_v1']
+  if (reserved.some(r => key === r || key.startsWith('cred:'))) return false
+  getDb().prepare(`
+    INSERT INTO settings (key, value) VALUES (@key, @value)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+  `).run({ key, value: JSON.stringify(value) })
+  return true
+}
+
 export function setupStoreHandlers(ipcMain: IpcMain): void {
   // ── Connections ─────────────────────────────────────────────────────────────
 
@@ -189,25 +210,11 @@ export function setupStoreHandlers(ipcMain: IpcMain): void {
   // ── Settings ────────────────────────────────────────────────────────────────
 
   ipcMain.handle('store:get-setting', (_, key: string) => {
-    const forbidden = ['license.key', 'masterPasswordHash', 'dbKey']
-    if (forbidden.includes(key) || key.startsWith('cred:')) return undefined
-    const row = getDb()
-      .prepare('SELECT value FROM settings WHERE key = ?')
-      .get(key) as { value: string } | undefined
-    if (!row) return undefined
-    try { return JSON.parse(row.value) } catch { return row.value }
+    return getSetting(key)
   })
 
   ipcMain.handle('store:set-setting', (_, key: string, value: unknown) => {
-    const reserved = ['license.key', 'masterPasswordHash', 'dbKey', 'migrated_v1']
-    if (reserved.some(r => key === r || key.startsWith('cred:'))) {
-      return false
-    }
-    getDb().prepare(`
-      INSERT INTO settings (key, value) VALUES (@key, @value)
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    `).run({ key, value: JSON.stringify(value) })
-    return true
+    return setSetting(key, value)
   })
 
   // ── Command History ──────────────────────────────────────────────────────────

@@ -7,6 +7,16 @@ import { encryptData, decryptData } from '../lib/cryptoUtils'
 
 export type AiPermission = 'troubleshoot' | 'full-access'
 export type AiApproval   = 'ask' | 'auto'
+export type AiSource     = 'hosted' | 'byok'
+export type AiProvider   = 'anthropic' | 'openai'
+
+export function isAiReady(state: {
+  aiSource:     AiSource
+  aiHasKey:     boolean
+  licenseValid: boolean
+}): boolean {
+  return state.aiSource === 'byok' ? state.aiHasKey : state.licenseValid
+}
 
 
 export interface AiToolCall {
@@ -217,6 +227,10 @@ interface AppState {
   aiApproval:   AiApproval
   aiBlacklist:  string[]
   aiAutoWatch:  boolean
+  aiSource:     AiSource
+  aiProvider:   AiProvider
+  aiHasKey:     boolean
+  aiModel:      string
   aiMessages:   AiMessage[]
   aiStreaming:  boolean
   aiAgentActive: boolean
@@ -227,6 +241,10 @@ interface AppState {
   setAiApproval:     (a: AiApproval) => void
   setAiBlacklist:    (list: string[]) => void
   setAiAutoWatch:    (v: boolean) => void
+  setAiSource:       (source: AiSource) => void
+  setAiProvider:     (provider: AiProvider) => void
+  setAiHasKey:       (hasKey: boolean) => void
+  setAiModel:        (model: string) => void
   addAiMessage:      (msg: AiMessage) => void
   addAiPlan:         (plan: AiPlan) => void
   appendAiChunk:     (chunk: string) => void
@@ -275,6 +293,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   aiApproval:   'ask',
   aiBlacklist:  [],
   aiAutoWatch:  true,
+  aiSource:     'hosted',
+  aiProvider:   'anthropic',
+  aiHasKey:     false,
+  aiModel:      'claude-sonnet-4-5',
   aiMessages:   [],
   aiStreaming:  false,
   aiAgentActive: false,
@@ -586,6 +608,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     const aiApproval    = (await window.api.store.getSetting('ai.approval')    as AiApproval | null)   ?? 'ask'
     const aiBlacklistRaw = await window.api.store.getSetting('ai.blacklist')
     const aiBlacklist   = Array.isArray(aiBlacklistRaw) ? aiBlacklistRaw as string[] : []
+    const aiSourceRaw   = (await window.api.store.getSetting('ai.source') as AiSource | null) ?? 'hosted'
+    const aiProviderRaw = (await window.api.store.getSetting('ai.provider') as AiProvider | null) ?? 'anthropic'
+    const aiSource      = aiSourceRaw === 'byok' ? 'byok' : 'hosted'
+    const aiProvider    = aiProviderRaw === 'openai' ? 'openai' : 'anthropic'
+    const aiModel       = (await window.api.store.getSetting('ai.model') as string | null) ?? 'claude-sonnet-4-5'
+    let aiHasKey = false
+    try {
+      const keyHint = await window.api.ai.getApiKeyHint(aiProvider)
+      aiHasKey = keyHint.hasKey
+    } catch { /* preload without BYOK handlers */ }
 
     // Load license state
     const licenseKey = await window.api.license.get()
@@ -599,6 +631,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       aiPermission,
       aiApproval,
       aiBlacklist,
+      aiSource,
+      aiProvider,
+      aiModel,
+      aiHasKey,
       licenseKey: licenseKey ?? '',
       deviceId,
     })
@@ -742,6 +778,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAiApproval:   (a) => set({ aiApproval: a }),
   setAiBlacklist:  (list) => set({ aiBlacklist: list }),
   setAiAutoWatch:  (v) => set({ aiAutoWatch: v }),
+  setAiSource:     (source) => set({ aiSource: source }),
+  setAiProvider:   (provider) => set({ aiProvider: provider }),
+  setAiHasKey:     (hasKey) => set({ aiHasKey: hasKey }),
+  setAiModel:      (model) => set({ aiModel: model }),
   setAiStreaming:   (v) => set({ aiStreaming: v }),
   setAiAgentActive: (v) => set({ aiAgentActive: v }),
   clearAiMessages: () => set({ aiMessages: [], aiTokens: { input: 0, output: 0 }, aiAgentActive: false }),

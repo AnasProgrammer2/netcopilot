@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { nanoid } from 'nanoid'
 import { X, Send, Sparkles, Trash2, Square, ShieldCheck, Wrench, AlertCircle, ChevronDown, Check, Eye, EyeOff, ShieldAlert, RotateCcw, Download, Zap } from 'lucide-react'
-import { useAppStore, AiMessage as AiMessageType, AiPermission, AiApproval } from '../../store'
+import { useAppStore, AiMessage as AiMessageType, AiPermission, AiApproval, isAiReady } from '../../store'
 import { cn, stripAnsi, isCommandBlacklisted } from '../../lib/utils'
 import { AiMessage } from './AiMessage'
 import { Session } from '../../types'
@@ -66,11 +66,12 @@ function permApprovalToMode(p: AiPermission, a: AiApproval): AiMode {
 export function AiPanel({ activeSession, splitSession, allSessions, getTerminalContext, sendToTerminal, sendToSession }: Props): JSX.Element {
   const {
     aiMessages, aiStreaming, aiAgentActive, aiPermission, aiApproval, aiBlacklist, aiAutoWatch, aiTokens,
-    licenseValid, licensePlan,
+    licenseValid, licensePlan, aiSource, aiProvider, aiHasKey,
     addAiMessage, appendAiChunk, finalizeAiStream, updateAiToolCall, clearAiMessages,
     truncateAiMessagesAfter,
-    setAiStreaming, setAiAgentActive, setAiPanelOpen, setAiAutoWatch,
+    setAiStreaming, setAiAgentActive, setAiPanelOpen, setAiAutoWatch, setSettingsOpen,
   } = useAppStore()
+  const aiReady = isAiReady({ aiSource, aiHasKey, licenseValid })
 
   // Per-session overrides — start from global settings, can be changed mid-chat
   // Reset to global defaults when conversation is cleared
@@ -429,13 +430,14 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
   const sendMessage = useCallback(async (text: string, isProactive = false, proactiveContext?: string, isRegenerate = false) => {
     if (!text.trim() && !isProactive && !isRegenerate) return
 
-    // Block if no valid license
-    if (!licenseValid) {
+    if (!aiReady) {
       if (!isProactive) {
         addAiMessage({
           id:      nanoid(),
           role:    'assistant',
-          content: '⚠️ No active license. Get yours at **[netcopilot.app/register](https://netcopilot.app/register)** then enter the key in Settings → ARIA.',
+          content: aiSource === 'byok'
+            ? '⚠️ No API key. Add your Claude or OpenAI key in Settings → ARIA.'
+            : '⚠️ No active license. Get yours at **[netcopilot.app/register](https://netcopilot.app/register)** then enter the key in Settings → ARIA.',
         })
       }
       return
@@ -493,7 +495,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       setAiAgentActive(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addAiMessage, setAiStreaming, finalizeAiStream, getTerminalContext, activeSession, sessionPermission])
+  }, [addAiMessage, setAiStreaming, finalizeAiStream, getTerminalContext, activeSession, sessionPermission, aiReady, aiSource])
 
   // Subscribe to proactive analysis triggers from TerminalTab (Auto Watch).
   // Bridge replaces the previous `window.__aiSendProactive` global.
@@ -526,14 +528,17 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         </div>
         <span className="text-sm font-bold text-foreground tracking-tight">ARIA</span>
 
-        {/* License plan badge */}
-        {licenseValid ? (
+        {aiSource === 'byok' && aiHasKey ? (
+          <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-sky-500/10 text-sky-400 font-medium border border-sky-500/20 leading-none hidden sm:inline shrink-0 uppercase tracking-wide">
+            {aiProvider === 'openai' ? 'OpenAI' : 'Claude'}
+          </span>
+        ) : licenseValid ? (
           <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/20 leading-none hidden sm:inline shrink-0 uppercase tracking-wide">
             {licensePlan || 'active'}
           </span>
         ) : (
           <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-red-500/10 text-red-400 font-medium border border-red-500/20 leading-none hidden sm:inline shrink-0">
-            No License
+            {aiSource === 'byok' ? 'No API key' : 'No License'}
           </span>
         )}
 
@@ -794,11 +799,13 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
           })()}
 
           {/* Privacy notice — shown once until dismissed */}
-          {licenseValid && !privacyDismissed && aiMessages.length === 0 && (
+          {aiReady && !privacyDismissed && aiMessages.length === 0 && (
             <div className="mx-3 mb-1.5 px-3 py-2 rounded-lg border border-amber-500/20 bg-amber-500/5 flex items-start gap-2">
               <AlertCircle className="w-3.5 h-3.5 text-amber-500/70 shrink-0 mt-0.5" />
               <p className="text-[11px] text-muted-foreground/70 leading-relaxed flex-1">
-                ARIA sends your terminal context and conversation to <span className="text-foreground/60 font-medium">api.netcopilot.app</span> to generate responses. Avoid using ARIA on sessions with sensitive credentials.
+                {aiSource === 'byok'
+                  ? <>ARIA sends your terminal context directly to <span className="text-foreground/60 font-medium">{aiProvider === 'openai' ? 'OpenAI' : 'Anthropic'}</span>. Your key never leaves this device.</>
+                  : <>ARIA sends your terminal context and conversation to <span className="text-foreground/60 font-medium">api.netcopilot.app</span> to generate responses. Avoid using ARIA on sessions with sensitive credentials.</>}
               </p>
               <button
                 onClick={() => { localStorage.setItem('aria-privacy-notice-accepted', '1'); setPrivacyDismissed(true) }}
@@ -812,24 +819,34 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 
           {/* Input box */}
           <div className="border-t border-border/40 px-3 pt-2.5 pb-3 shrink-0">
-            {!licenseValid ? (
-              /* ── No License Gate ── */
+            {!aiReady ? (
               <div className="flex flex-col items-center gap-3 py-4 px-3 rounded-xl border border-red-500/20 bg-red-500/5">
                 <div className="flex items-center gap-2 text-red-400">
                   <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span className="text-xs font-medium">License required to use ARIA</span>
+                  <span className="text-xs font-medium">
+                    {aiSource === 'byok' ? 'API key required to use ARIA' : 'License required to use ARIA'}
+                  </span>
                 </div>
-                <a
-                  href="https://netcopilot.app/register"
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => { e.preventDefault(); window.open('https://netcopilot.app/register') }}
-                  className="text-xs px-4 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
-                >
-                  Get a License →
-                </a>
+                {aiSource === 'byok' ? (
+                  <button
+                    onClick={() => setSettingsOpen(true, 'ai')}
+                    className="text-xs px-4 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
+                  >
+                    Add API key →
+                  </button>
+                ) : (
+                  <a
+                    href="https://netcopilot.app/register"
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => { e.preventDefault(); window.open('https://netcopilot.app/register') }}
+                    className="text-xs px-4 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
+                  >
+                    Get a License →
+                  </a>
+                )}
                 <p className="text-[11px] text-muted-foreground/60 text-center">
-                  Enter your key in Settings → ARIA
+                  {aiSource === 'byok' ? 'Add your Claude or OpenAI key in Settings → ARIA' : 'Enter your key in Settings → ARIA'}
                 </p>
               </div>
             ) : (
