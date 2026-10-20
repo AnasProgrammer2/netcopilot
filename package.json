@@ -25,7 +25,7 @@
     "build:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.90.0",
+    "@anthropic-ai/sdk": "^0.135.0",
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^3.0.0",
     "@fontsource-variable/geist": "^5.2.8",

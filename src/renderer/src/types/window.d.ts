@@ -77,6 +77,19 @@ interface SerialConnectPayload {
 }
 
 declare global {
+  type AiProviderId = 'anthropic' | 'openai' | 'xai' | 'custom'
+
+  interface AiConfigView {
+    source:           'hosted' | 'byok'
+    provider:         AiProviderId
+    model:            string
+    baseUrl:          string
+    hasKey:           boolean
+    keyHint:          string | null
+    configured:       boolean
+    insecureEndpoint: boolean
+  }
+
   interface Window {
     api: {
       appInfo: {
@@ -209,11 +222,14 @@ declare global {
       toolResult(callId: string, output: string): Promise<void>
       resetBlacklist(): Promise<string[]>
       exportMarkdown(payload: { host: string; messages: Array<{ role: string; content: string; toolCalls?: Array<{ command: string; output?: string }> }> }): Promise<{ success: boolean; filePath?: string }>
-      getApiKeyHint(provider: 'anthropic' | 'openai'): Promise<{ hasKey: boolean; hint: string | null }>
-      setApiKey(provider: 'anthropic' | 'openai', key: string): Promise<{ success: boolean; hint?: string; error?: string }>
-      clearApiKey(provider: 'anthropic' | 'openai'): Promise<boolean>
-      testConnection(provider: 'anthropic' | 'openai', key?: string): Promise<{ ok: boolean; message: string }>
-      getModels(): Promise<Record<'anthropic' | 'openai', Array<{ id: string; label: string }>>>
+      getConfig(): Promise<AiConfigView>
+      setConfig(patch: { source?: 'hosted' | 'byok'; provider?: AiProviderId; model?: string; baseUrl?: string }): Promise<{ success: boolean; error?: string; config: AiConfigView }>
+      getApiKeyHint(provider: AiProviderId): Promise<{ hasKey: boolean; hint: string | null }>
+      setApiKey(provider: AiProviderId, key: string): Promise<{ success: boolean; hint?: string; error?: string }>
+      clearApiKey(provider: AiProviderId): Promise<boolean>
+      testConnection(provider: AiProviderId, draft?: { key?: string; baseUrl?: string; model?: string }): Promise<{ ok: boolean; message: string }>
+      listModels(provider: AiProviderId, draft?: { key?: string; baseUrl?: string }): Promise<{ ok: true; models: string[] } | { ok: false; message: string }>
+      getModels(): Promise<Record<AiProviderId, Array<{ id: string; label: string }>>>
       onChunk(cb: (evt: { sessionId: string; text: string }) => void): () => void
       onDone(cb: (evt: { sessionId: string; inputTokens?: number; outputTokens?: number }) => void): () => void
       onToolCall(cb: (call: { sessionId: string; id: string; command: string; reason: string; targetSession?: string; policyBlock?: string }) => void): () => void

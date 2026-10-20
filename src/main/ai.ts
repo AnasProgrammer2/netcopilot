@@ -4,15 +4,21 @@ import { getDb } from './db'
 import { DEFAULT_AI_BLACKLIST } from './aiDefaults'
 import { loadLicenseKey, getDeviceId } from './license'
 import { enforcePolicy, mergeBlacklists, type AiPermission } from '../shared/aiPolicy'
-import { getSetting } from './store'
+import { getSetting, setSetting } from './store'
 import { loadCredential, saveCredential, deleteCredential } from './credentials'
 import {
   type AiProvider,
   type AiSource,
+  type ProviderConfig,
   AI_MODELS,
+  PROVIDER_META,
   callLocalTurn,
   credentialKeyForProvider,
+  isLoopbackUrl,
+  listProviderModels,
   maskApiKey,
+  normalizeBaseUrl,
+  normalizeProvider,
   resolveModel,
   testProviderConnection,
 } from './aiProviders'
@@ -731,35 +737,88 @@ function getAiSource(): AiSource {
 }
 
 function getAiProvider(): AiProvider {
-  const stored = getSetting<string>('ai.provider')
-  return stored === 'openai' ? 'openai' : 'anthropic'
+  return normalizeProvider(getSetting<string>('ai.provider'))
 }
 
-function normalizeProvider(provider: AiProvider | string): AiProvider {
-  return provider === 'openai' ? 'openai' : 'anthropic'
+// Model choice is remembered per provider. Before multi-provider support a
+// single `ai.model` held the model of whichever provider was selected.
+function getProviderModel(provider: AiProvider): string {
+  const stored = getSetting<string>(`ai.model.${provider}`)
+    ?? (getSetting<string>('ai.provider') === provider ? getSetting<string>('ai.model') : undefined)
+  return resolveModel(provider, stored)
+}
+
+function getCustomBaseUrl(): string | null {
+  const stored = getSetting<string>('ai.customBaseUrl')
+  if (!stored) return null
+  const parsed = normalizeBaseUrl(stored)
+  return parsed.ok ? parsed.url : null
+}
+
+function loadProviderConfig(provider: AiProvider): ProviderConfig {
+  return {
+    provider,
+    apiKey:  loadCredential(credentialKeyForProvider(provider)),
+    model:   getProviderModel(provider),
+    baseUrl: provider === 'custom' ? getCustomBaseUrl() : null,
+  }
+}
+
+function providerConfigError(cfg: ProviderConfig): string | null {
+  if (cfg.provider === 'custom') {
+    if (!cfg.baseUrl) return 'No endpoint URL. Add your Ollama / LM Studio URL in Settings → ARIA.'
+    if (!cfg.model)   return 'No model selected. Pick a model for your custom endpoint in Settings → ARIA.'
+    return null
+  }
+  if (!cfg.apiKey) return `No ${PROVIDER_META[cfg.provider].label} API key. Add it in Settings → ARIA.`
+  return null
+}
+
+export interface AiConfigView {
+  source:   AiSource
+  provider: AiProvider
+  model:    string
+  baseUrl:  string
+  hasKey:   boolean
+  keyHint:  string | null
+  /** BYOK has everything it needs to make a request. */
+  configured: boolean
+  /** True when the custom endpoint sends terminal data over plain HTTP off this machine. */
+  insecureEndpoint: boolean
+}
+
+function getAiConfigView(): AiConfigView {
+  const provider = getAiProvider()
+  const cfg      = loadProviderConfig(provider)
+  const baseUrl  = cfg.baseUrl ?? ''
+  return {
+    source:   getAiSource(),
+    provider,
+    model:    cfg.model,
+    baseUrl,
+    hasKey:   !!cfg.apiKey,
+    keyHint:  cfg.apiKey ? maskApiKey(cfg.apiKey) : null,
+    configured: providerConfigError(cfg) === null,
+    insecureEndpoint: !!baseUrl && baseUrl.startsWith('http:') && !isLoopbackUrl(baseUrl),
+  }
 }
 
 async function resolveTurnFn(run: AiRunState): Promise<{ ok: true; turn: TurnFn } | { ok: false; error: string }> {
   const source = getAiSource()
 
   if (source === 'byok') {
-    const provider = getAiProvider()
-    const model    = resolveModel(provider, getSetting<string>('ai.model'))
-    const apiKey   = loadCredential(credentialKeyForProvider(provider))
-    if (!apiKey) {
-      return { ok: false, error: 'No API key. Add your Claude or OpenAI key in Settings → ARIA.' }
-    }
+    const cfg   = loadProviderConfig(getAiProvider())
+    const error = providerConfigError(cfg)
+    if (error) return { ok: false, error }
     return {
       ok: true,
       turn: (systemPrompt, messages, onChunk) =>
         callLocalTurn(
-          provider,
-          apiKey,
-          model,
+          cfg,
           systemPrompt,
           messages,
           [CREATE_PLAN_TOOL, RUN_COMMAND_TOOL, RUN_COMMANDS_TOOL],
-          8192,
+          cfg.provider === 'anthropic' ? 16_000 : 8192,
           onChunk,
           run.abortController.signal,
         ),
@@ -1134,7 +1193,8 @@ async function runAiLoop(
       })
     }
   } catch (err: unknown) {
-    if (err instanceof Error && err.name !== 'AbortError') {
+    // A cancelled run surfaces as AbortError (fetch) or APIUserAbortError (SDK).
+    if (err instanceof Error && err.name !== 'AbortError' && !run.abortController.signal.aborted) {
       getWindow()?.webContents.send('ai:error', { sessionId, message: (err as Error).message })
     }
   } finally {
@@ -1237,6 +1297,31 @@ export function setupAiHandlers(
     return DEFAULT_AI_BLACKLIST
   })
 
+  ipcMain.handle('ai:get-config', () => getAiConfigView())
+
+  ipcMain.handle('ai:set-config', (_, patch: { source?: string; provider?: string; model?: string; baseUrl?: string }) => {
+    if (patch.source !== undefined) setSetting('ai.source', patch.source === 'byok' ? 'byok' : 'hosted')
+    if (patch.provider !== undefined) setSetting('ai.provider', normalizeProvider(patch.provider))
+    if (patch.baseUrl !== undefined) {
+      if (patch.baseUrl.trim() === '') {
+        setSetting('ai.customBaseUrl', '')
+      } else {
+        const parsed = normalizeBaseUrl(patch.baseUrl)
+        if (!parsed.ok) return { success: false, error: parsed.error, config: getAiConfigView() }
+        setSetting('ai.customBaseUrl', parsed.url)
+      }
+    }
+    if (patch.model !== undefined) {
+      const provider = getAiProvider()
+      const model    = patch.model.trim()
+      if (model && resolveModel(provider, model) !== model) {
+        return { success: false, error: 'Invalid model ID.', config: getAiConfigView() }
+      }
+      setSetting(`ai.model.${provider}`, model)
+    }
+    return { success: true, config: getAiConfigView() }
+  })
+
   ipcMain.handle('ai:get-api-key-hint', (_, provider: AiProvider) => {
     const key = loadCredential(credentialKeyForProvider(normalizeProvider(provider)))
     return key
@@ -1245,8 +1330,9 @@ export function setupAiHandlers(
   })
 
   ipcMain.handle('ai:set-api-key', (_, provider: AiProvider, key: string) => {
-    const cleaned = key.trim()
+    const cleaned = String(key ?? '').trim()
     if (!cleaned) return { success: false, error: 'API key is empty.' }
+    if (cleaned.length > 512 || /\s/.test(cleaned)) return { success: false, error: 'That does not look like an API key.' }
     const saved = saveCredential(credentialKeyForProvider(normalizeProvider(provider)), cleaned)
     if (!saved.success) return { success: false, error: saved.error }
     return { success: true, hint: maskApiKey(cleaned) }
@@ -1257,12 +1343,36 @@ export function setupAiHandlers(
     return true
   })
 
-  ipcMain.handle('ai:test-connection', async (_, provider: AiProvider, key?: string) => {
-    const p      = normalizeProvider(provider)
-    const apiKey = key?.trim() || loadCredential(credentialKeyForProvider(p))
-    if (!apiKey) return { ok: false, message: 'Enter an API key first.' }
-    const model = resolveModel(p, getSetting<string>('ai.model'))
-    return testProviderConnection(p, apiKey, model)
+  // Unsaved form values (typed key, URL, model) override what is stored so the
+  // user can test before saving.
+  const draftConfig = (
+    provider: AiProvider,
+    draft:    { key?: string; baseUrl?: string; model?: string } = {},
+  ): ProviderConfig | { error: string } => {
+    const p   = normalizeProvider(provider)
+    const cfg = loadProviderConfig(p)
+    if (draft.key?.trim()) cfg.apiKey = draft.key.trim()
+    if (draft.model !== undefined) cfg.model = draft.model.trim() ? resolveModel(p, draft.model) : (p === 'custom' ? '' : cfg.model)
+    if (p === 'custom' && draft.baseUrl !== undefined) {
+      const parsed = normalizeBaseUrl(draft.baseUrl)
+      if (!parsed.ok) return { error: parsed.error }
+      cfg.baseUrl = parsed.url
+    }
+    if (p === 'custom' && !cfg.baseUrl) return { error: 'Enter the endpoint URL first.' }
+    if (PROVIDER_META[p].keyRequired && !cfg.apiKey) return { error: 'Enter an API key first.' }
+    return cfg
+  }
+
+  ipcMain.handle('ai:test-connection', async (_, provider: AiProvider, draft?: { key?: string; baseUrl?: string; model?: string }) => {
+    const cfg = draftConfig(provider, draft)
+    if ('error' in cfg) return { ok: false, message: cfg.error }
+    return testProviderConnection(cfg)
+  })
+
+  ipcMain.handle('ai:list-models', async (_, provider: AiProvider, draft?: { key?: string; baseUrl?: string }) => {
+    const cfg = draftConfig(provider, draft)
+    if ('error' in cfg) return { ok: false, message: cfg.error }
+    return listProviderModels(cfg)
   })
 
   ipcMain.handle('ai:get-models', () => AI_MODELS)

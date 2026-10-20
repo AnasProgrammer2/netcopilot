@@ -6,7 +6,7 @@ import {
   Sparkles, Eye, EyeOff, ShieldCheck, Wrench, Zap,
   RefreshCw, ArrowUpCircle, AlertCircle, Minus, Plus, ChevronDown, Keyboard, Key, Cloud
 } from 'lucide-react'
-import { useAppStore, AiPermission, AiApproval, AiSource, AiProvider } from '../../store'
+import { useAppStore, AiPermission, AiApproval, AiSource, AiProvider, AI_PROVIDER_LABELS } from '../../store'
 import { cn, getInstallerUrl } from '../../lib/utils'
 import { TERMINAL_THEMES, getTerminalTheme } from '../../lib/terminalThemes'
 
@@ -1271,24 +1271,46 @@ function LabeledInput({ label, type, value, onChange }: {
 
 const FALLBACK_AI_MODELS: Record<AiProvider, Array<{ id: string; label: string }>> = {
   anthropic: [
-    { id: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
-    { id: 'claude-opus-4-1',   label: 'Claude Opus 4.1'   },
-    { id: 'claude-haiku-4-5',  label: 'Claude Haiku 4.5'  },
+    { id: 'claude-opus-5-5',   label: 'Claude Opus 5.5'   },
+    { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' },
+    { id: 'claude-haiku-5-5',  label: 'Claude Haiku 5.5'  },
   ],
   openai: [
-    { id: 'gpt-4o',      label: 'GPT-4o'      },
-    { id: 'gpt-4.1',     label: 'GPT-4.1'     },
-    { id: 'gpt-4o-mini', label: 'GPT-4o mini' },
+    { id: 'gpt-4.1', label: 'GPT-4.1' },
+    { id: 'gpt-5',   label: 'GPT-5'   },
   ],
+  xai: [
+    { id: 'grok-4', label: 'Grok 4' },
+  ],
+  custom: [],
 }
+
+const AI_PROVIDER_OPTIONS: Array<{ id: AiProvider; label: string }> = [
+  { id: 'anthropic', label: AI_PROVIDER_LABELS.anthropic },
+  { id: 'openai',    label: AI_PROVIDER_LABELS.openai    },
+  { id: 'xai',       label: AI_PROVIDER_LABELS.xai       },
+  { id: 'custom',    label: 'Local / Custom'             },
+]
+
+const KEY_PLACEHOLDERS: Record<AiProvider, string> = {
+  anthropic: 'sk-ant-...',
+  openai:    'sk-...',
+  xai:       'xai-...',
+  custom:    'Optional — only if your server requires one',
+}
+
+const LOCAL_ENDPOINT_PRESETS = [
+  { label: 'Ollama',    url: 'http://localhost:11434/v1' },
+  { label: 'LM Studio', url: 'http://localhost:1234/v1'  },
+]
 
 // ─── AI Copilot Settings Section ─────────────────────────────────────────────
 function AiSection(): JSX.Element {
   const {
     aiPermission, aiApproval, aiBlacklist,
     setAiPermission, setAiApproval, setAiBlacklist,
-    aiSource, aiProvider, aiModel, aiHasKey,
-    setAiSource, setAiProvider, setAiModel, setAiHasKey,
+    aiSource, aiProvider, aiModel, aiHasKey, aiBaseUrl, aiInsecureEndpoint,
+    applyAiConfig, setAiHasKey,
     licenseKey: storedKey, licenseValid, licensePlan, licenseExpiry, deviceId,
     setLicenseKey, setLicenseStatus, setDeviceId,
   } = useAppStore()
@@ -1305,6 +1327,10 @@ function AiSection(): JSX.Element {
   const [testing, setTesting]         = useState(false)
   const [testMsg, setTestMsg]         = useState<{ ok: boolean; text: string } | null>(null)
   const [models, setModels]           = useState(FALLBACK_AI_MODELS)
+  const [fetchedModels, setFetchedModels] = useState<string[]>([])
+  const [fetchingModels, setFetchingModels] = useState(false)
+  const [baseUrlInput, setBaseUrlInput] = useState(aiBaseUrl)
+  const [modelInput, setModelInput]   = useState(aiModel)
 
   useEffect(() => {
     if (storedKey) setInputKey(storedKey)
@@ -1320,21 +1346,25 @@ function AiSection(): JSX.Element {
 
   useEffect(() => {
     window.api.ai.getModels().then((catalog) => {
-      if (catalog?.anthropic?.length && catalog?.openai?.length) setModels(catalog)
+      if (catalog?.anthropic?.length) setModels({ ...FALLBACK_AI_MODELS, ...catalog })
     }).catch(() => { /* keep fallback */ })
   }, [])
 
+  // Re-sync the form whenever the provider changes.
   useEffect(() => {
     let cancelled = false
-    window.api.ai.getApiKeyHint(aiProvider).then((hint) => {
+    window.api.ai.getConfig().then((cfg) => {
       if (cancelled) return
-      setKeyHint(hint.hint)
-      setAiHasKey(hint.hasKey)
+      applyAiConfig(cfg)
+      setKeyHint(cfg.keyHint)
+      setBaseUrlInput(cfg.baseUrl)
+      setModelInput(cfg.model)
       setApiKeyInput('')
+      setFetchedModels([])
       setTestMsg(null)
     }).catch(() => { /* ignore */ })
     return () => { cancelled = true }
-  }, [aiProvider, setAiHasKey])
+  }, [aiProvider, applyAiConfig])
 
   const handleActivate = async () => {
     const key = inputKey.trim().toUpperCase()
@@ -1357,27 +1387,32 @@ function AiSection(): JSX.Element {
     }
   }
 
-  const persistSource = async (source: AiSource) => {
-    setAiSource(source)
-    await window.api.store.setSetting('ai.source', source)
+  const updateAiConfig = async (patch: Parameters<typeof window.api.ai.setConfig>[0]) => {
+    const result = await window.api.ai.setConfig(patch)
+    applyAiConfig(result.config)
+    setKeyHint(result.config.keyHint)
+    if (!result.success) setTestMsg({ ok: false, text: result.error ?? 'Could not save.' })
+    return result.success
   }
 
-  const persistProvider = async (provider: AiProvider) => {
-    setAiProvider(provider)
-    await window.api.store.setSetting('ai.provider', provider)
-    const nextModels = models[provider]
-    if (!nextModels.some((m) => m.id === aiModel)) {
-      const fallback = nextModels[0]?.id
-      if (fallback) {
-        setAiModel(fallback)
-        await window.api.store.setSetting('ai.model', fallback)
-      }
+  const persistSource   = (source: AiSource)     => updateAiConfig({ source })
+  const persistProvider = (provider: AiProvider) => updateAiConfig({ provider })
+
+  const persistModel = async (model = modelInput) => {
+    const cleaned = model.trim()
+    setModelInput(cleaned)
+    if (cleaned === aiModel) return true
+    return updateAiConfig({ model: cleaned })
+  }
+
+  const persistBaseUrl = async (url = baseUrlInput) => {
+    if (url.trim() === aiBaseUrl) return true
+    const ok = await updateAiConfig({ baseUrl: url })
+    if (ok) {
+      const cfg = await window.api.ai.getConfig()
+      setBaseUrlInput(cfg.baseUrl)
     }
-  }
-
-  const persistModel = async (model: string) => {
-    setAiModel(model)
-    await window.api.store.setSetting('ai.model', model)
+    return ok
   }
 
   const handleSaveApiKey = async (key = apiKeyInput) => {
@@ -1388,20 +1423,48 @@ function AiSection(): JSX.Element {
       setAiHasKey(true)
       setKeyHint(result.hint ?? null)
       setApiKeyInput('')
+      applyAiConfig(await window.api.ai.getConfig())
       return true
     }
     setTestMsg({ ok: false, text: result.error ?? 'Could not save API key.' })
     return false
   }
 
+  const draft = () => ({
+    key:     apiKeyInput.trim() || undefined,
+    baseUrl: aiProvider === 'custom' ? baseUrlInput : undefined,
+    model:   modelInput,
+  })
+
+  const handleFetchModels = async () => {
+    setFetchingModels(true)
+    setTestMsg(null)
+    try {
+      const result = await window.api.ai.listModels(aiProvider, draft())
+      if (result.ok) {
+        setFetchedModels(result.models)
+        if (!result.models.length) setTestMsg({ ok: false, text: 'No models found. Pull or load a model first.' })
+        else if (!modelInput && aiProvider === 'custom') setModelInput(result.models[0])
+      } else {
+        setTestMsg({ ok: false, text: result.message })
+      }
+    } finally {
+      setFetchingModels(false)
+    }
+  }
+
   const handleTestConnection = async () => {
     setTesting(true)
     setTestMsg(null)
     try {
-      const typed = apiKeyInput.trim()
-      const result = await window.api.ai.testConnection(aiProvider, typed || undefined)
+      const typed  = apiKeyInput.trim()
+      const result = await window.api.ai.testConnection(aiProvider, draft())
       setTestMsg({ ok: result.ok, text: result.message })
-      if (result.ok && typed) await handleSaveApiKey(typed)
+      if (result.ok) {
+        if (aiProvider === 'custom') await persistBaseUrl()
+        await persistModel()
+        if (typed) await handleSaveApiKey(typed)
+      }
     } catch (e: unknown) {
       setTestMsg({ ok: false, text: e instanceof Error ? e.message : 'Connection test failed.' })
     } finally {
@@ -1415,21 +1478,28 @@ function AiSection(): JSX.Element {
     setKeyHint(null)
     setApiKeyInput('')
     setTestMsg(null)
+    applyAiConfig(await window.api.ai.getConfig())
   }
 
   const saveOtherSettings = async () => {
     await window.api.store.setSetting('ai.permission', aiPermission)
     await window.api.store.setSetting('ai.approval',   aiApproval)
-    await window.api.store.setSetting('ai.source',     aiSource)
-    await window.api.store.setSetting('ai.provider',   aiProvider)
-    await window.api.store.setSetting('ai.model',      aiModel)
-    if (apiKeyInput.trim()) await handleSaveApiKey()
+    if (aiSource === 'byok') {
+      if (aiProvider === 'custom') await persistBaseUrl()
+      await persistModel()
+      if (apiKeyInput.trim()) await handleSaveApiKey()
+    }
     const list = blacklistInput.split(',').map(s => s.trim()).filter(Boolean)
     await window.api.store.setSetting('ai.blacklist', list)
     setAiBlacklist(list)
     setSettingsSaved(true)
     setTimeout(() => setSettingsSaved(false), 2500)
   }
+
+  const modelSuggestions = Array.from(new Set([
+    ...models[aiProvider].map((m) => m.id),
+    ...fetchedModels,
+  ]))
 
   return (
     <div className="space-y-6">
@@ -1450,8 +1520,8 @@ function AiSection(): JSX.Element {
             },
             {
               id:    'byok' as AiSource,
-              label: 'My API key',
-              desc:  'Call Claude or OpenAI from this device. Your key never leaves the OS keychain.',
+              label: 'My own provider',
+              desc:  'Claude, OpenAI or Grok with your API key — or a local model via Ollama / LM Studio. Requests go straight from this device.',
               icon:  <Key className="w-4 h-4 text-sky-400" />,
             },
           ]).map((opt) => (
@@ -1479,17 +1549,14 @@ function AiSection(): JSX.Element {
       </SettingsGroup>
 
       {aiSource === 'byok' && (
-        <SettingsGroup label="Your API Key">
-          <div className="flex gap-2">
-            {([
-              { id: 'anthropic' as AiProvider, label: 'Claude' },
-              { id: 'openai'    as AiProvider, label: 'OpenAI' },
-            ]).map((opt) => (
+        <SettingsGroup label="Provider">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {AI_PROVIDER_OPTIONS.map((opt) => (
               <button
                 key={opt.id}
                 onClick={() => persistProvider(opt.id)}
                 className={cn(
-                  'flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-colors',
+                  'px-3 py-2 rounded-lg border text-xs font-medium transition-colors',
                   aiProvider === opt.id
                     ? 'border-primary/50 bg-primary/10 text-foreground'
                     : 'border-border text-muted-foreground hover:border-border/80 hover:bg-accent/50'
@@ -1500,9 +1567,41 @@ function AiSection(): JSX.Element {
             ))}
           </div>
 
+          {aiProvider === 'custom' && (
+            <div className="mt-3 space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Endpoint URL (OpenAI-compatible)</label>
+              <input
+                value={baseUrlInput}
+                onChange={(e) => { setBaseUrlInput(e.target.value); setTestMsg(null) }}
+                onBlur={() => { if (baseUrlInput.trim()) persistBaseUrl() }}
+                placeholder="http://localhost:11434/v1"
+                className={cn(inputCls, 'font-mono text-xs')}
+              />
+              <div className="flex items-center gap-2">
+                {LOCAL_ENDPOINT_PRESETS.map((preset) => (
+                  <button
+                    key={preset.label}
+                    onClick={() => { setBaseUrlInput(preset.url); persistBaseUrl(preset.url) }}
+                    className="text-[11px] px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+                <span className="text-[11px] text-muted-foreground/70">vLLM, LocalAI and other OpenAI-compatible servers work too.</span>
+              </div>
+              {aiInsecureEndpoint && (
+                <p className="flex items-start gap-1.5 text-[11px] text-amber-400 leading-relaxed">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                  This endpoint uses plain HTTP on another machine — terminal output and commands travel unencrypted. Use https:// or keep the model on this machine.
+                </p>
+              )}
+            </div>
+          )}
+
           <p className="text-xs text-muted-foreground mt-3 mb-2">
-            Stored encrypted in the OS keychain. Requests go directly to{' '}
-            {aiProvider === 'openai' ? 'OpenAI' : 'Anthropic'} — not through NetCopilot servers.
+            {aiProvider === 'custom'
+              ? 'API key (optional). Ollama and LM Studio do not need one by default.'
+              : <>Stored encrypted in the OS keychain. Requests go directly to {AI_PROVIDER_LABELS[aiProvider]} — not through NetCopilot servers.</>}
           </p>
           <div className="flex gap-2">
             <div className="flex-1 relative">
@@ -1510,7 +1609,7 @@ function AiSection(): JSX.Element {
                 type={showApiKey ? 'text' : 'password'}
                 value={apiKeyInput}
                 onChange={(e) => { setApiKeyInput(e.target.value); setTestMsg(null) }}
-                placeholder={keyHint ?? (aiProvider === 'openai' ? 'sk-...' : 'sk-ant-...')}
+                placeholder={keyHint ?? KEY_PLACEHOLDERS[aiProvider]}
                 className={cn(inputCls, 'pr-9 font-mono text-xs')}
               />
               <button
@@ -1555,15 +1654,38 @@ function AiSection(): JSX.Element {
 
           <div className="mt-3 space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Model</label>
-            <select
-              value={models[aiProvider].some((m) => m.id === aiModel) ? aiModel : (models[aiProvider][0]?.id ?? '')}
-              onChange={(e) => persistModel(e.target.value)}
-              className={inputCls}
-            >
-              {models[aiProvider].map((m) => (
-                <option key={m.id} value={m.id}>{m.label}</option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <input
+                list="aria-model-suggestions"
+                value={modelInput}
+                onChange={(e) => { setModelInput(e.target.value); setTestMsg(null) }}
+                onBlur={() => persistModel()}
+                onKeyDown={(e) => { if (e.key === 'Enter') persistModel() }}
+                placeholder={aiProvider === 'custom' ? 'e.g. qwen2.5:14b — click ↻ to list' : 'Model ID'}
+                className={cn(inputCls, 'font-mono text-xs')}
+              />
+              <datalist id="aria-model-suggestions">
+                {modelSuggestions.map((id) => (
+                  <option key={id} value={id}>
+                    {models[aiProvider].find((m) => m.id === id)?.label ?? id}
+                  </option>
+                ))}
+              </datalist>
+              <button
+                onClick={handleFetchModels}
+                disabled={fetchingModels}
+                title="List models available to this key / endpoint"
+                aria-label="List available models"
+                className="px-2.5 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+              >
+                <RefreshCw className={cn('w-3.5 h-3.5', fetchingModels && 'animate-spin')} />
+              </button>
+            </div>
+            {aiProvider === 'custom' && (
+              <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
+                ARIA runs commands through tool calling — pick a model that supports tools (Qwen 2.5+, Llama 3.1+, Mistral Nemo…) and give it a context window of 16K+ tokens.
+              </p>
+            )}
           </div>
         </SettingsGroup>
       )}

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { nanoid } from 'nanoid'
 import { X, Send, Sparkles, Trash2, Square, ShieldCheck, Wrench, AlertCircle, ChevronDown, Check, Eye, EyeOff, ShieldAlert, RotateCcw, Download, Zap } from 'lucide-react'
-import { useAppStore, AiMessage as AiMessageType, AiPermission, AiApproval, isAiReady } from '../../store'
+import { useAppStore, AiMessage as AiMessageType, AiPermission, AiApproval, isAiReady, aiDestinationLabel, AI_PROVIDER_LABELS } from '../../store'
 import { cn, stripAnsi, isCommandBlacklisted } from '../../lib/utils'
 import { AiMessage } from './AiMessage'
 import { Session } from '../../types'
@@ -66,12 +66,12 @@ function permApprovalToMode(p: AiPermission, a: AiApproval): AiMode {
 export function AiPanel({ activeSession, splitSession, allSessions, getTerminalContext, sendToTerminal, sendToSession }: Props): JSX.Element {
   const {
     aiMessages, aiStreaming, aiAgentActive, aiPermission, aiApproval, aiBlacklist, aiAutoWatch, aiTokens,
-    licenseValid, licensePlan, aiSource, aiProvider, aiHasKey,
+    licenseValid, licensePlan, aiSource, aiProvider, aiConfigured, aiBaseUrl, aiModel,
     addAiMessage, appendAiChunk, finalizeAiStream, updateAiToolCall, clearAiMessages,
     truncateAiMessagesAfter,
     setAiStreaming, setAiAgentActive, setAiPanelOpen, setAiAutoWatch, setSettingsOpen,
   } = useAppStore()
-  const aiReady = isAiReady({ aiSource, aiHasKey, licenseValid })
+  const aiReady = isAiReady({ aiSource, aiConfigured, licenseValid })
 
   // Per-session overrides — start from global settings, can be changed mid-chat
   // Reset to global defaults when conversation is cleared
@@ -436,7 +436,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
           id:      nanoid(),
           role:    'assistant',
           content: aiSource === 'byok'
-            ? '⚠️ No API key. Add your Claude or OpenAI key in Settings → ARIA.'
+            ? '⚠️ Your AI provider is not set up. Add an API key or a local endpoint (Ollama / LM Studio) in Settings → ARIA.'
             : '⚠️ No active license. Get yours at **[netcopilot.app/register](https://netcopilot.app/register)** then enter the key in Settings → ARIA.',
         })
       }
@@ -528,9 +528,12 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         </div>
         <span className="text-sm font-bold text-foreground tracking-tight">ARIA</span>
 
-        {aiSource === 'byok' && aiHasKey ? (
-          <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-sky-500/10 text-sky-400 font-medium border border-sky-500/20 leading-none hidden sm:inline shrink-0 uppercase tracking-wide">
-            {aiProvider === 'openai' ? 'OpenAI' : 'Claude'}
+        {aiSource === 'byok' && aiConfigured ? (
+          <span
+            title={aiModel}
+            className="text-[11px] px-1.5 py-0.5 rounded-md bg-sky-500/10 text-sky-400 font-medium border border-sky-500/20 leading-none hidden sm:inline shrink-0 uppercase tracking-wide"
+          >
+            {aiProvider === 'custom' ? aiDestinationLabel(aiProvider, aiBaseUrl) : AI_PROVIDER_LABELS[aiProvider]}
           </span>
         ) : licenseValid ? (
           <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/20 leading-none hidden sm:inline shrink-0 uppercase tracking-wide">
@@ -538,7 +541,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
           </span>
         ) : (
           <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-red-500/10 text-red-400 font-medium border border-red-500/20 leading-none hidden sm:inline shrink-0">
-            {aiSource === 'byok' ? 'No API key' : 'No License'}
+            {aiSource === 'byok' ? 'Not set up' : 'No License'}
           </span>
         )}
 
@@ -804,7 +807,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
               <AlertCircle className="w-3.5 h-3.5 text-amber-500/70 shrink-0 mt-0.5" />
               <p className="text-[11px] text-muted-foreground/70 leading-relaxed flex-1">
                 {aiSource === 'byok'
-                  ? <>ARIA sends your terminal context directly to <span className="text-foreground/60 font-medium">{aiProvider === 'openai' ? 'OpenAI' : 'Anthropic'}</span>. Your key never leaves this device.</>
+                  ? <>ARIA sends your terminal context directly to <span className="text-foreground/60 font-medium">{aiDestinationLabel(aiProvider, aiBaseUrl)}</span>, not through NetCopilot servers. Avoid using ARIA on sessions with sensitive credentials.</>
                   : <>ARIA sends your terminal context and conversation to <span className="text-foreground/60 font-medium">api.netcopilot.app</span> to generate responses. Avoid using ARIA on sessions with sensitive credentials.</>}
               </p>
               <button
@@ -824,7 +827,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                 <div className="flex items-center gap-2 text-red-400">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span className="text-xs font-medium">
-                    {aiSource === 'byok' ? 'API key required to use ARIA' : 'License required to use ARIA'}
+                    {aiSource === 'byok' ? 'Set up an AI provider to use ARIA' : 'License required to use ARIA'}
                   </span>
                 </div>
                 {aiSource === 'byok' ? (
@@ -832,7 +835,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                     onClick={() => setSettingsOpen(true, 'ai')}
                     className="text-xs px-4 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
                   >
-                    Add API key →
+                    Set up provider →
                   </button>
                 ) : (
                   <a
@@ -846,7 +849,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                   </a>
                 )}
                 <p className="text-[11px] text-muted-foreground/60 text-center">
-                  {aiSource === 'byok' ? 'Add your Claude or OpenAI key in Settings → ARIA' : 'Enter your key in Settings → ARIA'}
+                  {aiSource === 'byok' ? 'Claude, OpenAI, Grok, or a local model (Ollama / LM Studio)' : 'Enter your key in Settings → ARIA'}
                 </p>
               </div>
             ) : (

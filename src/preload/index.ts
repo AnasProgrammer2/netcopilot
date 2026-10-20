@@ -34,6 +34,10 @@ const onWindowMaximized  = makeFanout<[boolean]>('window:maximized-change')
 const onUpdaterAvailable = makeFanout<[{ version: string; releaseDate: string; releaseNotes: string | null }]>('updater:update-available')
 const onUpdaterError     = makeFanout<[string]>('updater:error')
 
+type AiProviderId  = 'anthropic' | 'openai' | 'xai' | 'custom'
+type AiConfigPatch = { source?: 'hosted' | 'byok'; provider?: AiProviderId; model?: string; baseUrl?: string }
+type AiDraft       = { key?: string; baseUrl?: string; model?: string }
+
 const api = {
   // Store
   store: {
@@ -217,10 +221,13 @@ const api = {
     toolResult:    (callId: string, output: string)     => ipcRenderer.invoke('ai:tool-result', callId, output),
     resetBlacklist: ()                                  => ipcRenderer.invoke('ai:reset-blacklist'),
     exportMarkdown: (payload: unknown)                  => ipcRenderer.invoke('ai:export-markdown', payload),
-    getApiKeyHint: (provider: 'anthropic' | 'openai')   => ipcRenderer.invoke('ai:get-api-key-hint', provider),
-    setApiKey:     (provider: 'anthropic' | 'openai', key: string) => ipcRenderer.invoke('ai:set-api-key', provider, key),
-    clearApiKey:   (provider: 'anthropic' | 'openai')   => ipcRenderer.invoke('ai:clear-api-key', provider),
-    testConnection:(provider: 'anthropic' | 'openai', key?: string) => ipcRenderer.invoke('ai:test-connection', provider, key),
+    getConfig:     ()                                   => ipcRenderer.invoke('ai:get-config'),
+    setConfig:     (patch: AiConfigPatch)               => ipcRenderer.invoke('ai:set-config', patch),
+    getApiKeyHint: (provider: AiProviderId)             => ipcRenderer.invoke('ai:get-api-key-hint', provider),
+    setApiKey:     (provider: AiProviderId, key: string) => ipcRenderer.invoke('ai:set-api-key', provider, key),
+    clearApiKey:   (provider: AiProviderId)             => ipcRenderer.invoke('ai:clear-api-key', provider),
+    testConnection:(provider: AiProviderId, draft?: AiDraft) => ipcRenderer.invoke('ai:test-connection', provider, draft),
+    listModels:    (provider: AiProviderId, draft?: AiDraft) => ipcRenderer.invoke('ai:list-models', provider, draft),
     getModels:     ()                                   => ipcRenderer.invoke('ai:get-models'),
     onChunk:    onAiChunk,
     onDone:     onAiDone,

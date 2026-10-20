@@ -139,14 +139,22 @@ Even when the AI panel is **closed**, a pulsing red badge appears on the ARIA bu
 
 ### ARIA Setup
 
-ARIA can run on a NetCopilot license (hosted Claude) or your own provider key:
+ARIA can run on a NetCopilot license (hosted Claude), your own cloud API key, or a model you host yourself:
 
 1. Open the app → **Settings → ARIA**
-2. Choose **NetCopilot hosted** and activate a license, or **My API key**
-3. For your own key: pick Claude or OpenAI, paste the key, click **Test**
-4. Choose a model (Sonnet / Opus / Haiku, or GPT-4o / GPT-4.1)
+2. Choose **NetCopilot hosted** and activate a license, or **My own provider**
+3. Pick a provider:
 
-Hosted license keys and your own API keys are stored in the **OS keychain**. Bring-your-own-key requests go directly to Anthropic or OpenAI — they never pass through NetCopilot servers.
+| Provider | What you need | Example models |
+|---|---|---|
+| **Claude** | Anthropic API key (`sk-ant-…`) | `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5` |
+| **OpenAI** | OpenAI API key | `gpt-4.1`, `gpt-5` |
+| **Grok** | xAI API key | `grok-4` |
+| **Local / Custom** | Any OpenAI-compatible URL — Ollama (`http://localhost:11434/v1`), LM Studio (`http://localhost:1234/v1`), vLLM, LocalAI. API key optional | `qwen2.5:14b`, `llama3.1:8b` |
+
+4. Click **Test**, then pick a model (click ↻ to list the models your key or server offers)
+
+API keys are stored in the **OS keychain**. With your own provider, requests go directly from the app to that provider or server — they never pass through NetCopilot servers. For local models, choose one with tool-calling support so ARIA can run commands, and give it a context window of 16K tokens or more.
 
 ---
 

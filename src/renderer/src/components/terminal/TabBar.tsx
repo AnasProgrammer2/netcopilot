@@ -14,7 +14,7 @@ export function TabBar(): JSX.Element {
     sessions, activeSessionId, splitSessionId,
     setActiveSession, closeSession, setQuickConnectOpen, setSplitSession,
     aiPanelOpen, setAiPanelOpen, activeForwardIds,
-    licenseValid, aiSource, aiHasKey, errorAlertSessionId, setErrorAlert,
+    licenseValid, aiSource, aiConfigured, errorAlertSessionId, setErrorAlert,
     themePanelOpen, setThemePanelOpen,
     snippetPanelOpen, setSnippetPanelOpen,
     renameSession, pinSession, unpinSession, duplicateSession, reorderSessions,
@@ -127,10 +127,10 @@ export function TabBar(): JSX.Element {
       {/* AI Copilot toggle */}
       <button
         onClick={() => {
-          if (!aiPanelOpen && !isAiReady({ aiSource, aiHasKey, licenseValid })) {
-            toast.error(aiSource === 'byok' ? 'API key required' : 'License key required', {
+          if (!aiPanelOpen && !isAiReady({ aiSource, aiConfigured, licenseValid })) {
+            toast.error(aiSource === 'byok' ? 'AI provider not set up' : 'License key required', {
               description: aiSource === 'byok'
-                ? 'Add your Claude or OpenAI key in Settings → ARIA.'
+                ? 'Set up your AI provider (API key or local endpoint) in Settings → ARIA.'
                 : 'Add your license key in Settings → ARIA to use the AI assistant.',
               action: { label: 'Open Settings', onClick: () => setSettingsOpen(true, 'ai') }
             })
