@@ -1,7 +1,8 @@
 import { IpcMain, dialog, BrowserWindow, app } from 'electron'
 import path from 'path'
 import os from 'os'
-import { readFile, writeFile } from 'fs/promises'
+import { readFile, writeFile, stat } from 'fs/promises'
+import { CSV_MAX_BYTES } from '../shared/hostCsvParser'
 
 function showSaveDialog(win: BrowserWindow | null | undefined, opts: Electron.SaveDialogOptions) {
   return win ? dialog.showSaveDialog(win, opts) : dialog.showSaveDialog(opts)
@@ -83,6 +84,32 @@ export function setupFileDialogHandlers(
       return null
     }
   })
+  // ── Host list CSV (Termius template / other tools) ─────────────────────────
+  // The path always comes from the native dialog — never from the renderer.
+  ipcMain.handle('dialog:read-csv', async () => {
+    const win = getWindow() ?? undefined
+    try {
+      const result = await showOpenDialog(win, {
+        title: 'Import Hosts from CSV',
+        filters: [
+          { name: 'CSV', extensions: ['csv', 'tsv', 'txt'] },
+          { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+      })
+      if (result.canceled || result.filePaths.length === 0) return null
+      const filePath = result.filePaths[0]
+      const info = await stat(filePath)
+      if (!info.isFile()) return { error: 'Not a regular file' }
+      if (info.size > CSV_MAX_BYTES) {
+        return { error: `File is too large (limit ${CSV_MAX_BYTES / 1024 / 1024} MB)` }
+      }
+      return { content: await readFile(filePath, 'utf-8'), fileName: path.basename(filePath) }
+    } catch {
+      return { error: 'Failed to read the selected file' }
+    }
+  })
+
   ipcMain.handle('dialog:read-ssh-config', async (_, pickFile = false) => {
     const win = getWindow() ?? undefined
     if (pickFile) {
