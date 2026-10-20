@@ -489,7 +489,6 @@ function TerminalSection({ settings, update }: SectionProps) {
                         // on every xterm frame (which was freezing the entire compositor).
                         const blurPx = Math.max(0, Math.min(20, settings.backgroundBlur ?? 0))
                         if (blurPx > 0) {
-                          // @ts-ignore — `filter` is supported in Chromium (Electron)
                           ctx.filter = `blur(${blurPx}px)`
                         }
                         ctx.drawImage(img, 0, 0, width, height)

@@ -3,7 +3,11 @@ import { app, safeStorage } from 'electron'
 import path from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { Connection, ConnectionGroup, SSHKey, Snippet, SnippetFolder } from '../types/shared'
-import { getDbKey } from './dbKey'
+import { randomBytes } from 'crypto'
+import {
+  getDbKey, needsKeyUpgrade, stagePendingKey, promotePendingKey, discardPendingKey,
+  readPendingKey, encryptExistingKey,
+} from './dbKey'
 import { DEFAULT_AI_BLACKLIST } from './aiDefaults'
 
 function safeJsonParse<T>(raw: string, fallback: T): T {
@@ -34,21 +38,103 @@ export function getDb(): Database.Database {
       // Existing plain DB — open without key, then rekey to encrypt in-place
       const plainDb = new Database(dbPath)
       const key = getDbKey() // generates + saves key file
-      if (!/^[0-9a-f]+$/i.test(key)) throw new Error('DB key contains invalid characters')
+      assertHexKey(key)
+      plainDb.pragma('journal_mode = DELETE') // rekey is not supported in WAL mode
       plainDb.pragma(`rekey = '${key}'`)
       plainDb.close()
     }
 
-    _db = new Database(dbPath)
-    const dbKey = getDbKey()
-    if (!/^[0-9a-f]+$/i.test(dbKey)) throw new Error('DB key contains invalid characters')
-    _db.pragma(`key = '${dbKey}'`)
+    _db = openDatabase(dbPath)
+    upgradeDbKeyIfNeeded(_db)
     _db.pragma('journal_mode = WAL')
     _db.pragma('foreign_keys = ON')
     initSchema(_db)
     migrateFromJson(_db)
   }
   return _db
+}
+
+function assertHexKey(key: string): void {
+  if (!/^[0-9a-f]+$/i.test(key)) throw new Error('DB key contains invalid characters')
+}
+
+/** Open with `key`; null when the key does not decrypt the file. */
+function tryOpen(dbPath: string, key: string): Database.Database | null {
+  assertHexKey(key)
+  const db = new Database(dbPath)
+  try {
+    db.pragma(`key = '${key}'`)
+    db.prepare('SELECT count(*) FROM sqlite_master').get()
+    return db
+  } catch {
+    db.close()
+    return null
+  }
+}
+
+function openDatabase(dbPath: string): Database.Database {
+  const db = tryOpen(dbPath, getDbKey())
+  if (db) {
+    discardPendingKey() // leftover from a re-key that never reached PRAGMA rekey
+    return db
+  }
+  // A previous re-key may have been interrupted after the DB was re-encrypted
+  // but before the new key file replaced the old one.
+  const pending = readPendingKey()
+  const recovered = pending ? tryOpen(dbPath, pending) : null
+  if (recovered && pending) {
+    promotePendingKey(pending)
+    return recovered
+  }
+  throw new Error('Could not open the database: the key does not match (file is not a database)')
+}
+
+/**
+ * The key file still holds a plaintext key but the OS keyring is now
+ * available. Re-key the DB with a fresh key and store that one encrypted, so
+ * a plaintext key copied earlier (e.g. into a backup) no longer opens it.
+ *
+ * Order: stage new key file → PRAGMA rekey (atomic) → promote key file.
+ * If promotion fails the DB is re-keyed back; if the app dies in between,
+ * openDatabase() recovers from the staged key.
+ */
+function upgradeDbKeyIfNeeded(db: Database.Database): void {
+  if (!needsKeyUpgrade()) return
+  const oldKey = getDbKey()
+  const newKey = randomBytes(32).toString('hex')
+
+  try {
+    stagePendingKey(newKey)
+  } catch (err) {
+    console.error('[db] Could not stage new DB key; keeping current key:', err)
+    discardPendingKey()
+    try { encryptExistingKey() } catch { /* keep plaintext key file */ }
+    return
+  }
+
+  try {
+    db.pragma('journal_mode = DELETE') // rekey is not supported in WAL mode
+    db.pragma(`rekey = '${newKey}'`)
+  } catch (err) {
+    console.error('[db] Re-key failed; keeping current key:', err)
+    discardPendingKey()
+    try { encryptExistingKey() } catch { /* keep plaintext key file */ }
+    return
+  }
+
+  try {
+    promotePendingKey(newKey)
+    console.log('[db] Database re-keyed; key now protected by the OS keyring')
+  } catch (err) {
+    console.error('[db] Could not store new DB key; reverting re-key:', err)
+    try {
+      db.pragma(`rekey = '${oldKey}'`)
+      discardPendingKey()
+    } catch (revertErr) {
+      // Leave the staged key in place: openDatabase() will recover with it.
+      console.error('[db] Revert failed; staged key kept for recovery:', revertErr)
+    }
+  }
 }
 
 function initSchema(db: Database.Database): void {
@@ -130,6 +216,15 @@ function initSchema(db: Database.Database): void {
     CREATE TABLE IF NOT EXISTS snippet_folders (
       id   TEXT PRIMARY KEY,
       name TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS known_hosts (
+      host        TEXT    NOT NULL,
+      port        INTEGER NOT NULL,
+      key_type    TEXT    NOT NULL,
+      fingerprint TEXT    NOT NULL,
+      added_at    INTEGER NOT NULL,
+      PRIMARY KEY (host, port, key_type)
     );
   `)
 

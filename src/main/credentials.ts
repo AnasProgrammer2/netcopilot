@@ -1,5 +1,6 @@
 import { IpcMain, safeStorage } from 'electron'
 import { getDb } from './db'
+import { isUnlocked } from './masterPassword'
 
 function credKey(key: string): string {
   return `cred:${key}`
@@ -47,16 +48,26 @@ export function deleteCredential(key: string): boolean {
   return true
 }
 
+// AI provider keys (ai.*) are managed only through the ai:* handlers, which
+// never hand the raw key back to the renderer.
+function isRendererKey(key: unknown): key is string {
+  return typeof key === 'string' && !key.startsWith('ai.')
+}
+
 export function setupCredentialHandlers(ipcMain: IpcMain): void {
   ipcMain.handle('credentials:save', (_, key: string, value: string) => {
+    if (!isRendererKey(key)) return { success: false, error: 'Reserved credential key.' }
     return saveCredential(key, value)
   })
 
   ipcMain.handle('credentials:get', (_, key: string) => {
+    // Master password set but not entered yet (or idle-locked): keep secrets sealed.
+    if (!isUnlocked() || !isRendererKey(key)) return null
     return loadCredential(key)
   })
 
   ipcMain.handle('credentials:delete', (_, key: string) => {
+    if (!isRendererKey(key)) return false
     return deleteCredential(key)
   })
 }

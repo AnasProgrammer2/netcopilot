@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, nativeTheme, nativeImage } from 'electron'
 import { join } from 'path'
+import { pathToFileURL } from 'url'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { setupStoreHandlers } from './store'
 import { setupSshHandlers } from './ssh'
@@ -13,6 +14,9 @@ import { setupAiHandlers } from './ai'
 import { setupSftpHandlers } from './sftp'
 import { setupLicenseHandlers } from './license'
 import { setupAutoUpdater } from './updater'
+import { setupHostKeyHandlers } from './hostKeys'
+import { getSecurityWarnings } from './dbKey'
+import { openExternalUrl } from './openExternalUrl'
 import * as Sentry from '@sentry/electron/main'
 
 // ── Sentry crash reporting (set SENTRY_DSN env var to enable) ──────────────
@@ -22,6 +26,20 @@ if (SENTRY_DSN) {
 }
 
 let mainWindow: BrowserWindow | null = null
+
+const RENDERER_INDEX = join(__dirname, '../renderer/index.html')
+
+/** Only the app's own page may be loaded in the main window. */
+function isAppUrl(url: string): boolean {
+  try {
+    const target = new URL(url)
+    const devUrl = process.env['ELECTRON_RENDERER_URL']
+    if (devUrl) return target.origin === new URL(devUrl).origin
+    return target.protocol === 'file:' && target.pathname === pathToFileURL(RENDERER_INDEX).pathname
+  } catch {
+    return false
+  }
+}
 
 function createWindow(): void {
   const iconPath = join(__dirname, '../../resources/icon.png')
@@ -99,6 +117,18 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
+  // Never navigate the app window away from the bundled UI (e.g. a link in
+  // AI/markdown output, or injected content). http(s) links open in the
+  // system browser instead.
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (isAppUrl(url)) return
+    event.preventDefault()
+    openExternalUrl(url)
+  })
+  mainWindow.webContents.on('will-redirect', (event, url) => {
+    if (!isAppUrl(url)) event.preventDefault()
+  })
+
   // Block DevTools in production (close if opened via other means)
   if (!process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.webContents.on('devtools-opened', () => {
@@ -109,7 +139,7 @@ function createWindow(): void {
   if (process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    mainWindow.loadFile(RENDERER_INDEX)
   }
 }
 
@@ -156,6 +186,8 @@ app.whenReady().then(() => {
   setupFileDialogHandlers(ipcMain, () => mainWindow)
   setupLogHandlers(ipcMain, () => mainWindow)
   setupMasterPasswordHandlers(ipcMain)
+  setupHostKeyHandlers(ipcMain)
+  ipcMain.handle('security:get-warnings', () => getSecurityWarnings())
 
   createWindow()
   setupAutoUpdater(() => mainWindow)

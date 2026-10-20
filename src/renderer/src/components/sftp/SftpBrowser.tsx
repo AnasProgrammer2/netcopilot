@@ -152,7 +152,7 @@ export function SftpBrowser({ session }: Props): JSX.Element {
       unsubClosed()
       window.api.sftp.disconnect(sessionId)
     }
-  }, [sessionId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sessionId])
 
   // Focus rename input when renaming starts
   useEffect(() => {

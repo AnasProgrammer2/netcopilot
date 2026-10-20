@@ -250,7 +250,6 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       offPlan()
       offToolCall()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const executeCommand = useCallback(async (msgId: string, callId: string, command: string, targetSessionId?: string) => {
@@ -411,7 +410,6 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
     truncateAiMessagesAfter(msgs[lastUserIdx].id, /* includeMsg */ false)
     userScrolled.current = false
     sendMessage('', /* isProactive */ false, undefined, /* isRegenerate */ true)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiStreaming, aiAgentActive, activeSession?.id, truncateAiMessagesAfter])
 
   /** Always reads fresh store state to avoid stale-closure issues with async state updates */
@@ -494,7 +492,6 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       setAiStreaming(false)
       setAiAgentActive(false)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addAiMessage, setAiStreaming, finalizeAiStream, getTerminalContext, activeSession, sessionPermission, aiReady, aiSource])
 
   // Subscribe to proactive analysis triggers from TerminalTab (Auto Watch).
@@ -1104,7 +1101,6 @@ function BlacklistButton({ blacklist, onChange }: { blacklist: string[]; onChang
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, draft])
 
   const applyDraft = () => {

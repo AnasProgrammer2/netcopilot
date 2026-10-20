@@ -685,6 +685,7 @@ function ConnectionItem({
   const { deleteConnection, saveConnection } = useAppStore()
 
   const handleDuplicate = async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id: _id, createdAt: _ca, updatedAt: _ua, lastConnectedAt: _lca, ...rest } = connection
     await saveConnection({ ...rest, name: `${connection.name} (Copy)` })
   }

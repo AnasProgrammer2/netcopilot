@@ -289,6 +289,10 @@ function aiConfigToState(cfg: AiConfigView): Pick<AppState,
   }
 }
 
+/** Keys for connection-level secrets inside an export's encrypted credentials blob. */
+const EXPORT_ENABLE_PASSWORD = 'export:enablePassword'
+const EXPORT_PROXY_PASSWORD  = 'export:proxyPassword'
+
 export const useAppStore = create<AppState>((set, get) => ({
   connections: [],
   groups: [],
@@ -707,16 +711,28 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   exportConnections: async (password?: string) => {
     const { connections, groups } = get()
+
+    // Secrets stored on the connection itself never go into the plaintext part
+    // of the file; with a password they travel in the encrypted credentials blob.
+    const credMap: Record<string, string> = {}
+    const sanitized: Connection[] = connections.map((conn) => {
+      const { enablePassword, ...rest } = conn
+      if (enablePassword) credMap[`${conn.id}:${EXPORT_ENABLE_PASSWORD}`] = enablePassword
+      if (!rest.proxyConfig?.password) return rest
+      const { password: proxyPassword, ...proxyRest } = rest.proxyConfig
+      credMap[`${conn.id}:${EXPORT_PROXY_PASSWORD}`] = proxyPassword
+      return { ...rest, proxyConfig: proxyRest }
+    })
+
     const payload: Record<string, unknown> = {
       version: 2,
       exportedAt: new Date().toISOString(),
-      connections,
+      connections: sanitized,
       groups,
     }
 
     if (password) {
       // Collect all credentials for each connection
-      const credMap: Record<string, string> = {}
       for (const conn of connections) {
         const pw  = await window.api.credentials.get(`${conn.id}:password`)
         const usr = await window.api.credentials.get(`${conn.id}:username`)
@@ -745,6 +761,20 @@ export const useAppStore = create<AppState>((set, get) => ({
       const incoming: Connection[]      = (Array.isArray(data.connections) ? data.connections : []) as Connection[]
       const inGroups: ConnectionGroup[] = (Array.isArray(data.groups)      ? data.groups      : []) as ConnectionGroup[]
 
+      // Decrypt credentials up front (file exported with a password) so secrets
+      // stored on the connection itself (enable / proxy password) can be restored.
+      let credMap: Record<string, string> = {}
+      if (data.credentials && password) {
+        try {
+          const parsedCreds: unknown = JSON.parse(await decryptData(data.credentials, password))
+          if (parsedCreds && typeof parsedCreds === 'object' && !Array.isArray(parsedCreds)) {
+            credMap = parsedCreds as Record<string, string>
+          }
+        } catch {
+          // Wrong password or corrupted — connections are still imported, credentials skipped
+        }
+      }
+
       // Remap group IDs so we don't collide with existing ones
       const groupIdMap = new Map<string, string>()
       for (const g of inGroups) {
@@ -761,8 +791,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         const newId      = nanoid()
         const newGroupId = conn.groupId ? (groupIdMap.get(conn.groupId) ?? undefined) : undefined
         connIdMap.set(conn.id, newId)
+        const enablePassword = credMap[`${conn.id}:${EXPORT_ENABLE_PASSWORD}`] ?? conn.enablePassword
+        const proxyPassword  = credMap[`${conn.id}:${EXPORT_PROXY_PASSWORD}`]
         await window.api.store.saveConnection({
           ...conn,
+          ...(enablePassword ? { enablePassword } : {}),
+          ...(proxyPassword && conn.proxyConfig ? { proxyConfig: { ...conn.proxyConfig, password: proxyPassword } } : {}),
           id: newId,
           groupId: newGroupId,
           createdAt: Date.now(),
@@ -771,24 +805,21 @@ export const useAppStore = create<AppState>((set, get) => ({
         count++
       }
 
-      // Restore credentials if the file was exported with a password
-      if (data.credentials && password) {
-        try {
-          const credJson = await decryptData(data.credentials, password)
-          const credMap  = JSON.parse(credJson) as Record<string, string>
-          for (const [oldKey, value] of Object.entries(credMap)) {
-            // oldKey is like "<old-conn-id>:password"
-            const colonIdx = oldKey.indexOf(':')
-            const oldId    = oldKey.slice(0, colonIdx)
-            const suffix   = oldKey.slice(colonIdx)       // e.g. ":password"
-            const newId    = connIdMap.get(oldId)
-            if (newId) {
-              await window.api.credentials.save(`${newId}${suffix}`, value)
-            }
+      // Restore stored credentials (password / username) under the new IDs
+      try {
+        for (const [oldKey, value] of Object.entries(credMap)) {
+          // oldKey is like "<old-conn-id>:password"
+          const colonIdx = oldKey.indexOf(':')
+          const oldId    = oldKey.slice(0, colonIdx)
+          const suffix   = oldKey.slice(colonIdx)       // e.g. ":password"
+          if (suffix === `:${EXPORT_ENABLE_PASSWORD}` || suffix === `:${EXPORT_PROXY_PASSWORD}`) continue
+          const newId    = connIdMap.get(oldId)
+          if (newId) {
+            await window.api.credentials.save(`${newId}${suffix}`, value)
           }
-        } catch {
-          // Wrong password or corrupted — connections are still imported, credentials skipped
         }
+      } catch {
+        // Credential store unavailable — connections are still imported
       }
 
       await get().loadConnections()

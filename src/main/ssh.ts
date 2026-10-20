@@ -6,6 +6,7 @@ import * as os from 'os'
 import * as path from 'path'
 import * as fs from 'fs'
 import { handleZmodemDetection, setupZmodemHandlers } from './zmodem'
+import { createHostVerifier, cancelHostKeyPrompts } from './hostKeys'
 
 interface ActiveSession {
   sessionId:    string
@@ -13,51 +14,31 @@ interface ActiveSession {
   jumpClient:   Client | null   // non-null when tunnelled via jump host
   stream:       ClientChannel
   flushTimer:   ReturnType<typeof setTimeout> | null
-  // Keep-alive / Anti-idle
-  keepAliveTimer: ReturnType<typeof setInterval> | null
+  // Anti-idle (transport keepalive is handled by ssh2's keepaliveInterval)
   antiIdleTimer:  ReturnType<typeof setInterval> | null
-  // Agent forwarding
-  agentSocket?:   string
-  agentListener?: net.Server
-  // Connection config reference for reconnect
-  connectionConfig?: SshConnectionConfig
 }
 
-interface SshConnectionConfig {
-  sessionId: string
-  host: string
-  port: number
-  username: string
-  password?: string
-  privateKey?: string
-  passphrase?: string
-  cols?: number
-  rows?: number
-  readyTimeout?: number
-  keepaliveInterval?: number
-  keepaliveCountMax?: number
-  agentForwarding?: boolean
-  agentSocketPath?: string
-  antiIdle?: boolean
-  antiIdleInterval?: number
-  antiIdleString?: string
-  jumpHost?: {
-    host: string
-    port: number
-    username: string
-    password?: string
-    privateKey?: string
-    passphrase?: string
-    agentForwarding?: boolean
-    agentSocketPath?: string
-  }
-  proxy?: {
-    type: 'socks5' | 'socks4' | 'http'
-    host: string
-    port: number
-    username?: string
-    password?: string
-  }
+/** A connection attempt that has not produced a shell yet (tracked so it can be cancelled). */
+interface PendingConnect {
+  cancel: () => void
+}
+const pendingConnects = new Map<string, PendingConnect>()
+
+const noop = (): void => { /* swallow late errors */ }
+
+/**
+ * Drop our listeners and close. A no-op 'error' listener is re-added because
+ * ssh2 can still emit 'error' after end() (e.g. socket reset), and an
+ * EventEmitter 'error' without listeners throws in the main process.
+ */
+function silenceAndEnd(emitter: Client | net.Socket): void {
+  if (emitter instanceof Client) cancelHostKeyPrompts(emitter)
+  emitter.removeAllListeners()
+  emitter.on('error', noop)
+  try {
+    if (emitter instanceof net.Socket) emitter.destroy()
+    else emitter.end()
+  } catch { /* already closed */ }
 }
 
 function teardownSession(sessionId: string): void {
@@ -66,21 +47,12 @@ function teardownSession(sessionId: string): void {
 
   // Clear all timers
   if (session.flushTimer) clearTimeout(session.flushTimer)
-  if (session.keepAliveTimer) clearInterval(session.keepAliveTimer)
   if (session.antiIdleTimer) clearInterval(session.antiIdleTimer)
 
-  // Close agent forwarding socket
-  if (session.agentListener) {
-    try { session.agentListener.close() } catch { /* ignore */ }
-  }
-
   session.stream.removeAllListeners()
-  session.client.removeAllListeners()
-  try { session.client.end() } catch { /* already closed */ }
-  if (session.jumpClient) {
-    session.jumpClient.removeAllListeners()
-    try { session.jumpClient.end() } catch { /* already closed */ }
-  }
+  session.stream.on('error', noop)
+  silenceAndEnd(session.client)
+  if (session.jumpClient) silenceAndEnd(session.jumpClient)
   activeSessions.delete(sessionId)
 
   // Close any port forwards tied to this session
@@ -133,10 +105,9 @@ function getDefaultAgentSocket(): string | undefined {
     }
   }
 
-  // Windows: Pageant or OpenSSH agent
+  // Windows: the built-in OpenSSH agent listens on a named pipe
   if (process.platform === 'win32') {
-    // Windows uses named pipes, handled differently by ssh2
-    return undefined
+    return '\\\\.\\pipe\\openssh-ssh-agent'
   }
 
   return undefined
@@ -169,69 +140,6 @@ function resolveGlob(pattern: string): string | undefined {
     }
   } catch { /* ignore */ }
   return undefined
-}
-
-function setupAgentForwarding(
-  client: Client,
-  sessionId: string,
-  agentSocketPath?: string
-): Promise<string | undefined> {
-  return new Promise((resolve) => {
-    const socketPath = agentSocketPath || getDefaultAgentSocket()
-    if (!socketPath || !fs.existsSync(socketPath)) {
-      resolve(undefined)
-      return
-    }
-
-  // Request agent forwarding from server
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (client as any).openssh_agent(socketPath, (err: Error | undefined, _agentStream: unknown) => {
-      if (err) {
-        console.warn(`[SSH] Agent forwarding failed for ${sessionId}:`, err.message)
-        resolve(undefined)
-        return
-      }
-
-      console.log(`[SSH] Agent forwarding enabled for ${sessionId} via ${socketPath}`)
-      resolve(socketPath)
-    })
-  })
-}
-
-// ── Keep-Alive & Anti-Idle ───────────────────────────────────────────────────
-
-function setupKeepAlive(
-  sessionId: string,
-  session: ActiveSession,
-  intervalMs: number = 30000,
-  countMax: number = 3
-): void {
-  if (session.keepAliveTimer) {
-    clearInterval(session.keepAliveTimer)
-  }
-
-  let failures = 0
-  session.keepAliveTimer = setInterval(() => {
-    if (!activeSessions.has(sessionId)) {
-      clearInterval(session.keepAliveTimer!)
-      return
-    }
-
-    try {
-      // Send SSH keepalive request
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pingFn = (session.client as any).openssh_ping
-      if (typeof pingFn === 'function') {
-        pingFn(() => { failures = 0 }) // Reset on success
-      }
-    } catch {
-      failures++
-      if (failures >= countMax) {
-        // Connection appears dead, trigger disconnect
-        teardownSession(sessionId)
-      }
-    }
-  }, intervalMs)
 }
 
 function setupAntiIdle(
@@ -552,27 +460,74 @@ export function setupSshHandlers(
       }
     ) => {
       return new Promise((resolve, reject) => {
-        if (activeSessions.has(payload.sessionId)) {
-          teardownSession(payload.sessionId)
+        const sessionId = payload.sessionId
+        // A newer connect for the same tab supersedes any attempt in flight.
+        pendingConnects.get(sessionId)?.cancel()
+        if (activeSessions.has(sessionId)) {
+          teardownSession(sessionId)
         }
+
+        // Every client / socket created by this attempt, so a cancel or a
+        // failure can close all of them (nothing is leaked when the tab is
+        // closed mid-connect).
+        const owned: Array<Client | net.Socket> = []
+        let cancelled = false
 
         let settled = false
         const settle = (result: { success: boolean; error?: string }) => {
           if (settled) return
           settled = true
+          if (pendingConnects.get(sessionId) === attempt) pendingConnects.delete(sessionId)
+          if (!result.success) {
+            for (const c of owned) silenceAndEnd(c)
+          }
           if (result.success) resolve(result)
           else reject(result)
         }
 
+        const attempt: PendingConnect = {
+          cancel: () => {
+            cancelled = true
+            settle({ success: false, error: 'Connection cancelled' })
+          }
+        }
+        pendingConnects.set(sessionId, attempt)
+
+        const newClient = (): Client => {
+          const c = new Client()
+          owned.push(c)
+          return c
+        }
+
+        const resolveAgent = (enabled?: boolean, socketPath?: string): string | undefined => {
+          if (!enabled) return undefined
+          const agentPath = socketPath || getDefaultAgentSocket()
+          // Named pipes (Windows) can't be checked with existsSync reliably
+          if (!agentPath || (process.platform !== 'win32' && !fs.existsSync(agentPath))) {
+            console.warn(`[SSH] Agent forwarding requested for ${sessionId} but no agent socket was found`)
+            return undefined
+          }
+          return agentPath
+        }
+
+        // ssh2 reports an unreachable agent as an 'error' with level 'agent'
+        // and then moves on to the next auth method — not a connection failure.
+        const isAgentError = (err: Error) => (err as Error & { level?: string }).level === 'agent'
+
         const buildConnectConfig = (
+          client: Client,
           host: string, port: number, username: string,
           password?: string, privateKey?: string, passphrase?: string,
           readyTimeout?: number, keepaliveInterval?: number,
           keepaliveCountMax?: number,
+          agentPath?: string,
           sock?: NodeJS.ReadableStream
         ): ConnectConfig => {
           const cfg: ConnectConfig = {
-            host, port, username, readyTimeout, keepaliveInterval, keepaliveCountMax
+            host, port, username, readyTimeout,
+            // Transport-level keepalive handled by ssh2 (milliseconds; 0 disables)
+            keepaliveInterval, keepaliveCountMax,
+            hostVerifier: createHostVerifier(client, host, port, getWindow),
           }
           if (sock) cfg.sock = sock as never
           if (privateKey) {
@@ -581,10 +536,15 @@ export function setupSshHandlers(
           } else if (password) {
             cfg.password = password
           }
+          if (agentPath) {
+            cfg.agent = agentPath
+            cfg.agentForward = true
+          }
           return cfg
         }
 
-        const openShell = async (client: Client, jumpClient: Client | null) => {
+        const openShell = (client: Client, jumpClient: Client | null) => {
+          if (cancelled) return
           // Build terminal type with feature flags
           const termFeatures: string[] = ['xterm-256color']
           if (payload.trueColor) termFeatures.push('tc')
@@ -596,58 +556,50 @@ export function setupSshHandlers(
             rows: payload.rows || DEFAULT_TERMINAL_ROWS
           }
 
-          client.shell(termOptions, async (err, stream) => {
+          client.shell(termOptions, (err, stream) => {
             if (err) {
-              client.end()
-              jumpClient?.end()
               return settle({ success: false, error: err.message })
+            }
+            if (cancelled) {
+              // Tab was closed while the shell was opening
+              stream.on('error', noop)
+              silenceAndEnd(client)
+              if (jumpClient) silenceAndEnd(jumpClient)
+              return
             }
 
             let pending = ''
             const session: ActiveSession = {
-              sessionId: payload.sessionId,
+              sessionId,
               client,
               jumpClient,
               stream,
               flushTimer: null,
-              keepAliveTimer: null,
               antiIdleTimer: null
             }
-            activeSessions.set(payload.sessionId, session)
-
-            // Setup agent forwarding if requested
-            if (payload.agentForwarding) {
-              const agentPath = await setupAgentForwarding(client, payload.sessionId, payload.agentSocketPath)
-              session.agentSocket = agentPath
-            }
-
-            // Setup jump host agent forwarding if requested
-            if (jumpClient && payload.jumpHost?.agentForwarding) {
-              await setupAgentForwarding(jumpClient, `${payload.sessionId}-jump`, payload.jumpHost.agentSocketPath)
-            }
-
-            // Setup keep-alive at transport level
-            if (payload.keepaliveInterval && payload.keepaliveInterval > 0) {
-              setupKeepAlive(payload.sessionId, session, payload.keepaliveInterval * 1000, payload.keepaliveCountMax || 3)
-            }
+            activeSessions.set(sessionId, session)
 
             // Setup anti-idle if requested
             if (payload.antiIdle && payload.antiIdleInterval && payload.antiIdleInterval > 0) {
               const idleString = payload.antiIdleString || '\x00'
-              setupAntiIdle(payload.sessionId, session, payload.antiIdleInterval, idleString)
+              setupAntiIdle(sessionId, session, payload.antiIdleInterval, idleString)
             }
 
+            // Only act if this connection is still the live one for the tab —
+            // a reconnect reuses the sessionId, and a stale close/error from
+            // the previous connection must not tear down the new one.
+            const isCurrent = () => activeSessions.get(sessionId)?.client === client
+
             const flush = () => {
-              const s = activeSessions.get(payload.sessionId)
-              if (s) s.flushTimer = null
+              if (!isCurrent()) return
+              session.flushTimer = null
               if (pending) {
-                getWindow()?.webContents.send('ssh:data', payload.sessionId, pending)
+                getWindow()?.webContents.send('ssh:data', sessionId, pending)
                 pending = ''
               }
             }
             const scheduleFlush = () => {
-              const s = activeSessions.get(payload.sessionId)
-              if (s && !s.flushTimer) s.flushTimer = setTimeout(flush, 4)
+              if (isCurrent() && !session.flushTimer) session.flushTimer = setTimeout(flush, 4)
             }
 
             // Zmodem detection buffer
@@ -662,10 +614,10 @@ export function setupSshHandlers(
                   zmodemBuffer = zmodemBuffer.slice(-ZMODEM_BUFFER_SIZE)
                 }
 
-                const detection = handleZmodemDetection(payload.sessionId, zmodemBuffer, true)
+                const detection = handleZmodemDetection(sessionId, zmodemBuffer, true)
                 if (detection.detected) {
                   // Notify renderer of Zmodem detection
-                  getWindow()?.webContents.send('zmodem:detected', payload.sessionId, { type: detection.type })
+                  getWindow()?.webContents.send('zmodem:detected', sessionId, { type: detection.type })
                   // Keep data in stream (zmodem will handle it)
                 }
               }
@@ -674,20 +626,16 @@ export function setupSshHandlers(
               scheduleFlush()
             })
             stream.stderr.on('data', (data: Buffer) => { pending += data.toString('utf-8'); scheduleFlush() })
-            stream.on('close', () => {
-              if (activeSessions.has(payload.sessionId)) {
-                teardownSession(payload.sessionId)
-                getWindow()?.webContents.send('ssh:closed', payload.sessionId)
-              }
-            })
+
+            const onGone = () => {
+              if (!isCurrent()) return
+              teardownSession(sessionId)
+              getWindow()?.webContents.send('ssh:closed', sessionId)
+            }
+            stream.on('close', onGone)
 
             client.removeAllListeners('error')
-            client.on('error', () => {
-              if (activeSessions.has(payload.sessionId)) {
-                teardownSession(payload.sessionId)
-                getWindow()?.webContents.send('ssh:closed', payload.sessionId)
-              }
-            })
+            client.on('error', onGone)
 
             settle({ success: true })
           })
@@ -696,32 +644,39 @@ export function setupSshHandlers(
         if (payload.jumpHost) {
           // ── Jump Host flow ────────────────────────────────────────────────────
           const jh = payload.jumpHost
-          const jumpClient = new Client()
+          const jumpClient = newClient()
 
-          jumpClient.on('error', (err) => settle({ success: false, error: `Jump host: ${err.message}` }))
+          jumpClient.on('error', (err) => {
+            if (!isAgentError(err)) settle({ success: false, error: `Jump host: ${err.message}` })
+          })
 
           jumpClient.on('ready', () => {
+            if (cancelled) return
             jumpClient.forwardOut(
               '127.0.0.1', 0,
               payload.host, payload.port,
               (err, tunnel) => {
                 if (err) {
-                  jumpClient.end()
                   return settle({ success: false, error: `Tunnel: ${err.message}` })
                 }
+                if (cancelled) {
+                  tunnel.destroy()
+                  return
+                }
 
-                const client = new Client()
+                const client = newClient()
                 client.on('error', (err) => {
-                  jumpClient.end()
-                  settle({ success: false, error: err.message })
+                  if (!isAgentError(err)) settle({ success: false, error: err.message })
                 })
                 client.on('ready', () => openShell(client, jumpClient))
 
                 client.connect(buildConnectConfig(
+                  client,
                   payload.host, payload.port, payload.username,
                   payload.password, payload.privateKey, payload.passphrase,
                   payload.readyTimeout ?? 30000, payload.keepaliveInterval ?? 30000,
                   payload.keepaliveCountMax ?? 3,
+                  resolveAgent(payload.agentForwarding, payload.agentSocketPath),
                   tunnel
                 ))
               }
@@ -729,23 +684,34 @@ export function setupSshHandlers(
           })
 
           jumpClient.connect(buildConnectConfig(
+            jumpClient,
             jh.host, jh.port, jh.username,
             jh.password, jh.privateKey, jh.passphrase,
             payload.readyTimeout ?? 30000, payload.keepaliveInterval ?? 30000,
-            payload.keepaliveCountMax ?? 3
+            payload.keepaliveCountMax ?? 3,
+            resolveAgent(jh.agentForwarding, jh.agentSocketPath)
           ))
 
         } else {
           // ── Direct connection (possibly through proxy) ─────────────────────
           const connectDirect = (sock?: net.Socket) => {
-            const client = new Client()
-            client.on('error', (err) => settle({ success: false, error: err.message }))
+            if (cancelled) {
+              sock?.destroy()
+              return
+            }
+            if (sock) owned.push(sock)
+            const client = newClient()
+            client.on('error', (err) => {
+              if (!isAgentError(err)) settle({ success: false, error: err.message })
+            })
             client.on('ready', () => openShell(client, null))
             client.connect(buildConnectConfig(
+              client,
               payload.host, payload.port, payload.username,
               payload.password, payload.privateKey, payload.passphrase,
               payload.readyTimeout ?? 30000, payload.keepaliveInterval ?? 30000,
               payload.keepaliveCountMax ?? 3,
+              resolveAgent(payload.agentForwarding, payload.agentSocketPath),
               sock
             ))
           }
@@ -779,11 +745,13 @@ export function setupSshHandlers(
   })
 
   ipcMain.handle('ssh:disconnect', (_, sessionId: string) => {
+    pendingConnects.get(sessionId)?.cancel()
     teardownSession(sessionId)
     return true
   })
 
   ipcMain.handle('ssh:disconnect-all', () => {
+    for (const pending of [...pendingConnects.values()]) pending.cancel()
     for (const id of [...activeSessions.keys()]) {
       teardownSession(id)
     }

@@ -34,6 +34,13 @@ const onWindowMaximized  = makeFanout<[boolean]>('window:maximized-change')
 const onUpdaterAvailable = makeFanout<[{ version: string; releaseDate: string; releaseNotes: string | null }]>('updater:update-available')
 const onUpdaterError     = makeFanout<[string]>('updater:error')
 
+type HostKeyPrompt = {
+  requestId: string; host: string; port: number; keyType: string; fingerprint: string
+  changed: boolean; oldFingerprint?: string; oldKeyType?: string
+}
+const onHostKeyPrompt       = makeFanout<[HostKeyPrompt]>('ssh:host-key-prompt')
+const onHostKeyPromptCancel = makeFanout<[string]>('ssh:host-key-prompt-cancel')
+
 type AiProviderId  = 'anthropic' | 'openai' | 'xai' | 'custom'
 type AiConfigPatch = { source?: 'hosted' | 'byok'; provider?: AiProviderId; model?: string; baseUrl?: string }
 type AiDraft       = { key?: string; baseUrl?: string; model?: string }
@@ -175,9 +182,11 @@ const api = {
   // Auth
   auth: {
     hasMasterPassword: () => ipcRenderer.invoke('auth:hasMasterPassword'),
-    setMasterPassword: (password: string) => ipcRenderer.invoke('auth:setMasterPassword', password),
+    setMasterPassword: (password: string, currentPassword?: string) =>
+      ipcRenderer.invoke('auth:setMasterPassword', password, currentPassword),
     verifyMasterPassword: (password: string) => ipcRenderer.invoke('auth:verifyMasterPassword', password),
-    clearMasterPassword: (currentPassword: string) => ipcRenderer.invoke('auth:clearMasterPassword', currentPassword)
+    clearMasterPassword: (currentPassword: string) => ipcRenderer.invoke('auth:clearMasterPassword', currentPassword),
+    lock: () => ipcRenderer.invoke('auth:lock')
   },
 
   // Command History (Smart History)
@@ -240,6 +249,19 @@ const api = {
     ping: (host: string, port: number): Promise<{ alive: boolean; latency?: number }> =>
       ipcRenderer.invoke('connection:ping', host, port),
   },
+
+  // SSH host key verification (TOFU known_hosts)
+  hostKeys: {
+    respond: (requestId: string, accept: boolean) => ipcRenderer.invoke('ssh:host-key-response', requestId, accept),
+    forget:  (host: string, port: number) => ipcRenderer.invoke('ssh:host-key-forget', host, port),
+    onPrompt:       onHostKeyPrompt,
+    onPromptCancel: onHostKeyPromptCancel,
+  },
+
+  // Security notices raised by the main process (e.g. no OS keyring)
+  security: {
+    getWarnings: (): Promise<string[]> => ipcRenderer.invoke('security:get-warnings'),
+  },
 }
 
 if (process.contextIsolated) {
@@ -249,6 +271,6 @@ if (process.contextIsolated) {
     console.error(error)
   }
 } else {
-  // @ts-ignore
-  window.api = api
+  // Without context isolation the preload shares the page's global (window)
+  ;(globalThis as unknown as { api: typeof api }).api = api
 }

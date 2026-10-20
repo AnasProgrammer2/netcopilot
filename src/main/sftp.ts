@@ -1,6 +1,7 @@
 import { IpcMain, BrowserWindow, dialog } from 'electron'
 import { Client, ConnectConfig, SFTPWrapper } from 'ssh2'
 import * as path from 'path'
+import { createHostVerifier, cancelHostKeyPrompts } from './hostKeys'
 
 export interface SftpEntry {
   name: string
@@ -17,12 +18,27 @@ interface SftpSession {
 }
 
 const sftpSessions = new Map<string, SftpSession>()
+/** Clients still connecting, so a disconnect during the handshake closes them. */
+const pendingSftpClients = new Map<string, { client: Client; cancel: () => void }>()
+
+/** Remove our listeners and close; keep a no-op 'error' listener so a late error can't crash main. */
+function silenceAndEnd(client: Client): void {
+  cancelHostKeyPrompts(client)
+  client.removeAllListeners()
+  client.on('error', () => { /* ignore late errors */ })
+  try { client.end() } catch { /* already closed */ }
+}
 
 function teardownSftpSession(sessionId: string): void {
+  const pending = pendingSftpClients.get(sessionId)
+  if (pending) {
+    pendingSftpClients.delete(sessionId)
+    silenceAndEnd(pending.client)
+    pending.cancel()
+  }
   const session = sftpSessions.get(sessionId)
   if (!session) return
-  session.client.removeAllListeners()
-  try { session.client.end() } catch { /* already closed */ }
+  silenceAndEnd(session.client)
   sftpSessions.delete(sessionId)
 }
 
@@ -38,26 +54,39 @@ export function setupSftpHandlers(ipcMain: IpcMain, getWindow: () => BrowserWind
     passphrase?: string
   }) => {
     return new Promise<{ success: boolean; error?: string }>((resolve) => {
-      if (sftpSessions.has(payload.sessionId)) {
-        teardownSftpSession(payload.sessionId)
-      }
+      teardownSftpSession(payload.sessionId)
 
       const client = new Client()
+      const isPending = () => pendingSftpClients.get(payload.sessionId)?.client === client
+      // Torn down (sftp:disconnect / reconnect) before the handshake finished
+      pendingSftpClients.set(payload.sessionId, {
+        client,
+        cancel: () => resolve({ success: false, error: 'Connection cancelled' }),
+      })
 
       client.on('error', (err) => {
+        if (isPending()) pendingSftpClients.delete(payload.sessionId)
+        silenceAndEnd(client)
         resolve({ success: false, error: err.message })
       })
 
       client.on('ready', () => {
         client.sftp((err, sftp) => {
+          if (!isPending()) {
+            silenceAndEnd(client)
+            return resolve({ success: false, error: 'Connection cancelled' })
+          }
+          pendingSftpClients.delete(payload.sessionId)
           if (err) {
-            client.end()
+            silenceAndEnd(client)
             return resolve({ success: false, error: err.message })
           }
           sftpSessions.set(payload.sessionId, { client, sftp })
 
           client.removeAllListeners('error')
           client.on('error', () => {
+            // Ignore stale errors from a connection that was replaced
+            if (sftpSessions.get(payload.sessionId)?.client !== client) return
             teardownSftpSession(payload.sessionId)
             getWindow()?.webContents.send('sftp:closed', payload.sessionId)
           })
@@ -72,6 +101,7 @@ export function setupSftpHandlers(ipcMain: IpcMain, getWindow: () => BrowserWind
         username: payload.username,
         readyTimeout: 30000,
         keepaliveInterval: 30000,
+        hostVerifier: createHostVerifier(client, payload.host, payload.port, getWindow),
       }
       if (payload.privateKey) {
         cfg.privateKey = payload.privateKey

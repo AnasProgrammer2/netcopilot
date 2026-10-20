@@ -10,6 +10,7 @@ import { ConnectionDialog } from './components/dialogs/ConnectionDialog'
 import { QuickConnect } from './components/dialogs/QuickConnect'
 import { SettingsDialog } from './components/dialogs/SettingsDialog'
 import { HelpDialog } from './components/dialogs/HelpDialog'
+import { HostKeyDialog } from './components/dialogs/HostKeyDialog'
 import { TitleBar } from './components/TitleBar'
 import { MasterPasswordLock } from './components/MasterPasswordLock'
 import { cn, getInstallerUrl } from './lib/utils'
@@ -60,6 +61,10 @@ export default function App(): JSX.Element {
       loadSettings()
       loadSnippets()
       loadSnippetFolders()
+      // One-time security notices from main (e.g. DB key stored without OS keyring)
+      window.api.security.getWarnings().then((warnings) => {
+        warnings.forEach((w) => toast.warning('Security notice', { description: w, duration: 20000 }))
+      }).catch(() => { /* non-critical */ })
     }
   }, [masterLocked])
 
@@ -87,7 +92,15 @@ export default function App(): JSX.Element {
       autoLockMinsRef.current = Number(v) || 0
       if (autoLockMinsRef.current <= 0) return
       const idleMin = (Date.now() - lastActivityRef.current) / 60000
-      if (idleMin >= autoLockMinsRef.current) setLocked(true)
+      if (idleMin >= autoLockMinsRef.current) {
+        setLocked(true)
+        // Re-check (a master password may have been set since startup) and
+        // lock the main process too, so stored credentials stay sealed.
+        window.api.auth.hasMasterPassword().then((has) => {
+          setHasMasterPassword(has)
+          if (has) window.api.auth.lock()
+        }).catch(() => { /* ignore */ })
+      }
     }, 15000)
 
     return () => {
@@ -259,6 +272,7 @@ export default function App(): JSX.Element {
       <ConnectionDialog />
       <QuickConnect />
       <SettingsDialog />
+      <HostKeyDialog />
       <HelpDialog
         open={helpOpen}
         initialTab={helpTab}

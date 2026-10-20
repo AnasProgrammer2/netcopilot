@@ -5,6 +5,7 @@ import { DEFAULT_AI_BLACKLIST } from './aiDefaults'
 import { loadLicenseKey, getDeviceId } from './license'
 import { enforcePolicy, mergeBlacklists, type AiPermission } from '../shared/aiPolicy'
 import { getSetting, setSetting } from './store'
+import { isUnlocked } from './masterPassword'
 import { loadCredential, saveCredential, deleteCredential } from './credentials'
 import {
   type AiProvider,
@@ -807,6 +808,7 @@ async function resolveTurnFn(run: AiRunState): Promise<{ ok: true; turn: TurnFn 
   const source = getAiSource()
 
   if (source === 'byok') {
+    if (!isUnlocked()) return { ok: false, error: 'NetCopilot is locked. Unlock it to use your AI provider key.' }
     const cfg   = loadProviderConfig(getAiProvider())
     const error = providerConfigError(cfg)
     if (error) return { ok: false, error }

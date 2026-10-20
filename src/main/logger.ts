@@ -1,6 +1,7 @@
 import { IpcMain, dialog, BrowserWindow, app } from 'electron'
 import { createWriteStream, WriteStream, mkdirSync, statSync, renameSync, existsSync, readdirSync, unlinkSync } from 'fs'
 import path from 'path'
+import { getSetting } from './store'
 
 const openLogs = new Map<string, WriteStream>()
 const logMetadata = new Map<string, {
@@ -12,6 +13,22 @@ const logMetadata = new Map<string, {
   rotationSizeBytes: number
   maxFiles: number
 }>()
+
+/** True when `target` is `base` itself or inside it (no `..` escape, same drive). */
+function isInside(base: string, target: string): boolean {
+  const rel = path.relative(path.resolve(base), target)
+  return rel === '' || (rel !== '..' && !rel.startsWith('..' + path.sep) && !path.isAbsolute(rel))
+}
+
+/** Auto-log may write under Documents or the user-configured log directory. */
+function isAllowedLogPath(resolved: string): boolean {
+  const bases = [app.getPath('documents')]
+  const configured = getSetting<string>('logDirectory')
+  if (typeof configured === 'string' && configured.trim() && path.isAbsolute(configured)) {
+    bases.push(configured)
+  }
+  return bases.some((base) => isInside(base, resolved))
+}
 
 function showSaveDialog(win: BrowserWindow | null | undefined, opts: Electron.SaveDialogOptions) {
   return win ? dialog.showSaveDialog(win, opts) : dialog.showSaveDialog(opts)
@@ -140,9 +157,8 @@ export function setupLogHandlers(ipcMain: IpcMain, getWindow: () => BrowserWindo
   ipcMain.handle('log:startAt', (_, filePath: string, sessionName: string, config?: RotationConfig) => {
     try {
       const resolved = path.resolve(filePath)
-      const allowedBase = app.getPath('documents')
-      if (!resolved.startsWith(allowedBase)) {
-        console.error('[logger] startAt blocked — path outside documents:', resolved)
+      if (!isAllowedLogPath(resolved) || path.extname(resolved).toLowerCase() !== '.log') {
+        console.error('[logger] startAt blocked — path outside the log directory:', resolved)
         return null
       }
       mkdirSync(path.dirname(resolved), { recursive: true })

@@ -680,6 +680,16 @@ export function TerminalTab({ session }: Props): JSX.Element {
           })
         }
 
+        if (!mountedRef.current) {
+          // Tab closed while connecting: the unmount cleanup's disconnect may
+          // have run before the session existed in main — close it now so it
+          // doesn't linger as an orphaned connection.
+          if (conn.protocol === 'ssh')         window.api.ssh.disconnect(session.id)
+          else if (conn.protocol === 'serial') window.api.serial.disconnect(session.id)
+          else                                 window.api.telnet.disconnect(session.id)
+          return
+        }
+
         if (!cancelled && mountedRef.current) {
           setSessionStatus(session.id, 'connected')
           termRef.current?.write('\x1b[32mConnected\x1b[0m\r\n')
@@ -906,7 +916,6 @@ export function TerminalTab({ session }: Props): JSX.Element {
       unsubClosed?.()
       unsubError?.()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.id, session.connection.updatedAt])
 
   // ── 4. Disconnect on unmount ──────────────────────────────────────────────────

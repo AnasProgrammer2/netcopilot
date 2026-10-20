@@ -185,7 +185,7 @@ function processReceiveData(sessionId: string, session: ZmodemSession): { handle
 
   const data = session.buffer
   let writeStart = 0
-  let writeEnd = data.length
+  const writeEnd = data.length
 
   // Look for frame markers
   const frameStart = data.indexOf(0x01) // SOH

@@ -9,7 +9,9 @@ permissions:
   contents: write
 
 jobs:
-  # Create the GitHub Release first so build jobs don't race each other
+  # Create the GitHub Release first (as a DRAFT) so build jobs don't race each
+  # other and users / auto-update never see a release with missing assets.
+  # It is published by the `publish-release` job once every platform succeeds.
   create-release:
     runs-on: ubuntu-latest
     steps:
@@ -19,9 +21,9 @@ jobs:
           fetch-depth: 0
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          draft: false
+          draft: true
           prerelease: false
           generate_release_notes: true
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -75,7 +77,7 @@ jobs:
       # Pin windows-2022 and load MSVC before compiling native modules.
       - name: Setup Windows build tools
         if: matrix.platform == 'win'
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
 
       - name: Install dependencies
         env:
@@ -147,3 +149,13 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ${{ matrix.build_cmd }}
+
+  # Publish the draft only after all platform builds uploaded their assets.
+  publish-release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false

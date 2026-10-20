@@ -46,6 +46,19 @@ interface SshConnectPayload {
   }
 }
 
+interface HostKeyPrompt {
+  requestId: string
+  host: string
+  port: number
+  keyType: string
+  /** OpenSSH-style "SHA256:..." fingerprint */
+  fingerprint: string
+  /** True when a different key was previously trusted for this host:port */
+  changed: boolean
+  oldFingerprint?: string
+  oldKeyType?: string
+}
+
 interface TelnetConnectPayload {
   sessionId: string
   host: string
@@ -200,9 +213,10 @@ declare global {
     }
     auth: {
       hasMasterPassword(): Promise<boolean>
-      setMasterPassword(password: string): Promise<{ success: boolean; error?: string }>
+      setMasterPassword(password: string, currentPassword?: string): Promise<{ success: boolean; error?: string }>
       verifyMasterPassword(password: string): Promise<boolean>
       clearMasterPassword(currentPassword: string): Promise<{ success: boolean; error?: string }>
+      lock(): Promise<boolean>
     }
     history: {
       record(deviceType: string, command: string): Promise<boolean>
@@ -245,6 +259,15 @@ declare global {
     }
     connection: {
       ping(host: string, port: number): Promise<{ alive: boolean; latency?: number }>
+    }
+    hostKeys: {
+      respond(requestId: string, accept: boolean): Promise<boolean>
+      forget(host: string, port: number): Promise<boolean>
+      onPrompt(cb: (prompt: HostKeyPrompt) => void): () => void
+      onPromptCancel(cb: (requestId: string) => void): () => void
+    }
+    security: {
+      getWarnings(): Promise<string[]>
     }
   }
 }
