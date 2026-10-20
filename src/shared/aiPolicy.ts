@@ -1,5 +1,17 @@
 export type AiPermission = 'troubleshoot' | 'full-access'
 
+/** Result of evaluating a command against the active safety policy. */
+export type PolicyDecision = {
+  /** Hard block — command must not run. */
+  blockReason: string | null
+  /**
+   * Soft gate — even in Auto Pilot / full-access, the UI must pause for an
+   * explicit user click. Used for high-risk config changes that are not
+   * covered by the denylist alone.
+   */
+  requiresConfirmation: boolean
+}
+
 /**
  * Verbs allowed as the first token of a troubleshoot-mode command.
  *
@@ -274,26 +286,83 @@ export function isBlacklisted(command: string, patterns: string[]): boolean {
   return false
 }
 
+/**
+ * Patterns that always require a human click in full-access — even Auto Pilot.
+ * Kept in shared so main + renderer + tests share one definition.
+ * (Mirrored from aiDefaults HIGH_RISK_CONFIRM_PATTERNS; duplicated lightly to
+ * avoid pulling main-process defaults into the renderer bundle.)
+ */
+const DEFAULT_HIGH_RISK_CONFIRM: string[] = [
+  'configure terminal', 'configure', 'conf t', 'config t',
+  'write memory', 'write mem', 'wr mem', 'wr ',
+  'copy running-config', 'copy run',
+  'commit', 'rollback',
+  'interface ', 'no interface',
+  'ip route', 'ipv6 route', 'route-map',
+  'access-list', 'ip access-list',
+  'iptables', 'nft ', 'ufw ',
+  'systemctl', 'service ',
+  'mount ', 'umount ',
+  'useradd', 'userdel', 'passwd',
+  'chmod ', 'chown ',
+  'mkfs', 'fdisk', 'parted',
+]
+
+export function isHighRiskCommand(
+  command: string,
+  patterns: string[] = DEFAULT_HIGH_RISK_CONFIRM,
+): boolean {
+  return isBlacklisted(command, patterns)
+}
+
 export function enforcePolicy(
   command:    string,
   permission: AiPermission,
   blacklist:  string[],
+  highRiskPatterns: string[] = DEFAULT_HIGH_RISK_CONFIRM,
 ): string | null {
+  return evaluatePolicy(command, permission, blacklist, highRiskPatterns).blockReason
+}
+
+export function evaluatePolicy(
+  command:    string,
+  permission: AiPermission,
+  blacklist:  string[],
+  highRiskPatterns: string[] = DEFAULT_HIGH_RISK_CONFIRM,
+): PolicyDecision {
   if (!command || typeof command !== 'string') {
-    return '(rejected by safety policy: empty or non-string command)'
+    return {
+      blockReason: '(rejected by safety policy: empty or non-string command)',
+      requiresConfirmation: false,
+    }
   }
   if (isBlacklisted(command, blacklist)) {
-    return '(rejected by server-side blacklist — refine or ask the user to whitelist this command)'
+    return {
+      blockReason: '(rejected by server-side blacklist — refine or ask the user to whitelist this command)',
+      requiresConfirmation: false,
+    }
   }
   if (permission === 'troubleshoot') {
     if (hasShellChaining(command)) {
-      return '(rejected: troubleshoot mode does not allow command chaining, redirection or shell substitution. Switch to Fix Mode or Auto Pilot.)'
+      return {
+        blockReason: '(rejected: troubleshoot mode does not allow command chaining, redirection or shell substitution. Switch to Fix Mode or Auto Pilot.)',
+        requiresConfirmation: false,
+      }
     }
     if (!isReadOnlyCommand(command)) {
-      return '(rejected: troubleshoot mode allows read-only commands only. Switch to Fix Mode or Auto Pilot for state-changing operations.)'
+      return {
+        blockReason: '(rejected: troubleshoot mode allows read-only commands only. Switch to Fix Mode or Auto Pilot for state-changing operations.)',
+        requiresConfirmation: false,
+      }
     }
+    return { blockReason: null, requiresConfirmation: false }
   }
-  return null
+
+  // full-access: denylist already applied; high-risk still needs a human click
+  return {
+    blockReason: null,
+    requiresConfirmation: isHighRiskCommand(command, highRiskPatterns),
+  }
 }
 
 export function mergeBlacklists(stored: string[], sessionExtra?: string[]): string[] {
@@ -303,4 +372,9 @@ export function mergeBlacklists(stored: string[], sessionExtra?: string[]): stri
     if (p && !merged.some((x) => x.toLowerCase() === p.toLowerCase())) merged.push(p)
   }
   return merged
+}
+
+/** Ensure locked core patterns are always present regardless of user edits. */
+export function withLockedBlacklist(userList: string[], locked: string[]): string[] {
+  return mergeBlacklists(locked, userList)
 }

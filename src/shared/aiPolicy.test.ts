@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   enforcePolicy,
+  evaluatePolicy,
   hasShellChaining,
   isBlacklisted,
   isReadOnlyCommand,
@@ -77,6 +78,18 @@ describe('enforcePolicy', () => {
 
   it('rejects empty commands', () => {
     expect(enforcePolicy('', 'troubleshoot', blacklist)).toContain('empty')
+  })
+
+  it('flags high-risk full-access commands for confirmation', () => {
+    const decision = evaluatePolicy('configure terminal', 'full-access', blacklist)
+    expect(decision.blockReason).toBeNull()
+    expect(decision.requiresConfirmation).toBe(true)
+  })
+
+  it('does not require confirmation for read-only in full-access', () => {
+    const decision = evaluatePolicy('show ip bgp summary', 'full-access', blacklist)
+    expect(decision.blockReason).toBeNull()
+    expect(decision.requiresConfirmation).toBe(false)
   })
 })
 

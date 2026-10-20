@@ -1830,6 +1830,8 @@ function AiSection(): JSX.Element {
         <div className="flex items-start justify-between mb-2 gap-2">
           <p className="text-xs text-muted-foreground leading-relaxed flex-1">
             Commands matching any pattern below are <strong className="text-foreground">always blocked</strong>, regardless of mode or approval setting.
+            A locked core set (reload, write erase, rm -rf, …) is always enforced even if removed here.
+            High-risk config commands (configure, write memory, iptables, …) still pause for confirmation in Auto Pilot.
           </p>
           <button
             onClick={async () => {

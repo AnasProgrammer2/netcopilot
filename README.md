@@ -296,7 +296,7 @@ Output files in `dist/`.
 
 | Layer | Technology |
 |:---|:---|
-| Framework | Electron 31 + electron-vite |
+| Framework | Electron 44 + electron-vite |
 | Frontend | React 19, Tailwind CSS, Zustand |
 | Terminal | xterm.js 6 |
 | Database | SQLite (SQLCipher AES-256) via better-sqlite3 |

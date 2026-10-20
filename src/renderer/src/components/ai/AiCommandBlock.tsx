@@ -67,8 +67,14 @@ export function AiCommandBlock({ call, approval, blacklist, onApprove, onBlock }
               <ShieldAlert className="w-3 h-3" />
               Blocked by blacklist
             </span>
-          ) : approval === 'ask' ? (
+          ) : approval === 'ask' || call.requiresConfirmation ? (
             <>
+              {call.requiresConfirmation && approval === 'auto' && (
+                <span className="flex items-center gap-1 text-amber-400 mr-1">
+                  <ShieldAlert className="w-3 h-3" />
+                  High-risk — confirm
+                </span>
+              )}
               <button
                 onClick={() => onApprove(call.id)}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-primary/20 text-primary hover:bg-primary/30 transition-colors font-medium"

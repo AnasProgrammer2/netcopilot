@@ -65,7 +65,7 @@ function createWindow(): void {
   })
 
   if (process.platform === 'darwin' && !icon.isEmpty()) {
-    app.dock.setIcon(icon)
+    app.dock?.setIcon(icon)
   }
 
   mainWindow.on('ready-to-show', () => {

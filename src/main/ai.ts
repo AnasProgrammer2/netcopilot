@@ -1,9 +1,9 @@
 import { IpcMain, BrowserWindow, dialog } from 'electron'
 import { writeFile } from 'fs/promises'
 import { getDb } from './db'
-import { DEFAULT_AI_BLACKLIST } from './aiDefaults'
+import { DEFAULT_AI_BLACKLIST, HIGH_RISK_CONFIRM_PATTERNS, LOCKED_AI_BLACKLIST } from './aiDefaults'
 import { loadLicenseKey, getDeviceId } from './license'
-import { enforcePolicy, mergeBlacklists, type AiPermission } from '../shared/aiPolicy'
+import { evaluatePolicy, mergeBlacklists, withLockedBlacklist, type AiPermission } from '../shared/aiPolicy'
 import { getSetting, setSetting } from './store'
 import { isUnlocked } from './masterPassword'
 import { loadCredential, saveCredential, deleteCredential } from './credentials'
@@ -137,11 +137,12 @@ function loadStoredBlacklist(): string[] {
   try {
     const db = getDb()
     const row = db.prepare("SELECT value FROM settings WHERE key = 'ai.blacklist'").get() as { value?: string } | undefined
-    if (!row?.value) return DEFAULT_AI_BLACKLIST
+    if (!row?.value) return withLockedBlacklist(DEFAULT_AI_BLACKLIST, LOCKED_AI_BLACKLIST)
     const parsed = JSON.parse(row.value)
-    return Array.isArray(parsed) ? parsed as string[] : DEFAULT_AI_BLACKLIST
+    const userList = Array.isArray(parsed) ? parsed as string[] : DEFAULT_AI_BLACKLIST
+    return withLockedBlacklist(userList, LOCKED_AI_BLACKLIST)
   } catch {
-    return DEFAULT_AI_BLACKLIST
+    return withLockedBlacklist(DEFAULT_AI_BLACKLIST, LOCKED_AI_BLACKLIST)
   }
 }
 
@@ -1096,21 +1097,24 @@ async function runAiLoop(
             if (run.abortController.signal.aborted) break
 
             const subCallId = `${toolBlock.id}_${allOutputs.length}`
-            const policyResult = enforcePolicy(cmd.command, effectivePermission, effectiveBlacklist)
+            const decision = evaluatePolicy(
+              cmd.command, effectivePermission, effectiveBlacklist, HIGH_RISK_CONFIRM_PATTERNS,
+            )
 
             // Always surface the attempt to the renderer so the user can see
             // exactly what the agent tried to do — even if we block it.
             getWindow()?.webContents.send('ai:tool-call', {
               sessionId,
-              id:            subCallId,
-              command:       cmd.command,
-              reason:        cmd.reason,
-              targetSession: batchInput.target_session,
-              policyBlock:   policyResult ?? undefined,
+              id:                   subCallId,
+              command:              cmd.command,
+              reason:               cmd.reason,
+              targetSession:        batchInput.target_session,
+              policyBlock:          decision.blockReason ?? undefined,
+              requiresConfirmation: decision.requiresConfirmation,
             })
 
-            if (policyResult) {
-              allOutputs.push(`> ${cmd.command}\n${policyResult}`)
+            if (decision.blockReason) {
+              allOutputs.push(`> ${cmd.command}\n${decision.blockReason}`)
               continue
             }
 
@@ -1130,22 +1134,25 @@ async function runAiLoop(
         // run_command: send to renderer, wait for execution result
         const input = toolBlock.input as { command: string; reason: string; target_session?: string }
 
-        const policyResult = enforcePolicy(input.command, effectivePermission, effectiveBlacklist)
+        const decision = evaluatePolicy(
+          input.command, effectivePermission, effectiveBlacklist, HIGH_RISK_CONFIRM_PATTERNS,
+        )
 
         getWindow()?.webContents.send('ai:tool-call', {
           sessionId,
-          id:            toolBlock.id,
-          command:       input.command,
-          reason:        input.reason,
-          targetSession: input.target_session,
-          policyBlock:   policyResult ?? undefined,
+          id:                   toolBlock.id,
+          command:              input.command,
+          reason:               input.reason,
+          targetSession:        input.target_session,
+          policyBlock:          decision.blockReason ?? undefined,
+          requiresConfirmation: decision.requiresConfirmation,
         })
 
-        if (policyResult) {
+        if (decision.blockReason) {
           toolResults.push({
             type:        'tool_result',
             tool_use_id: toolBlock.id,
-            content:     policyResult,
+            content:     decision.blockReason,
           })
           continue
         }

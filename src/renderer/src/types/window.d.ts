@@ -246,7 +246,7 @@ declare global {
       getModels(): Promise<Record<AiProviderId, Array<{ id: string; label: string }>>>
       onChunk(cb: (evt: { sessionId: string; text: string }) => void): () => void
       onDone(cb: (evt: { sessionId: string; inputTokens?: number; outputTokens?: number }) => void): () => void
-      onToolCall(cb: (call: { sessionId: string; id: string; command: string; reason: string; targetSession?: string; policyBlock?: string }) => void): () => void
+      onToolCall(cb: (call: { sessionId: string; id: string; command: string; reason: string; targetSession?: string; policyBlock?: string; requiresConfirmation?: boolean }) => void): () => void
       onError(cb: (evt: { sessionId: string; message: string }) => void): () => void
       onPlan(cb: (plan: { sessionId: string; objective: string; steps: string[] }) => void): () => void
     }

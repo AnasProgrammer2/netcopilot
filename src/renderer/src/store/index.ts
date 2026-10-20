@@ -42,6 +42,7 @@ export interface AiToolCall {
   output?:        string
   targetSession?: string  // session ID to run command on (multi-session support)
   policyBlock?:   string  // set when main-process policy gate rejected the command
+  requiresConfirmation?: boolean  // high-risk: pause even in Auto Pilot
 }
 
 export interface AiPlan {

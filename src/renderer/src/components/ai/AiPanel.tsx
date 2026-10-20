@@ -184,7 +184,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       useAppStore.getState().addAiPlan({ objective, steps })
     })
 
-    const offToolCall = window.api.ai.onToolCall(async ({ sessionId, id, command, reason, targetSession, policyBlock }) => {
+    const offToolCall = window.api.ai.onToolCall(async ({ sessionId, id, command, reason, targetSession, policyBlock, requiresConfirmation }) => {
       if (!forActiveSession(sessionId)) return
       // First finalize any streaming message (Claude is done generating text for this turn)
       finalizeAiStream()
@@ -206,7 +206,9 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       const targetMsg = lastMsg
       if (!targetMsg) return
 
-      const toolCall = { id, command, reason, status: 'pending' as const, targetSession, policyBlock }
+      const toolCall = {
+        id, command, reason, status: 'pending' as const, targetSession, policyBlock, requiresConfirmation,
+      }
 
       // Attach the tool call to the assistant message
       updateAiToolCall(targetMsg.id, id, toolCall)
@@ -229,7 +231,9 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         return
       }
 
-      if (currentApproval === 'auto') {
+      // High-risk commands always pause for a click — even in Auto Pilot.
+      // This is the capability layer beyond the denylist alone.
+      if (currentApproval === 'auto' && !requiresConfirmation) {
         // Chain to queue so multiple auto-commands execute sequentially, not in parallel
         const msgId = targetMsg.id
         commandQueueRef.current = commandQueueRef.current.then(async () => {
@@ -240,7 +244,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         return
       }
 
-      // approval === 'ask' → wait for user click (handled in AiCommandBlock → onApprove)
+      // approval === 'ask' OR high-risk → wait for user click (AiCommandBlock → onApprove)
     })
 
     return () => {
