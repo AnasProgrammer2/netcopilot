@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { nanoid } from 'nanoid'
 import { X, Send, Sparkles, Trash2, Square, ShieldCheck, Wrench, AlertCircle, ChevronDown, Check, Eye, EyeOff, ShieldAlert, RotateCcw, Download, Zap } from 'lucide-react'
 import { useAppStore, AiMessage as AiMessageType, AiPermission, AiApproval, isAiReady, aiDestinationLabel, AI_PROVIDER_LABELS } from '../../store'
-import { cn, stripAnsi, isCommandBlacklisted } from '../../lib/utils'
+import { cn, stripAnsi, isCommandBlacklisted, hasUnsafeCharacters } from '../../lib/utils'
 import { AiMessage } from './AiMessage'
 import { Session } from '../../types'
 import { terminalRegistry } from '../../lib/terminalRegistry'
@@ -184,7 +184,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       useAppStore.getState().addAiPlan({ objective, steps })
     })
 
-    const offToolCall = window.api.ai.onToolCall(async ({ sessionId, id, command, reason, targetSession, policyBlock, requiresConfirmation }) => {
+    const offToolCall = window.api.ai.onToolCall(async ({ sessionId, id, command, reason, targetSession, policyBlock, requiresConfirmation, autoApprove }) => {
       if (!forActiveSession(sessionId)) return
       // First finalize any streaming message (Claude is done generating text for this turn)
       finalizeAiStream()
@@ -231,9 +231,9 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         return
       }
 
-      // High-risk commands always pause for a click — even in Auto Pilot.
-      // This is the capability layer beyond the denylist alone.
-      if (currentApproval === 'auto' && !requiresConfirmation) {
+      // Only run unattended when main approved it (Auto Pilot, not high-risk,
+      // not an Auto Watch turn, same session) AND the user is still in Auto Pilot.
+      if (autoApprove === true && currentApproval === 'auto' && !requiresConfirmation) {
         // Chain to queue so multiple auto-commands execute sequentially, not in parallel
         const msgId = targetMsg.id
         commandQueueRef.current = commandQueueRef.current.then(async () => {
@@ -257,6 +257,12 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
   }, [])
 
   const executeCommand = useCallback(async (msgId: string, callId: string, command: string, targetSessionId?: string) => {
+    // Last line of defence before bytes reach the device's line editor.
+    if (hasUnsafeCharacters(command)) {
+      updateAiToolCall(msgId, callId, { status: 'blocked', output: '(blocked: control or invisible characters)' })
+      await window.api.ai.toolResult(callId, '(command blocked: control or invisible characters)')
+      return
+    }
     updateAiToolCall(msgId, callId, { status: 'running' })
 
     // Determine which session to send command to
@@ -482,6 +488,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         host:            conn?.host ?? 'unknown',
         protocol:        conn?.protocol ?? 'ssh',
         permission:      sessionPermission,
+        approval:        sessionApproval,
         sessionBlacklist,
         isProactive,
         sessions: allSessions?.map(s => ({
