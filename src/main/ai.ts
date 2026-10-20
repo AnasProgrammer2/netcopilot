@@ -4,6 +4,18 @@ import { getDb } from './db'
 import { DEFAULT_AI_BLACKLIST } from './aiDefaults'
 import { loadLicenseKey, getDeviceId } from './license'
 import { enforcePolicy, mergeBlacklists, type AiPermission } from '../shared/aiPolicy'
+import { getSetting } from './store'
+import { loadCredential, saveCredential, deleteCredential } from './credentials'
+import {
+  type AiProvider,
+  type AiSource,
+  AI_MODELS,
+  callLocalTurn,
+  credentialKeyForProvider,
+  maskApiKey,
+  resolveModel,
+  testProviderConnection,
+} from './aiProviders'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -707,6 +719,64 @@ interface TurnResult {
   textCollected: string
 }
 
+type TurnFn = (
+  systemPrompt: string,
+  messages:     AnthropicMessage[],
+  onChunk:      (text: string) => void,
+) => Promise<TurnResult>
+
+function getAiSource(): AiSource {
+  const stored = getSetting<string>('ai.source')
+  return stored === 'byok' ? 'byok' : 'hosted'
+}
+
+function getAiProvider(): AiProvider {
+  const stored = getSetting<string>('ai.provider')
+  return stored === 'openai' ? 'openai' : 'anthropic'
+}
+
+function normalizeProvider(provider: AiProvider | string): AiProvider {
+  return provider === 'openai' ? 'openai' : 'anthropic'
+}
+
+async function resolveTurnFn(run: AiRunState): Promise<{ ok: true; turn: TurnFn } | { ok: false; error: string }> {
+  const source = getAiSource()
+
+  if (source === 'byok') {
+    const provider = getAiProvider()
+    const model    = resolveModel(provider, getSetting<string>('ai.model'))
+    const apiKey   = loadCredential(credentialKeyForProvider(provider))
+    if (!apiKey) {
+      return { ok: false, error: 'No API key. Add your Claude or OpenAI key in Settings → ARIA.' }
+    }
+    return {
+      ok: true,
+      turn: (systemPrompt, messages, onChunk) =>
+        callLocalTurn(
+          provider,
+          apiKey,
+          model,
+          systemPrompt,
+          messages,
+          [CREATE_PLAN_TOOL, RUN_COMMAND_TOOL, RUN_COMMANDS_TOOL],
+          8192,
+          onChunk,
+          run.abortController.signal,
+        ),
+    }
+  }
+
+  const licenseKey = await loadLicenseKey()
+  if (!licenseKey) {
+    return { ok: false, error: 'No license key. Get yours at netcopilot.app/register then add it in Settings → ARIA.' }
+  }
+  return {
+    ok: true,
+    turn: (systemPrompt, messages, onChunk) =>
+      callBackendTurn(systemPrompt, messages, licenseKey, run, onChunk),
+  }
+}
+
 async function callBackendTurn(
   systemPrompt: string,
   messages:     AnthropicMessage[],
@@ -866,9 +936,8 @@ function waitForToolResult(run: AiRunState, callId: string, timeoutMs = 300_000)
 // ── Core agentic loop ────────────────────────────────────────────────────────
 
 async function runAiLoop(
-  payload:    ChatPayload,
-  licenseKey: string,
-  getWindow:  () => BrowserWindow | null,
+  payload:   ChatPayload,
+  getWindow: () => BrowserWindow | null,
 ): Promise<void> {
   // Authoritative policy from DB — renderer payload is display-only.
   const effectivePermission = loadStoredPermission()
@@ -878,6 +947,13 @@ async function runAiLoop(
 
   const sessionId = payload.sessionId
   const run       = getOrCreateRun(sessionId)
+  const resolved  = await resolveTurnFn(run)
+  if (!resolved.ok) {
+    getWindow()?.webContents.send('ai:error', { sessionId, message: resolved.error })
+    getWindow()?.webContents.send('ai:done', { sessionId })
+    disposeRun(sessionId, '(missing provider credentials)')
+    return
+  }
 
   let totalInputTokens  = 0
   let totalOutputTokens = 0
@@ -897,11 +973,9 @@ async function runAiLoop(
         messages = compressConversation(messages)
       }
 
-      const turn = await callBackendTurn(
+      const turn = await resolved.turn(
         systemPrompt,
         messages,
-        licenseKey,
-        run,
         (text) => {
           if (!run.abortController.signal.aborted) {
             getWindow()?.webContents.send('ai:chunk', { sessionId, text })
@@ -1084,17 +1158,7 @@ export function setupAiHandlers(
     // Supersede any in-flight chat for THIS session only.
     abortRun(payload.sessionId, '(superseded by new chat turn)')
 
-    const licenseKey = await loadLicenseKey()
-    if (!licenseKey) {
-      getWindow()?.webContents.send('ai:error', {
-        sessionId: payload.sessionId,
-        message:   'No license key. Get yours at netcopilot.app/register then add it in Settings → ARIA.',
-      })
-      getWindow()?.webContents.send('ai:done', { sessionId: payload.sessionId })
-      return
-    }
-
-    runAiLoop(payload, licenseKey, getWindow).catch((err) => {
+    runAiLoop(payload, getWindow).catch((err) => {
       getWindow()?.webContents.send('ai:error', { sessionId: payload.sessionId, message: `Unexpected error: ${String(err)}` })
       getWindow()?.webContents.send('ai:done', { sessionId: payload.sessionId })
     })
@@ -1172,4 +1236,34 @@ export function setupAiHandlers(
     ).run({ v: JSON.stringify(DEFAULT_AI_BLACKLIST) })
     return DEFAULT_AI_BLACKLIST
   })
+
+  ipcMain.handle('ai:get-api-key-hint', (_, provider: AiProvider) => {
+    const key = loadCredential(credentialKeyForProvider(normalizeProvider(provider)))
+    return key
+      ? { hasKey: true,  hint: maskApiKey(key) }
+      : { hasKey: false, hint: null }
+  })
+
+  ipcMain.handle('ai:set-api-key', (_, provider: AiProvider, key: string) => {
+    const cleaned = key.trim()
+    if (!cleaned) return { success: false, error: 'API key is empty.' }
+    const saved = saveCredential(credentialKeyForProvider(normalizeProvider(provider)), cleaned)
+    if (!saved.success) return { success: false, error: saved.error }
+    return { success: true, hint: maskApiKey(cleaned) }
+  })
+
+  ipcMain.handle('ai:clear-api-key', (_, provider: AiProvider) => {
+    deleteCredential(credentialKeyForProvider(normalizeProvider(provider)))
+    return true
+  })
+
+  ipcMain.handle('ai:test-connection', async (_, provider: AiProvider, key?: string) => {
+    const p      = normalizeProvider(provider)
+    const apiKey = key?.trim() || loadCredential(credentialKeyForProvider(p))
+    if (!apiKey) return { ok: false, message: 'Enter an API key first.' }
+    const model = resolveModel(p, getSetting<string>('ai.model'))
+    return testProviderConnection(p, apiKey, model)
+  })
+
+  ipcMain.handle('ai:get-models', () => AI_MODELS)
 }

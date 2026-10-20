@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useState, useRef } from 'react'
 import { Lock, ArrowUpCircle, X, PanelLeftOpen } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
-import { useAppStore } from './store'
+import { useAppStore, isAiReady } from './store'
 import { Sidebar } from './components/sidebar/Sidebar'
 import { TerminalArea } from './components/terminal/TerminalArea'
 import { HomeScreen } from './components/home/HomeScreen'
@@ -20,11 +20,12 @@ export default function App(): JSX.Element {
     connections, sessions, activeSessionId,
     setQuickConnectOpen, setSettingsOpen, setAiPanelOpen, aiPanelOpen,
     setActiveSession, closeSession, setSplitSession, splitSessionId,
-    licenseValid,
+    licenseValid, aiSource, aiHasKey,
     sidebarCollapsed, sidebarWidth, setSidebarCollapsed,
     selectedConnectionIds, clearSelection,
     keybindingSettings,
   } = useAppStore()
+  const aiReady = isAiReady({ aiSource, aiHasKey, licenseValid })
   const [masterLocked, setMasterLocked] = useState<boolean | null>(null)
   const [hasMasterPassword, setHasMasterPassword] = useState(false)
   const [locked, setLocked] = useState(false)
@@ -148,9 +149,11 @@ export default function App(): JSX.Element {
         }
       } else if (matchKeybinding(e, keybindingSettings.toggleAi)) {
         e.preventDefault()
-        if (!aiPanelOpen && !licenseValid) {
-          toast.error('License key required', {
-            description: 'Add your license key in Settings → ARIA to use the AI assistant.',
+        if (!aiPanelOpen && !aiReady) {
+          toast.error(aiSource === 'byok' ? 'API key required' : 'License key required', {
+            description: aiSource === 'byok'
+              ? 'Add your Claude or OpenAI key in Settings → ARIA.'
+              : 'Add your license key in Settings → ARIA to use the AI assistant.',
             action: { label: 'Open Settings', onClick: () => setSettingsOpen(true, 'ai') }
           })
           return
@@ -177,7 +180,7 @@ export default function App(): JSX.Element {
     },
     [
       setQuickConnectOpen, setSettingsOpen, setAiPanelOpen, aiPanelOpen,
-      activeSessionId, splitSessionId, sessions, licenseValid,
+      activeSessionId, splitSessionId, sessions, aiReady, aiSource,
       closeSession, setSplitSession, setActiveSession,
       sidebarCollapsed, setSidebarCollapsed,
       selectedConnectionIds, clearSelection,

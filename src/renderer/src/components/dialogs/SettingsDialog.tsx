@@ -4,9 +4,9 @@ import {
   X, Monitor, Terminal, Network, Lock, Info, FileText,
   Sun, Moon, Laptop, Check, FolderOpen,
   Sparkles, Eye, EyeOff, ShieldCheck, Wrench, Zap,
-  RefreshCw, ArrowUpCircle, AlertCircle, Minus, Plus, ChevronDown, Keyboard
+  RefreshCw, ArrowUpCircle, AlertCircle, Minus, Plus, ChevronDown, Keyboard, Key, Cloud
 } from 'lucide-react'
-import { useAppStore, AiPermission, AiApproval } from '../../store'
+import { useAppStore, AiPermission, AiApproval, AiSource, AiProvider } from '../../store'
 import { cn, getInstallerUrl } from '../../lib/utils'
 import { TERMINAL_THEMES, getTerminalTheme } from '../../lib/terminalThemes'
 
@@ -1269,11 +1269,26 @@ function LabeledInput({ label, type, value, onChange }: {
   )
 }
 
+const FALLBACK_AI_MODELS: Record<AiProvider, Array<{ id: string; label: string }>> = {
+  anthropic: [
+    { id: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
+    { id: 'claude-opus-4-1',   label: 'Claude Opus 4.1'   },
+    { id: 'claude-haiku-4-5',  label: 'Claude Haiku 4.5'  },
+  ],
+  openai: [
+    { id: 'gpt-4o',      label: 'GPT-4o'      },
+    { id: 'gpt-4.1',     label: 'GPT-4.1'     },
+    { id: 'gpt-4o-mini', label: 'GPT-4o mini' },
+  ],
+}
+
 // ─── AI Copilot Settings Section ─────────────────────────────────────────────
 function AiSection(): JSX.Element {
   const {
     aiPermission, aiApproval, aiBlacklist,
     setAiPermission, setAiApproval, setAiBlacklist,
+    aiSource, aiProvider, aiModel, aiHasKey,
+    setAiSource, setAiProvider, setAiModel, setAiHasKey,
     licenseKey: storedKey, licenseValid, licensePlan, licenseExpiry, deviceId,
     setLicenseKey, setLicenseStatus, setDeviceId,
   } = useAppStore()
@@ -1284,6 +1299,12 @@ function AiSection(): JSX.Element {
   const [activateMsg, setActivateMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [settingsSaved, setSettingsSaved] = useState(false)
   const [blacklistInput, setBlacklistInput] = useState(aiBlacklist.join(', '))
+  const [apiKeyInput, setApiKeyInput] = useState('')
+  const [showApiKey, setShowApiKey]   = useState(false)
+  const [keyHint, setKeyHint]         = useState<string | null>(null)
+  const [testing, setTesting]         = useState(false)
+  const [testMsg, setTestMsg]         = useState<{ ok: boolean; text: string } | null>(null)
+  const [models, setModels]           = useState(FALLBACK_AI_MODELS)
 
   useEffect(() => {
     if (storedKey) setInputKey(storedKey)
@@ -1296,6 +1317,24 @@ function AiSection(): JSX.Element {
   useEffect(() => {
     window.api.license.getDeviceId().then(setDeviceId)
   }, [setDeviceId])
+
+  useEffect(() => {
+    window.api.ai.getModels().then((catalog) => {
+      if (catalog?.anthropic?.length && catalog?.openai?.length) setModels(catalog)
+    }).catch(() => { /* keep fallback */ })
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    window.api.ai.getApiKeyHint(aiProvider).then((hint) => {
+      if (cancelled) return
+      setKeyHint(hint.hint)
+      setAiHasKey(hint.hasKey)
+      setApiKeyInput('')
+      setTestMsg(null)
+    }).catch(() => { /* ignore */ })
+    return () => { cancelled = true }
+  }, [aiProvider, setAiHasKey])
 
   const handleActivate = async () => {
     const key = inputKey.trim().toUpperCase()
@@ -1318,9 +1357,73 @@ function AiSection(): JSX.Element {
     }
   }
 
+  const persistSource = async (source: AiSource) => {
+    setAiSource(source)
+    await window.api.store.setSetting('ai.source', source)
+  }
+
+  const persistProvider = async (provider: AiProvider) => {
+    setAiProvider(provider)
+    await window.api.store.setSetting('ai.provider', provider)
+    const nextModels = models[provider]
+    if (!nextModels.some((m) => m.id === aiModel)) {
+      const fallback = nextModels[0]?.id
+      if (fallback) {
+        setAiModel(fallback)
+        await window.api.store.setSetting('ai.model', fallback)
+      }
+    }
+  }
+
+  const persistModel = async (model: string) => {
+    setAiModel(model)
+    await window.api.store.setSetting('ai.model', model)
+  }
+
+  const handleSaveApiKey = async (key = apiKeyInput) => {
+    const cleaned = key.trim()
+    if (!cleaned) { setTestMsg({ ok: false, text: 'Enter an API key first.' }); return false }
+    const result = await window.api.ai.setApiKey(aiProvider, cleaned)
+    if (result.success) {
+      setAiHasKey(true)
+      setKeyHint(result.hint ?? null)
+      setApiKeyInput('')
+      return true
+    }
+    setTestMsg({ ok: false, text: result.error ?? 'Could not save API key.' })
+    return false
+  }
+
+  const handleTestConnection = async () => {
+    setTesting(true)
+    setTestMsg(null)
+    try {
+      const typed = apiKeyInput.trim()
+      const result = await window.api.ai.testConnection(aiProvider, typed || undefined)
+      setTestMsg({ ok: result.ok, text: result.message })
+      if (result.ok && typed) await handleSaveApiKey(typed)
+    } catch (e: unknown) {
+      setTestMsg({ ok: false, text: e instanceof Error ? e.message : 'Connection test failed.' })
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  const handleClearApiKey = async () => {
+    await window.api.ai.clearApiKey(aiProvider)
+    setAiHasKey(false)
+    setKeyHint(null)
+    setApiKeyInput('')
+    setTestMsg(null)
+  }
+
   const saveOtherSettings = async () => {
     await window.api.store.setSetting('ai.permission', aiPermission)
     await window.api.store.setSetting('ai.approval',   aiApproval)
+    await window.api.store.setSetting('ai.source',     aiSource)
+    await window.api.store.setSetting('ai.provider',   aiProvider)
+    await window.api.store.setSetting('ai.model',      aiModel)
+    if (apiKeyInput.trim()) await handleSaveApiKey()
     const list = blacklistInput.split(',').map(s => s.trim()).filter(Boolean)
     await window.api.store.setSetting('ai.blacklist', list)
     setAiBlacklist(list)
@@ -1336,6 +1439,135 @@ function AiSection(): JSX.Element {
         description="Configure ARIA — your AI-native network assistant."
       />
 
+      <SettingsGroup label="AI Provider">
+        <div className="space-y-2">
+          {([
+            {
+              id:    'hosted' as AiSource,
+              label: 'NetCopilot hosted',
+              desc:  'Uses your license. We call Claude and bill usage against your plan.',
+              icon:  <Cloud className="w-4 h-4 text-primary" />,
+            },
+            {
+              id:    'byok' as AiSource,
+              label: 'My API key',
+              desc:  'Call Claude or OpenAI from this device. Your key never leaves the OS keychain.',
+              icon:  <Key className="w-4 h-4 text-sky-400" />,
+            },
+          ]).map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => persistSource(opt.id)}
+              className={cn(
+                'w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-colors',
+                aiSource === opt.id
+                  ? 'border-primary/50 bg-primary/10'
+                  : 'border-border hover:border-border/80 hover:bg-accent/50'
+              )}
+            >
+              <div className="mt-0.5 shrink-0">{opt.icon}</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-foreground">{opt.label}</span>
+                  {aiSource === opt.id && <Check className="w-3 h-3 text-primary" />}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{opt.desc}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </SettingsGroup>
+
+      {aiSource === 'byok' && (
+        <SettingsGroup label="Your API Key">
+          <div className="flex gap-2">
+            {([
+              { id: 'anthropic' as AiProvider, label: 'Claude' },
+              { id: 'openai'    as AiProvider, label: 'OpenAI' },
+            ]).map((opt) => (
+              <button
+                key={opt.id}
+                onClick={() => persistProvider(opt.id)}
+                className={cn(
+                  'flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-colors',
+                  aiProvider === opt.id
+                    ? 'border-primary/50 bg-primary/10 text-foreground'
+                    : 'border-border text-muted-foreground hover:border-border/80 hover:bg-accent/50'
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          <p className="text-xs text-muted-foreground mt-3 mb-2">
+            Stored encrypted in the OS keychain. Requests go directly to{' '}
+            {aiProvider === 'openai' ? 'OpenAI' : 'Anthropic'} — not through NetCopilot servers.
+          </p>
+          <div className="flex gap-2">
+            <div className="flex-1 relative">
+              <input
+                type={showApiKey ? 'text' : 'password'}
+                value={apiKeyInput}
+                onChange={(e) => { setApiKeyInput(e.target.value); setTestMsg(null) }}
+                placeholder={keyHint ?? (aiProvider === 'openai' ? 'sk-...' : 'sk-ant-...')}
+                className={cn(inputCls, 'pr-9 font-mono text-xs')}
+              />
+              <button
+                onClick={() => setShowApiKey((v) => !v)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+              >
+                {showApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+            <button
+              onClick={handleTestConnection}
+              disabled={testing}
+              className={cn(
+                'px-3 py-2 rounded-md text-xs font-medium transition-colors whitespace-nowrap',
+                testing
+                  ? 'bg-muted text-muted-foreground cursor-wait'
+                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
+              )}
+            >
+              {testing ? 'Testing…' : 'Test'}
+            </button>
+          </div>
+
+          {aiHasKey && (
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-[11px] text-emerald-400">Saved · {keyHint}</p>
+              <button
+                onClick={handleClearApiKey}
+                className="text-[11px] text-muted-foreground hover:text-red-400 transition-colors"
+              >
+                Remove key
+              </button>
+            </div>
+          )}
+
+          {testMsg && (
+            <p className={cn('text-xs mt-1.5 px-1 leading-relaxed', testMsg.ok ? 'text-emerald-400' : 'text-red-400')}>
+              {testMsg.text}
+            </p>
+          )}
+
+          <div className="mt-3 space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Model</label>
+            <select
+              value={models[aiProvider].some((m) => m.id === aiModel) ? aiModel : (models[aiProvider][0]?.id ?? '')}
+              onChange={(e) => persistModel(e.target.value)}
+              className={inputCls}
+            >
+              {models[aiProvider].map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </select>
+          </div>
+        </SettingsGroup>
+      )}
+
       {/* License Key */}
       <SettingsGroup label="License Key">
         {/* Status banner */}
@@ -1347,12 +1579,14 @@ function AiSection(): JSX.Element {
         )}>
           {licenseValid
             ? <><Check className="w-3.5 h-3.5 shrink-0" /> <span>Active · Plan: <strong>{licensePlan.toUpperCase()}</strong>{licenseExpiry ? ` · Expires ${new Date(licenseExpiry).toLocaleDateString()}` : ' · Lifetime'}</span></>
-            : <><Lock className="w-3.5 h-3.5 shrink-0" /> <span>No active license — ARIA is disabled</span></>
+            : <><Lock className="w-3.5 h-3.5 shrink-0" /> <span>{aiSource === 'byok' ? 'No license — optional when using your own API key' : 'No active license — required for hosted ARIA'}</span></>
           }
         </div>
 
         <p className="text-xs text-muted-foreground mb-2">
-          Enter your NetCopilot license key to activate ARIA. Keys are stored encrypted in the OS keychain.{' '}
+          {aiSource === 'hosted'
+            ? 'Required for hosted Claude. Keys are stored encrypted in the OS keychain. '
+            : 'Optional if you use your own API key. Keys are stored encrypted in the OS keychain. '}
           <a
             href="https://netcopilot.app/dashboard"
             target="_blank"

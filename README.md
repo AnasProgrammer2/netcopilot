@@ -139,13 +139,14 @@ Even when the AI panel is **closed**, a pulsing red badge appears on the ARIA bu
 
 ### ARIA Setup
 
-ARIA is **free during the beta period** — no payment required:
+ARIA can run on a NetCopilot license (hosted Claude) or your own provider key:
 
-1. Go to [netcopilot.app/register](https://netcopilot.app/register) and get your free key
-2. Open the app → **Settings → ARIA**
-3. Paste your license key — done
+1. Open the app → **Settings → ARIA**
+2. Choose **NetCopilot hosted** and activate a license, or **My API key**
+3. For your own key: pick Claude or OpenAI, paste the key, click **Test**
+4. Choose a model (Sonnet / Opus / Haiku, or GPT-4o / GPT-4.1)
 
-Your license key is stored in the **OS keychain** — never on disk or in any file.
+Hosted license keys and your own API keys are stored in the **OS keychain**. Bring-your-own-key requests go directly to Anthropic or OpenAI — they never pass through NetCopilot servers.
 
 ---
 

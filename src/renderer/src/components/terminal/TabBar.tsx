@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown, Sparkles, RefreshCw, Globe, FolderOpen, Palette, Pin, PinOff, Copy, XCircle, Pencil, Code2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { terminalRegistry } from '../../lib/terminalRegistry'
-import { useAppStore } from '../../store'
+import { useAppStore, isAiReady } from '../../store'
 import { Session } from '../../types'
 import { cn } from '../../lib/utils'
 import { PortForwardDialog } from '../dialogs/PortForwardDialog'
@@ -14,7 +14,7 @@ export function TabBar(): JSX.Element {
     sessions, activeSessionId, splitSessionId,
     setActiveSession, closeSession, setQuickConnectOpen, setSplitSession,
     aiPanelOpen, setAiPanelOpen, activeForwardIds,
-    licenseValid, errorAlertSessionId, setErrorAlert,
+    licenseValid, aiSource, aiHasKey, errorAlertSessionId, setErrorAlert,
     themePanelOpen, setThemePanelOpen,
     snippetPanelOpen, setSnippetPanelOpen,
     renameSession, pinSession, unpinSession, duplicateSession, reorderSessions,
@@ -127,9 +127,11 @@ export function TabBar(): JSX.Element {
       {/* AI Copilot toggle */}
       <button
         onClick={() => {
-          if (!aiPanelOpen && !licenseValid) {
-            toast.error('License key required', {
-              description: 'Add your license key in Settings → ARIA to use the AI assistant.',
+          if (!aiPanelOpen && !isAiReady({ aiSource, aiHasKey, licenseValid })) {
+            toast.error(aiSource === 'byok' ? 'API key required' : 'License key required', {
+              description: aiSource === 'byok'
+                ? 'Add your Claude or OpenAI key in Settings → ARIA.'
+                : 'Add your license key in Settings → ARIA to use the AI assistant.',
               action: { label: 'Open Settings', onClick: () => setSettingsOpen(true, 'ai') }
             })
             return
