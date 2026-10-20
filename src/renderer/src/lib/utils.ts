@@ -19,7 +19,7 @@ export function stripAnsi(s: string): string {
 /**
  * Blacklist check — shared with main-process policy gate in `src/shared/aiPolicy.ts`.
  */
-export { isBlacklisted as isCommandBlacklisted } from '../../../shared/aiPolicy'
+export { isBlacklisted as isCommandBlacklisted, hasUnsafeCharacters } from '../../../shared/aiPolicy'
 
 export function timeAgo(ts: number): string {
   const diff = Date.now() - ts

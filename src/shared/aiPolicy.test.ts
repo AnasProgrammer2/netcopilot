@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  decideToolCall,
   enforcePolicy,
+  hasUnsafeCharacters,
   evaluatePolicy,
   hasShellChaining,
   isBlacklisted,
@@ -267,3 +269,85 @@ describe('isBlacklisted abbreviations', () => {
     expect(isBlacklisted('ping relay.example.com', ['reload'])).toBe(false)
   })
 })
+
+describe('control and invisible characters', () => {
+  const BL = ['reload', 'write erase', 'clear ip bgp']
+
+  it('blocks line-editor tricks in every mode', () => {
+    for (const perm of ['troubleshoot', 'full-access'] as const) {
+      expect(evaluatePolicy('reloadx\x7f', perm, BL).blockReason).not.toBeNull()
+      expect(evaluatePolicy('write erasx\x7fe', perm, BL).blockReason).not.toBeNull()
+      expect(evaluatePolicy('confx\x7f t', perm, BL).blockReason).not.toBeNull()
+      expect(evaluatePolicy('show ver\x15clear ip bgp *', perm, BL).blockReason).not.toBeNull()
+      expect(evaluatePolicy('rel\x08\x08\x08reload', perm, BL).blockReason).not.toBeNull()
+      expect(evaluatePolicy('conf\t t', perm, BL).blockReason).not.toBeNull()
+      expect(evaluatePolicy('show run\x1b[A', perm, BL).blockReason).not.toBeNull()
+    }
+  })
+
+  it('blocks invisible and bidi-reordering unicode', () => {
+    expect(hasUnsafeCharacters('show​ run')).toBe(true)
+    expect(hasUnsafeCharacters('show run ‮reload')).toBe(true)
+    expect(hasUnsafeCharacters('﻿show version')).toBe(true)
+  })
+
+  it('leaves normal commands alone', () => {
+    expect(hasUnsafeCharacters('show ip bgp summary | include Idle')).toBe(false)
+    expect(hasUnsafeCharacters('display interface brief')).toBe(false)
+    expect(evaluatePolicy('show running-config', 'troubleshoot', BL).blockReason).toBeNull()
+  })
+})
+
+describe('decideToolCall', () => {
+  const BL = ['reload']
+  const base = {
+    permission: 'full-access' as const,
+    approval: 'auto' as const,
+    isProactive: false,
+    sessionId: 's1',
+    knownSessionIds: ['s1', 's2'],
+  }
+
+  it('auto-approves a normal command only in Auto Pilot', () => {
+    expect(decideToolCall('show ip route', base, BL).autoApprove).toBe(true)
+    expect(decideToolCall('show ip route', { ...base, approval: 'ask' }, BL).autoApprove).toBe(false)
+  })
+
+  it('never auto-approves in read-only mode, even if approval says auto', () => {
+    const v = decideToolCall('show ip route', { ...base, permission: 'troubleshoot' }, BL)
+    expect(v.blockReason).toBeNull()
+    expect(v.autoApprove).toBe(false)
+  })
+
+  it('enforces the read-only allowlist when the session is read-only', () => {
+    expect(decideToolCall('configure terminal', { ...base, permission: 'troubleshoot' }, BL).blockReason).not.toBeNull()
+  })
+
+  it('treats read-only lookups as safe but route changes as high-risk', () => {
+    expect(decideToolCall('show ip route 10.0.0.0', base, BL).requiresConfirmation).toBe(false)
+    expect(decideToolCall('ip route 0.0.0.0 0.0.0.0 192.0.2.1', base, BL).requiresConfirmation).toBe(true)
+    expect(decideToolCall('sudo ip route add 10.9.0.0/16 via 10.0.0.1', base, BL).requiresConfirmation).toBe(true)
+    expect(decideToolCall('show ip route | include 10.0', base, BL).requiresConfirmation).toBe(false)
+  })
+
+  it('does not auto-run Auto Watch turns or high-risk commands', () => {
+    expect(decideToolCall('show ip route', { ...base, isProactive: true }, BL).autoApprove).toBe(false)
+    const hi = decideToolCall('configure terminal', base, BL)
+    expect(hi.requiresConfirmation).toBe(true)
+    expect(hi.autoApprove).toBe(false)
+  })
+
+  it('requires a click for another open session and rejects unknown ones', () => {
+    expect(decideToolCall('show ip route', { ...base, targetSession: 's2' }, BL).autoApprove).toBe(false)
+    expect(decideToolCall('show ip route', { ...base, targetSession: 's1' }, BL).autoApprove).toBe(true)
+    const v = decideToolCall('show ip route', { ...base, targetSession: 'evil' }, BL)
+    expect(v.blockReason).not.toBeNull()
+    expect(v.autoApprove).toBe(false)
+  })
+
+  it('still blocks blacklisted and control-character commands', () => {
+    expect(decideToolCall('reload', base, BL).blockReason).not.toBeNull()
+    expect(decideToolCall('reloadx\x7f', base, BL).blockReason).not.toBeNull()
+  })
+})
+

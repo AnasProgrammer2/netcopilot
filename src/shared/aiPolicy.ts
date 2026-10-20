@@ -1,4 +1,5 @@
 export type AiPermission = 'troubleshoot' | 'full-access'
+export type AiApproval   = 'ask' | 'auto'
 
 /** Result of evaluating a command against the active safety policy. */
 export type PolicyDecision = {
@@ -324,6 +325,19 @@ export function enforcePolicy(
   return evaluatePolicy(command, permission, blacklist, highRiskPatterns).blockReason
 }
 
+/**
+ * Characters a device's line editor acts on (DEL, backspace, Ctrl-U, Tab
+ * completion, ESC sequences…) plus invisible / bidi-reordering Unicode. With
+ * any of them, what the device finally runs can differ from the text that was
+ * policy-checked and shown for approval — `reloadx\x7f` would pass as
+ * "reloadx" and run `reload`. A command is one printable line.
+ */
+const UNSAFE_CHARS = /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2060-\u2069\ufeff]/
+
+export function hasUnsafeCharacters(command: string): boolean {
+  return UNSAFE_CHARS.test(command)
+}
+
 export function evaluatePolicy(
   command:    string,
   permission: AiPermission,
@@ -333,6 +347,12 @@ export function evaluatePolicy(
   if (!command || typeof command !== 'string') {
     return {
       blockReason: '(rejected by safety policy: empty or non-string command)',
+      requiresConfirmation: false,
+    }
+  }
+  if (hasUnsafeCharacters(command)) {
+    return {
+      blockReason: '(rejected by safety policy: command contains control or invisible characters — send one plain printable command)',
       requiresConfirmation: false,
     }
   }
@@ -358,10 +378,13 @@ export function evaluatePolicy(
     return { blockReason: null, requiresConfirmation: false }
   }
 
-  // full-access: denylist already applied; high-risk still needs a human click
+  // full-access: denylist already applied; high-risk still needs a human click.
+  // A plain read-only command (`show ip route`) is never high-risk, even when
+  // it contains a high-risk phrase like "ip route".
+  const readOnly = !hasShellChaining(command) && isReadOnlyCommand(command)
   return {
     blockReason: null,
-    requiresConfirmation: isHighRiskCommand(command, highRiskPatterns),
+    requiresConfirmation: !readOnly && isHighRiskCommand(command, highRiskPatterns),
   }
 }
 
@@ -377,4 +400,59 @@ export function mergeBlacklists(stored: string[], sessionExtra?: string[]): stri
 /** Ensure locked core patterns are always present regardless of user edits. */
 export function withLockedBlacklist(userList: string[], locked: string[]): string[] {
   return mergeBlacklists(locked, userList)
+}
+
+export interface ToolCallContext {
+  permission:       AiPermission
+  approval:         AiApproval
+  /** Turn started by Auto Watch from device output, not by the user. */
+  isProactive:      boolean
+  /** Session the chat belongs to. */
+  sessionId:        string
+  /** Session the model asked to run the command on (target_session). */
+  targetSession?:   string
+  /** Sessions the user has open and shared with ARIA. */
+  knownSessionIds:  string[]
+}
+
+export interface ToolCallVerdict {
+  blockReason:          string | null
+  requiresConfirmation: boolean
+  /** Main's decision that the command may run without a click. */
+  autoApprove:          boolean
+}
+
+/**
+ * Final decision for one agent command. Main makes it — the renderer only
+ * auto-runs when `autoApprove` is true. Device output can steer the model, so
+ * nothing a proactive (Auto Watch) turn or a cross-session command asks for
+ * runs unattended.
+ */
+export function decideToolCall(
+  command:   string,
+  ctx:       ToolCallContext,
+  blacklist: string[],
+  highRiskPatterns: string[] = DEFAULT_HIGH_RISK_CONFIRM,
+): ToolCallVerdict {
+  const target = ctx.targetSession || ctx.sessionId
+  if (target !== ctx.sessionId && !ctx.knownSessionIds.includes(target)) {
+    return {
+      blockReason: '(rejected: target_session is not one of the sessions open in this conversation)',
+      requiresConfirmation: false,
+      autoApprove: false,
+    }
+  }
+
+  const decision = evaluatePolicy(command, ctx.permission, blacklist, highRiskPatterns)
+  if (decision.blockReason) return { ...decision, autoApprove: false }
+
+  const crossSession = target !== ctx.sessionId
+  const autoApprove =
+    ctx.approval === 'auto' &&
+    ctx.permission === 'full-access' &&
+    !decision.requiresConfirmation &&
+    !ctx.isProactive &&
+    !crossSession
+
+  return { ...decision, autoApprove }
 }

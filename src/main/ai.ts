@@ -3,7 +3,7 @@ import { writeFile } from 'fs/promises'
 import { getDb } from './db'
 import { DEFAULT_AI_BLACKLIST, HIGH_RISK_CONFIRM_PATTERNS, LOCKED_AI_BLACKLIST } from './aiDefaults'
 import { loadLicenseKey, getDeviceId } from './license'
-import { evaluatePolicy, mergeBlacklists, withLockedBlacklist, type AiPermission } from '../shared/aiPolicy'
+import { decideToolCall, mergeBlacklists, withLockedBlacklist, type AiApproval, type AiPermission, type ToolCallContext } from '../shared/aiPolicy'
 import { getSetting, setSetting } from './store'
 import { isUnlocked } from './masterPassword'
 import { loadCredential, saveCredential, deleteCredential } from './credentials'
@@ -41,7 +41,8 @@ interface ChatPayload {
   deviceType:      string
   host:            string
   protocol:        string
-  permission:      AiPermission   // display hint from renderer — main loads authoritative value from DB
+  permission:      AiPermission   // mode the user picked for this session in the ARIA panel
+  approval?:       AiApproval     // 'auto' only for Auto Pilot; main still decides per command
   sessionBlacklist?: string[]     // per-session extras merged with persisted blacklist
   isProactive:     boolean
   sessions?:       SessionInfo[]
@@ -1001,8 +1002,15 @@ async function runAiLoop(
   payload:   ChatPayload,
   getWindow: () => BrowserWindow | null,
 ): Promise<void> {
-  // Authoritative policy from DB — renderer payload is display-only.
-  const effectivePermission = loadStoredPermission()
+  // The panel's per-session mode (Read Only / Fix / Auto Pilot) is the user's
+  // explicit choice for this device; fall back to the saved default. Whether a
+  // given command may then run unattended is decided below, per command.
+  const effectivePermission: AiPermission =
+    payload.permission === 'full-access' || payload.permission === 'troubleshoot'
+      ? payload.permission
+      : loadStoredPermission()
+  const effectiveApproval: AiApproval =
+    payload.approval === 'auto' && effectivePermission === 'full-access' ? 'auto' : 'ask'
   const effectivePayload    = { ...payload, permission: effectivePermission }
   const systemPrompt        = buildSystemPrompt(effectivePayload)
   let   messages            = compressConversation([...payload.messages] as AnthropicMessage[])
@@ -1023,6 +1031,14 @@ async function runAiLoop(
 
   // Persisted blacklist + per-session extras from the renderer toolbar.
   const effectiveBlacklist = mergeBlacklists(loadStoredBlacklist(), payload.sessionBlacklist)
+  const toolCtx = (targetSession?: string): ToolCallContext => ({
+    permission:      effectivePermission,
+    approval:        effectiveApproval,
+    isProactive:     !!payload.isProactive,
+    sessionId,
+    targetSession:   typeof targetSession === 'string' && targetSession ? targetSession : undefined,
+    knownSessionIds: (payload.sessions ?? []).map((s) => s.sessionId),
+  })
 
   try {
     while (turnCount < MAX_AGENT_TURNS) {
@@ -1093,12 +1109,12 @@ async function runAiLoop(
           }
 
           const allOutputs: string[] = []
-          for (const cmd of batchInput.commands) {
+          for (const cmd of Array.isArray(batchInput.commands) ? batchInput.commands : []) {
             if (run.abortController.signal.aborted) break
 
             const subCallId = `${toolBlock.id}_${allOutputs.length}`
-            const decision = evaluatePolicy(
-              cmd.command, effectivePermission, effectiveBlacklist, HIGH_RISK_CONFIRM_PATTERNS,
+            const decision = decideToolCall(
+              cmd.command, toolCtx(batchInput.target_session), effectiveBlacklist, HIGH_RISK_CONFIRM_PATTERNS,
             )
 
             // Always surface the attempt to the renderer so the user can see
@@ -1111,6 +1127,7 @@ async function runAiLoop(
               targetSession:        batchInput.target_session,
               policyBlock:          decision.blockReason ?? undefined,
               requiresConfirmation: decision.requiresConfirmation,
+              autoApprove:          decision.autoApprove,
             })
 
             if (decision.blockReason) {
@@ -1134,8 +1151,8 @@ async function runAiLoop(
         // run_command: send to renderer, wait for execution result
         const input = toolBlock.input as { command: string; reason: string; target_session?: string }
 
-        const decision = evaluatePolicy(
-          input.command, effectivePermission, effectiveBlacklist, HIGH_RISK_CONFIRM_PATTERNS,
+        const decision = decideToolCall(
+          input.command, toolCtx(input.target_session), effectiveBlacklist, HIGH_RISK_CONFIRM_PATTERNS,
         )
 
         getWindow()?.webContents.send('ai:tool-call', {
@@ -1146,6 +1163,7 @@ async function runAiLoop(
           targetSession:        input.target_session,
           policyBlock:          decision.blockReason ?? undefined,
           requiresConfirmation: decision.requiresConfirmation,
+          autoApprove:          decision.autoApprove,
         })
 
         if (decision.blockReason) {
