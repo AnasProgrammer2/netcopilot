@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb, Pencil, Trash2, Download, Upload, MoreHorizontal, Clock, Zap, FileCode, X, FolderInput, SlidersHorizontal, Check } from 'lucide-react'
+import { Search, Plus, FolderPlus, ChevronDown, ChevronRight, Server, Router, Monitor, Key, Usb, Pencil, Trash2, Download, Upload, MoreHorizontal, Clock, Zap, FileCode, FileSpreadsheet, X, FolderInput, SlidersHorizontal, Check } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { Connection, ConnectionGroup } from '../../types'
 import { ConnectionContextMenu } from './ConnectionContextMenu'
@@ -7,6 +7,7 @@ import { GroupDialog } from './GroupDialog'
 import { SSHKeyDialog } from '../dialogs/SSHKeyDialog'
 import { ExportImportDialog } from '../dialogs/ExportImportDialog'
 import { SshConfigImportDialog } from '../dialogs/SshConfigImportDialog'
+import { CsvImportDialog } from '../dialogs/CsvImportDialog'
 import { cn, timeAgo } from '../../lib/utils'
 
 const GROUP_COLORS = [
@@ -44,6 +45,7 @@ export function Sidebar(): JSX.Element {
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [sshConfigDialogOpen, setSshConfigDialogOpen] = useState(false)
+  const [csvDialogOpen, setCsvDialogOpen] = useState(false)
   const [footerOpen, setFooterOpen] = useState(false)
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false)
   const [sortBy, setSortBy] = useState<'name' | 'recent' | 'protocol'>('recent')
@@ -408,6 +410,12 @@ export function Sidebar(): JSX.Element {
                 >
                   <FileCode className="w-3.5 h-3.5" /> Import SSH Config
                 </button>
+                <button
+                  onClick={() => setCsvDialogOpen(true)}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-sidebar-accent/50 text-sidebar-foreground/60 text-[12px] hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" /> Import from Termius / CSV…
+                </button>
               </div>
             </div>
           )}
@@ -545,12 +553,13 @@ export function Sidebar(): JSX.Element {
 
           <div className={cn(
             'overflow-hidden transition-all duration-200 ease-out',
-            footerOpen ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
+            footerOpen ? 'max-h-72 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
           )}>
             <div className="px-2 pb-2 space-y-0.5">
               {[
                 { icon: Key,      label: 'SSH Keys',           color: '#8b5cf6', action: () => setSshKeyDialogOpen(true) },
                 { icon: FileCode, label: 'Import SSH Config',  color: '#06b6d4', action: () => setSshConfigDialogOpen(true) },
+                { icon: FileSpreadsheet, label: 'Import from Termius / CSV…', color: '#0ea5e9', action: () => setCsvDialogOpen(true) },
                 { icon: Download, label: 'Export Connections', color: '#10b981', action: () => setExportDialogOpen(true) },
                 { icon: Upload,   label: 'Import Connections', color: '#f59e0b', action: () => setImportDialogOpen(true) },
               ].map(({ icon: Icon, label, color, action }) => (
@@ -659,6 +668,17 @@ export function Sidebar(): JSX.Element {
             setTimeout(() => setImportMsg(null), 3500)
           }}
           onCancel={() => setSshConfigDialogOpen(false)}
+        />
+      )}
+
+      {csvDialogOpen && (
+        <CsvImportDialog
+          onDone={(msg) => {
+            setCsvDialogOpen(false)
+            setImportMsg(msg)
+            setTimeout(() => setImportMsg(null), 3500)
+          }}
+          onCancel={() => setCsvDialogOpen(false)}
         />
       )}
     </div>

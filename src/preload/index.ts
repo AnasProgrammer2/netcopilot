@@ -137,6 +137,8 @@ const api = {
       ipcRenderer.invoke('dialog:read-ssh-config', pickFile ?? false),
     readTextFile: (opts?: { title?: string; extensions?: string[] }): Promise<string | null> =>
       ipcRenderer.invoke('dialog:read-text-file', opts ?? {}),
+    readCsv: (): Promise<{ content: string; fileName: string } | { error: string } | null> =>
+      ipcRenderer.invoke('dialog:read-csv'),
   },
 
   // App info

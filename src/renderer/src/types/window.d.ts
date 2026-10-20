@@ -155,6 +155,7 @@ declare global {
         getDefaultLogDir(): Promise<string>
         readSshConfig(pickFile?: boolean): Promise<string | null>
         readTextFile(opts?: { title?: string; extensions?: string[] }): Promise<string | null>
+        readCsv(): Promise<{ content: string; fileName: string } | { error: string } | null>
       }
       ssh: {
         connect(payload: SshConnectPayload): Promise<{ success: boolean }>
