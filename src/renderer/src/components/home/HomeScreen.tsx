@@ -63,19 +63,19 @@ function GroupCard({ group, hostCount, connectedCount, onClick }: {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:bg-accent/50 hover:border-primary/30 transition-all text-left group cursor-pointer"
+      className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors text-left group"
     >
       <div
-        className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-        style={{ backgroundColor: `${color}15` }}
+        className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
+        style={{ backgroundColor: `${color}18` }}
       >
-        <Layers className="w-5 h-5" style={{ color }} />
+        <Layers className="w-4 h-4" style={{ color }} />
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="text-[15px] font-semibold text-foreground truncate">{group.name}</p>
-        <div className="flex items-center gap-2.5 mt-1">
-          <span className="text-[13px] text-muted-foreground">{hostCount} Hosts</span>
+        <p className="text-[13px] font-semibold text-foreground truncate">{group.name}</p>
+        <div className="flex items-center gap-2.5 mt-0.5">
+          <span className="text-[12px] text-muted-foreground">{hostCount} {hostCount === 1 ? 'host' : 'hosts'}</span>
           {connectedCount > 0 && (
             <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -143,12 +143,12 @@ function HostCard({ connection, isConnected, onConnect, isSelected, onSelect, pi
         onConnect()
       }}
       className={cn(
-        'flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left group transition-all cursor-pointer w-full',
+        'flex items-center gap-3 px-3 py-2 rounded-lg border text-left group transition-colors w-full',
         isSelected
           ? 'border-primary/50 bg-primary/10 ring-1 ring-primary/40'
           : isConnected
             ? 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/50'
-            : 'border-border bg-card hover:bg-accent/40 hover:border-primary/25 hover:shadow-sm'
+            : 'border-border bg-card hover:bg-accent/40'
       )}
     >
       {/* Device icon */}
@@ -351,7 +351,7 @@ export function HomeScreen(): JSX.Element {
     <div className="flex flex-col h-full bg-background overflow-hidden">
 
       {/* ── Top bar ────────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0">
+      <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border shrink-0">
 
         {/* Live sessions pill */}
         {totalConnected > 0 && (
@@ -363,12 +363,12 @@ export function HomeScreen(): JSX.Element {
 
         {/* Search */}
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/45" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Find a host or ssh user@hostname..."
-            className="w-full pl-9 pr-3 py-1.5 text-[13px] bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all"
+            className="w-full h-7 pl-8 pr-3 text-[13px] bg-secondary/70 border border-transparent rounded-md text-foreground placeholder:text-muted-foreground/45 focus:outline-none focus:border-primary/50 transition-colors"
           />
         </div>
 
@@ -377,10 +377,10 @@ export function HomeScreen(): JSX.Element {
           <button
             onClick={() => setSortMenuOpen(!sortMenuOpen)}
             className={cn(
-              'p-1.5 rounded-lg border transition-colors cursor-pointer',
+              'w-7 h-7 flex items-center justify-center rounded-md transition-colors',
               sortBy !== 'name'
-                ? 'bg-primary/10 border-primary/30 text-primary'
-                : 'border-border text-muted-foreground/50 hover:text-foreground hover:bg-accent'
+                ? 'bg-primary/15 text-primary'
+                : 'text-muted-foreground/60 hover:text-foreground hover:bg-accent'
             )}
             title={`Sort: ${sortBy === 'name' ? 'Name' : sortBy === 'recent' ? 'Recent' : 'Protocol'}`}
           >
@@ -389,7 +389,7 @@ export function HomeScreen(): JSX.Element {
           {sortMenuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setSortMenuOpen(false)} />
-              <div className="absolute right-0 top-full mt-1.5 w-36 bg-popover border border-border rounded-xl shadow-2xl z-50 py-1.5">
+              <div className="absolute right-0 top-full mt-1.5 w-36 bg-popover border border-border rounded-lg shadow-xl z-50 py-1.5">
                 {([['name', 'Name'], ['recent', 'Last Connected'], ['protocol', 'Protocol']] as const).map(([key, label]) => (
                   <button
                     key={key}
@@ -412,10 +412,10 @@ export function HomeScreen(): JSX.Element {
           <button
             onClick={() => setFilterMenuOpen(!filterMenuOpen)}
             className={cn(
-              'p-1.5 rounded-lg border transition-colors cursor-pointer',
+              'w-7 h-7 flex items-center justify-center rounded-md transition-colors',
               hasActiveFilter
-                ? 'bg-primary/10 border-primary/30 text-primary'
-                : 'border-border text-muted-foreground/50 hover:text-foreground hover:bg-accent'
+                ? 'bg-primary/15 text-primary'
+                : 'text-muted-foreground/60 hover:text-foreground hover:bg-accent'
             )}
             title="Filter"
           >
@@ -424,7 +424,7 @@ export function HomeScreen(): JSX.Element {
           {filterMenuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setFilterMenuOpen(false)} />
-              <div className="absolute right-0 top-full mt-1.5 w-44 bg-popover border border-border rounded-xl shadow-2xl z-50 py-1.5">
+              <div className="absolute right-0 top-full mt-1.5 w-44 bg-popover border border-border rounded-lg shadow-xl z-50 py-1.5">
                 <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Protocol</p>
                 {['ssh', 'telnet', 'serial'].map((p) => (
                   <button
@@ -474,10 +474,10 @@ export function HomeScreen(): JSX.Element {
           onClick={() => setHealthMode(v => !v)}
           title={healthMode ? 'Stop health scan' : 'Scan host reachability'}
           className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[13px] font-medium transition-all shrink-0 cursor-pointer',
+            'flex items-center gap-1.5 h-7 px-2.5 rounded-md text-[12px] font-medium transition-colors shrink-0',
             healthMode
-              ? 'bg-primary/10 border-primary/40 text-primary'
-              : 'bg-card border-border text-muted-foreground hover:text-foreground hover:bg-accent'
+              ? 'bg-primary/15 text-primary'
+              : 'text-muted-foreground hover:text-foreground hover:bg-accent'
           )}
         >
           <Activity className={cn('w-3.5 h-3.5', healthMode && 'animate-pulse')} />
@@ -488,7 +488,7 @@ export function HomeScreen(): JSX.Element {
           <button
             onClick={() => runHealthScan(connections)}
             title="Re-scan now"
-            className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer shrink-0"
+            className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
           >
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
@@ -496,7 +496,7 @@ export function HomeScreen(): JSX.Element {
 
         <button
           onClick={() => setConnectionDialogOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[13px] font-semibold hover:bg-primary/90 transition-colors shrink-0 cursor-pointer shadow-sm"
+          className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-[12px] font-medium hover:bg-primary/90 transition-colors shrink-0"
         >
           <Plus className="w-3.5 h-3.5" />
           New Host
@@ -504,9 +504,9 @@ export function HomeScreen(): JSX.Element {
 
         <button
           onClick={() => setQuickConnectOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-border text-foreground text-[13px] font-medium hover:bg-accent transition-all shrink-0 cursor-pointer"
+          className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-secondary text-foreground text-[12px] font-medium hover:bg-accent transition-colors shrink-0"
         >
-          <Zap className="w-3.5 h-3.5 text-yellow-500" />
+          <Zap className="w-3.5 h-3.5 text-muted-foreground" />
           Quick
         </button>
       </div>
@@ -651,7 +651,7 @@ export function HomeScreen(): JSX.Element {
                   {bulkMoveOpen && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setBulkMoveOpen(false)} />
-                      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-44 bg-popover border border-border rounded-xl shadow-2xl z-50 py-1.5 animate-in fade-in slide-in-from-bottom-2">
+                      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-44 bg-popover border border-border rounded-lg shadow-xl z-50 py-1.5 animate-in fade-in slide-in-from-bottom-2">
                         <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Move to</p>
                         <button
                           onClick={() => handleBulkMove(undefined)}

@@ -33,7 +33,7 @@ export function PasswordPrompt({ host, username: initialUsername, onSubmit, onCa
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#0d0f14]/90 backdrop-blur-sm">
       <form
         onSubmit={handleSubmit}
-        className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden"
+        className="bg-card border border-border rounded-lg shadow-xl w-full max-w-sm mx-4 overflow-hidden"
       >
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border">

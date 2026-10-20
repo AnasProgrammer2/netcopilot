@@ -66,7 +66,7 @@ export function TabBar(): JSX.Element {
 
   return (
     <>
-    <div className="flex items-end border-b border-border bg-sidebar overflow-x-auto shrink-0 h-10 gap-px pl-1">
+    <div className="flex items-center overflow-x-auto overflow-y-hidden no-scrollbar min-w-0 flex-1 h-full gap-1 pl-1">
       {sortedSessions.map((session) => (
         <Tab
           key={session.id}
@@ -345,30 +345,19 @@ function Tab({ session, isActive, isSplit, groupColor, onActivate, onClose, onPi
       onDrop={(e) => { e.preventDefault(); onDrop() }}
       onDragEnd={onDragEnd}
       className={cn(
-        'relative flex items-center gap-1.5 px-3 h-9 cursor-pointer shrink-0 group max-w-52 select-none',
-        'rounded-t-md border border-b-0 transition-all',
+        'relative flex items-center gap-1.5 pl-2.5 pr-1.5 h-7 shrink-0 group max-w-52 select-none',
+        'rounded-md border transition-colors',
         isActive
-          ? 'bg-background border-border text-foreground z-10'
-          : 'bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-background/40',
+          ? 'bg-accent border-border/60 text-foreground shadow-sm'
+          : 'bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50',
         isSplit && !isActive && 'border-primary/30 bg-primary/5 text-primary/80',
         isDragOver && !isActive && 'border-primary/60 bg-primary/10'
       )}
     >
-      {/* Active tab — colored top bar */}
-      {isActive && (
-        <>
-          <span
-            className="absolute top-0 left-3 right-3 h-[2px] rounded-b"
-            style={{ backgroundColor: groupColor || 'hsl(var(--primary) / 0.7)' }}
-          />
-          <span className="absolute bottom-[-1px] left-0 right-0 h-px bg-background" />
-        </>
-      )}
-
-      {/* Group color dot (when not active, shows subtle indicator) */}
-      {!isActive && groupColor && (
+      {/* Group colour — a short accent under the label */}
+      {groupColor && (
         <span
-          className="absolute top-0 left-3 right-3 h-[2px] rounded-b opacity-30"
+          className={cn('absolute bottom-0.5 left-3 right-3 h-[2px] rounded-full', isActive ? 'opacity-80' : 'opacity-25')}
           style={{ backgroundColor: groupColor }}
         />
       )}

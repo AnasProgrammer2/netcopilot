@@ -60,11 +60,11 @@ export function ShortcutsDialog({ open, onClose }: Props): JSX.Element | null {
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40"
       onClick={onClose}
     >
       <div
-        className="bg-card border border-border rounded-2xl shadow-2xl w-[480px] max-h-[80vh] flex flex-col overflow-hidden"
+        className="bg-card border border-border rounded-xl shadow-2xl w-[480px] max-h-[80vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

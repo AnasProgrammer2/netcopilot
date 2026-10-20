@@ -64,7 +64,7 @@ module.exports = {
         'xxs': ['10px', { lineHeight: '14px', letterSpacing: '0.02em' }],
       },
       fontFamily: {
-        sans: ['Geist Variable', 'Geist', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"Segoe UI Variable Text"', '"Segoe UI"', 'system-ui', 'Ubuntu', 'Cantarell', '"Noto Sans"', 'sans-serif'],
         mono: ['Geist Mono Variable', 'Geist Mono', 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'monospace']
       }
     }

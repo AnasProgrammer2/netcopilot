@@ -160,6 +160,12 @@ const api = {
     close:       () => ipcRenderer.invoke('window:close'),
     isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
     onMaximizedChange: onWindowMaximized,
+    setAppearance: (theme: 'dark' | 'light' | 'system') => ipcRenderer.invoke('window:set-appearance', theme),
+    onMenuAction: (cb: (action: string) => void) => {
+      const handler = (_: unknown, action: string): void => cb(action)
+      ipcRenderer.on('menu:action', handler)
+      return () => { ipcRenderer.removeListener('menu:action', handler) }
+    },
   },
 
   // Auto-updater (check only — downloads open in browser)

@@ -176,8 +176,8 @@ export function ConnectionDialog(): JSX.Element {
   ].filter((t) => !('hidden' in t && t.hidden && t.id !== 'serial') || isSerial) as { id: string; label: string }[]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-card border border-border rounded-lg shadow-xl w-full max-w-lg mx-4 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="font-semibold text-foreground">

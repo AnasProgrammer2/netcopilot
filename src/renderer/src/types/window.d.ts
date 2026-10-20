@@ -257,6 +257,8 @@ declare global {
       close(): Promise<void>
       isMaximized(): Promise<boolean>
       onMaximizedChange(cb: (maximized: boolean) => void): () => void
+      setAppearance(theme: 'dark' | 'light' | 'system'): Promise<void>
+      onMenuAction(cb: (action: string) => void): () => void
     }
     connection: {
       ping(host: string, port: number): Promise<{ alive: boolean; latency?: number }>

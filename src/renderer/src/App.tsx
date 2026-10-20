@@ -205,6 +205,37 @@ export default function App(): JSX.Element {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
+  // macOS menu bar items (the keyboard shortcuts themselves stay in handleKeyDown)
+  useEffect(() => window.api.window.onMenuAction?.((action) => {
+    const s = useAppStore.getState()
+    switch (action) {
+      case 'settings':       s.setSettingsOpen(true); break
+      case 'new-connection': s.setConnectionDialogOpen(true); break
+      case 'quick-connect':
+      case 'new-tab':        s.setQuickConnectOpen(true); break
+      case 'close-tab':
+        if (s.activeSessionId) {
+          if (s.activeSessionId === s.splitSessionId) s.setSplitSession(null)
+          s.closeSession(s.activeSessionId)
+        }
+        break
+      case 'toggle-sidebar': s.setSidebarCollapsed(!s.sidebarCollapsed); break
+      case 'toggle-ai':
+        if (!s.aiPanelOpen && !isAiReady(s)) s.setSettingsOpen(true, 'ai')
+        else s.setAiPanelOpen(!s.aiPanelOpen)
+        break
+      case 'toggle-split':
+        if (s.splitSessionId) s.setSplitSession(null)
+        else {
+          const other = s.sessions.find(x => x.id !== s.activeSessionId)
+          if (other) s.setSplitSession(other.id)
+        }
+        break
+      case 'getting-started': setHelpTab('start');     setHelpOpen(true); break
+      case 'shortcuts':       setHelpTab('shortcuts'); setHelpOpen(true); break
+    }
+  }), [])
+
   const unlock = () => {
     lastActivityRef.current = Date.now()
     setLocked(false)

@@ -1,4 +1,3 @@
-@import '@fontsource-variable/geist';
 @import '@fontsource-variable/geist-mono';
 
 @tailwind base;
@@ -103,9 +102,15 @@ html.light {
 }
 
 /* ── Base fonts ────────────────────────────────────── */
+/* The OS UI font (SF Pro / Segoe UI / Ubuntu…) at desktop density, so the app
+   reads like a native window rather than a web page. rem-based spacing scales
+   with the root size. */
+html {
+  font-size: 15px;
+}
 body {
-  font-family: 'Geist Variable', 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  font-feature-settings: 'rlig' 1, 'calt' 1, 'ss01' 1;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', system-ui, Ubuntu, Cantarell, 'Noto Sans', sans-serif;
+  font-size: 13px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -181,8 +186,21 @@ code, kbd, samp, pre, .font-mono {
 .drag-region {
   -webkit-app-region: drag;
 }
-.no-drag {
+.no-drag,
+.drag-region button,
+.drag-region input,
+.drag-region a,
+.drag-region [draggable="true"],
+.drag-region [role="button"] {
   -webkit-app-region: no-drag;
+}
+
+/* Scroll containers that should scroll without showing a bar (e.g. tab strip) */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* Smooth transitions — scoped to interactive elements only (avoids perf hit on xterm/canvas) */
@@ -204,4 +222,31 @@ a, button, input, select, textarea,
 /* Remove default outline when not keyboard navigating */
 :focus:not(:focus-visible) {
   outline: none;
+}
+
+/* ── Native desktop behaviour ───────────────────────────────────────── */
+/* No rubber-banding, no selecting chrome text, no dragging images out of the
+   window, and the arrow cursor on controls — like every native app. Text the
+   user actually wants to copy (terminal, inputs, ARIA replies) stays selectable. */
+html, body {
+  overscroll-behavior: none;
+}
+body {
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+}
+input, textarea, select, [contenteditable="true"],
+.xterm, .selectable, .selectable * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+img, svg {
+  -webkit-user-drag: none;
+}
+button, [role="button"], [role="tab"], label, summary, .cursor-pointer {
+  cursor: default;
+}
+a[href] {
+  cursor: pointer;
 }

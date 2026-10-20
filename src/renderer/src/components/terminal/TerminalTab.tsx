@@ -1138,7 +1138,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
         <>
           <div className="fixed inset-0 z-40" onClick={() => { setCtxMenu(null); termRef.current?.focus() }} />
           <div
-            className="fixed z-50 bg-popover border border-border rounded-xl shadow-2xl py-1 w-44 overflow-hidden"
+            className="fixed z-50 bg-popover border border-border rounded-lg shadow-xl py-1 w-44 overflow-hidden"
             style={{ top: ctxMenu.y, left: ctxMenu.x }}
           >
             <CtxItem icon={Copy}      label="Copy"          onClick={ctxCopy}   hint="⌘C" />

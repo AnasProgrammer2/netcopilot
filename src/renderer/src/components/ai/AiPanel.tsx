@@ -894,7 +894,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                 </div>
 
                 {/* Toolbar */}
-                <div className="flex items-center gap-0.5 px-2.5 pb-2.5 pt-1">
+                <div className="flex items-center gap-0.5 px-2.5 pb-2.5 pt-1 whitespace-nowrap">
                   <AgentModeSelector value={sessionMode} onChange={setSessionMode} />
                   <BlacklistButton blacklist={sessionBlacklist} onChange={setSessionBlacklist} />
 
@@ -914,7 +914,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                   <div className="flex-1" />
 
                   {/* hint */}
-                  <span className="text-[10px] text-muted-foreground/30 mr-2 hidden sm:block select-none">
+                  <span className="text-[10px] text-muted-foreground/30 mr-2 hidden sm:block min-w-0 truncate select-none">
                     ↵ send · ⇧↵ newline
                   </span>
 
@@ -1136,7 +1136,7 @@ function BlacklistButton({ blacklist, onChange }: { blacklist: string[]; onChang
       </button>
 
       {open && (
-        <div className="absolute bottom-full right-0 mb-2 z-50 bg-popover border border-border/80 rounded-xl shadow-2xl w-64">
+        <div className="absolute bottom-full right-0 mb-2 z-50 bg-popover border border-border/80 rounded-lg shadow-xl w-64">
           {/* Header */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
             <div className="flex items-center gap-1.5">

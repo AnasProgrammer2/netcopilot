@@ -49,7 +49,7 @@ export function HostKeyDialog(): JSX.Element | null {
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="host-key-title"
-        className={`bg-card border rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden ${
+        className={`bg-card border rounded-lg shadow-xl w-full max-w-lg mx-4 overflow-hidden ${
           current.changed ? 'border-red-500/60' : 'border-border'
         }`}
       >

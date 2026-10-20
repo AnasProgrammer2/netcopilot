@@ -81,7 +81,7 @@ export function ThemePanel(): JSX.Element {
             {fontOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setFontOpen(false)} />
-                <div className="absolute left-0 right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-2xl z-50 py-1 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="absolute left-0 right-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-xl z-50 py-1 max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
                   {FONT_FAMILIES.map((f) => (
                     <button
                       key={f}

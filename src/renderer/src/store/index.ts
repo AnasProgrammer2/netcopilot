@@ -1050,6 +1050,7 @@ function hexToHsl(hex: string): string {
 }
 
 export function applyTheme(theme: 'dark' | 'light' | 'system'): void {
+  window.api.window.setAppearance?.(theme)?.catch(() => {})
   const root = document.documentElement
   const isDark =
     theme === 'dark' ||
