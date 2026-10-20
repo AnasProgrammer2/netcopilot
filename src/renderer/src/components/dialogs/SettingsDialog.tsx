@@ -169,8 +169,8 @@ export function SettingsDialog(): JSX.Element {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden flex flex-col max-h-[88vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden flex flex-col max-h-[88vh]">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
@@ -1162,7 +1162,7 @@ function FontPicker({ value, onChange }: { value: string; onChange: (v: string) 
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 right-0 top-full mt-1.5 bg-popover border border-border rounded-xl shadow-2xl z-50 py-1.5 max-h-52 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="absolute left-0 right-0 top-full mt-1.5 bg-popover border border-border rounded-lg shadow-xl z-50 py-1.5 max-h-52 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
             {FONT_FAMILIES.map((f) => (
               <button
                 key={f}

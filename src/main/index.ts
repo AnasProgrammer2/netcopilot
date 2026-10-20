@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, nativeTheme, nativeImage } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, nativeTheme, nativeImage, Menu, MenuItemConstructorOptions } from 'electron'
 import { join } from 'path'
 import { pathToFileURL } from 'url'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
@@ -27,6 +27,19 @@ if (SENTRY_DSN) {
 
 let mainWindow: BrowserWindow | null = null
 
+const isMac = process.platform === 'darwin'
+const isWindows = process.platform === 'win32'
+
+// Height of the unified title bar the renderer draws (tabs live in it).
+const TITLEBAR_HEIGHT = 44
+
+// Native caption buttons on Windows, tinted to match the sidebar. (Linux keeps
+// the renderer-drawn buttons — window-controls overlay support varies by WM.)
+const TITLEBAR_OVERLAY = {
+  dark:  { color: '#0a0d14', symbolColor: '#b4bcc8' },
+  light: { color: '#edf0f7', symbolColor: '#2a3347' },
+}
+
 const RENDERER_INDEX = join(__dirname, '../renderer/index.html')
 
 /** Only the app's own page may be loaded in the main window. */
@@ -52,8 +65,9 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
-    trafficLightPosition: { x: 16, y: 16 },
+    titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
+    ...(isMac ? { trafficLightPosition: { x: 16, y: 15 } } : {}),
+    ...(isWindows ? { titleBarOverlay: { ...TITLEBAR_OVERLAY.dark, height: TITLEBAR_HEIGHT } } : {}),
     backgroundColor: '#0f1117',
     icon,
     webPreferences: {
@@ -71,6 +85,9 @@ function createWindow(): void {
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
   })
+
+  // Desktop apps don't pinch-zoom; keyboard zoom below stays available.
+  mainWindow.webContents.setVisualZoomLevelLimits(1, 1).catch(() => {})
 
   mainWindow.on('maximize', () => {
     mainWindow?.webContents.send('window:maximized-change', true)
@@ -150,7 +167,10 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  nativeTheme.themeSource = 'light'
+  // Follow the OS until the renderer applies the user's theme choice, so
+  // "System" sees the real appearance and native controls match the app.
+  nativeTheme.themeSource = 'system'
+  buildAppMenu()
 
   // macOS "About" panel — show app icon + correct version
   if (process.platform === 'darwin') {
@@ -175,6 +195,16 @@ app.whenReady().then(() => {
   ipcMain.handle('window:close', () => mainWindow?.close())
   ipcMain.handle('window:is-maximized', () => mainWindow?.isMaximized() ?? false)
 
+  // Keep native controls (menus, dropdowns, caption buttons) in step with the app theme.
+  ipcMain.handle('window:set-appearance', (_, theme: unknown) => {
+    const source = theme === 'dark' || theme === 'light' ? theme : 'system'
+    nativeTheme.themeSource = source
+    if (isWindows && mainWindow && !mainWindow.isDestroyed()) {
+      const dark = source === 'system' ? nativeTheme.shouldUseDarkColors : source === 'dark'
+      mainWindow.setTitleBarOverlay({ ...TITLEBAR_OVERLAY[dark ? 'dark' : 'light'], height: TITLEBAR_HEIGHT })
+    }
+  })
+
   setupStoreHandlers(ipcMain)
   setupSshHandlers(ipcMain, () => mainWindow)
   setupSftpHandlers(ipcMain, () => mainWindow)
@@ -196,6 +226,82 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
+
+// ── Application menu ─────────────────────────────────────────────────────────
+// macOS gets a real menu bar. App shortcuts (⌘K, ⌘W, ⌘B…) stay with the
+// renderer, which owns the user's key bindings, so those items only display
+// their accelerator instead of registering it. Windows/Linux use no menu bar —
+// the default Electron one only exposes Reload and DevTools.
+function buildAppMenu(): void {
+  if (!isMac) {
+    Menu.setApplicationMenu(null)
+    return
+  }
+  const action = (name: string, accelerator?: string): MenuItemConstructorOptions => ({
+    accelerator,
+    registerAccelerator: false,
+    click: () => mainWindow?.webContents.send('menu:action', name),
+  })
+  const template: MenuItemConstructorOptions[] = [
+    {
+      label: app.name,
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        { label: 'Settings…', ...action('settings', 'Cmd+,') },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
+    },
+    {
+      label: 'File',
+      submenu: [
+        { label: 'New Connection…', ...action('new-connection') },
+        { label: 'Quick Connect…', ...action('quick-connect', 'Cmd+K') },
+        { label: 'New Tab', ...action('new-tab', 'Cmd+T') },
+        { type: 'separator' },
+        { label: 'Close Tab', ...action('close-tab', 'Cmd+W') },
+      ],
+    },
+    { role: 'editMenu' },
+    {
+      label: 'View',
+      submenu: [
+        { label: 'Toggle Sidebar', ...action('toggle-sidebar', 'Cmd+B') },
+        { label: 'Toggle ARIA', ...action('toggle-ai', 'Cmd+Shift+A') },
+        { label: 'Toggle Split View', ...action('toggle-split', 'Cmd+D') },
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+      ],
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        { type: 'separator' },
+        { role: 'front' },
+      ],
+    },
+    {
+      role: 'help',
+      submenu: [
+        { label: 'Getting Started', ...action('getting-started') },
+        { label: 'Keyboard Shortcuts', ...action('shortcuts') },
+        { type: 'separator' },
+        { label: 'NetCopilot Website', click: () => openExternalUrl('https://netcopilot.app') },
+        { label: 'Report an Issue', click: () => openExternalUrl('https://github.com/AnasProgrammer2/netcopilot/issues') },
+      ],
+    },
+  ]
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

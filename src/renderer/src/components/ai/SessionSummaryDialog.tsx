@@ -24,10 +24,10 @@ export function SessionSummaryDialog({ data, onClose }: Props): JSX.Element {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="relative w-[480px] max-h-[80vh] flex flex-col rounded-2xl border border-border/70 bg-background shadow-2xl shadow-black/40 overflow-hidden">
+      <div className="relative w-[480px] max-h-[80vh] flex flex-col rounded-xl border border-border/70 bg-background shadow-2xl shadow-black/40 overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border/60 bg-gradient-to-r from-primary/8 via-transparent to-transparent shrink-0">

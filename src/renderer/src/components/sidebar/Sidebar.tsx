@@ -181,24 +181,24 @@ export function Sidebar(): JSX.Element {
     >
       <div className="flex flex-col w-full h-full overflow-hidden">
         {/* Header */}
-        <div className="shrink-0 px-3 pt-3 pb-3 border-b border-sidebar-border">
-          <div className="flex items-center gap-1 mb-3">
-            <span className="text-[15px] font-bold text-sidebar-foreground flex-1 pl-0.5 tracking-tight">
+        <div className="shrink-0 px-2.5 pt-2 pb-2 border-b border-sidebar-border">
+          <div className="flex items-center gap-0.5 mb-1.5">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/50 flex-1 pl-1">
               Connections
             </span>
             <button
               onClick={() => setConnectionDialogOpen(true)}
-              className="p-1.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors cursor-pointer"
+              className="p-1 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
               title="New Connection"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => setGroupDialog({ open: true })}
-              className="p-1.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors cursor-pointer"
+              className="p-1 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
               title="New Group"
             >
-              <FolderPlus className="w-4 h-4" />
+              <FolderPlus className="w-3.5 h-3.5" />
             </button>
           </div>
 
@@ -210,17 +210,17 @@ export function Sidebar(): JSX.Element {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search..."
-                className="w-full pl-8 pr-3 py-2 text-[13px] bg-sidebar-accent/50 border border-sidebar-border rounded-xl text-sidebar-foreground placeholder:text-sidebar-foreground/30 focus:outline-none focus:ring-1 focus:ring-sidebar-ring transition-colors"
+                className="w-full h-7 pl-8 pr-3 text-[13px] bg-sidebar-accent/60 border border-transparent rounded-md text-sidebar-foreground placeholder:text-sidebar-foreground/35 focus:outline-none focus:border-sidebar-ring/60 transition-colors"
             />
             </div>
             <div className="relative">
               <button
                 onClick={() => setViewMenuOpen(!viewMenuOpen)}
                 className={cn(
-                  'relative p-2 rounded-xl border transition-colors cursor-pointer',
+                  'relative w-7 h-7 flex items-center justify-center rounded-md transition-colors',
                   (hasActiveFilter || sortBy !== 'name')
-                    ? 'bg-primary/10 border-primary/30 text-primary'
-                    : 'bg-sidebar-accent/50 border-sidebar-border text-sidebar-foreground/40 hover:text-sidebar-foreground'
+                    ? 'bg-primary/15 text-primary'
+                    : 'text-sidebar-foreground/45 hover:bg-sidebar-accent hover:text-sidebar-foreground'
                 )}
                 title="Sort & Filter"
               >
@@ -232,7 +232,7 @@ export function Sidebar(): JSX.Element {
               {viewMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setViewMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-1.5 w-52 bg-popover border border-border rounded-xl shadow-2xl z-50 py-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="absolute right-0 top-full mt-1.5 w-52 bg-popover border border-border rounded-lg shadow-xl z-50 py-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
                     <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Sort by</p>
                     {([['name', 'Name'], ['recent', 'Last Connected'], ['protocol', 'Protocol']] as const).map(([key, label]) => (
                       <button
@@ -319,7 +319,7 @@ export function Sidebar(): JSX.Element {
               {bulkMoveOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setBulkMoveOpen(false)} />
-                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-44 bg-popover border border-border rounded-xl shadow-2xl z-50 py-1.5 animate-in fade-in slide-in-from-bottom-2">
+                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-44 bg-popover border border-border rounded-lg shadow-xl z-50 py-1.5 animate-in fade-in slide-in-from-bottom-2">
                     <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Move to</p>
                     <button
                       onClick={() => handleBulkMove(undefined)}
@@ -762,8 +762,7 @@ function ConnectionItem({
         onDoubleClick={onConnect}
         onContextMenu={handleContextMenu}
         className={cn(
-          'w-full flex items-center gap-2.5 px-2 py-1.5 text-left group transition-all rounded-lg cursor-pointer',
-          'animate-in fade-in slide-in-from-left-1 duration-200',
+          'w-full flex items-center gap-2.5 px-2 py-1.5 text-left group transition-colors rounded-md',
           indent && 'pl-5',
           isSelected
             ? 'bg-primary/10 ring-1 ring-primary/40 text-sidebar-foreground'
@@ -773,21 +772,18 @@ function ConnectionItem({
         )}
       >
         <div
-          className="relative w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-          style={{ backgroundColor: `${accent}20` }}
+          className="relative w-6 h-6 rounded-md flex items-center justify-center shrink-0"
+          style={{ backgroundColor: `${accent}1a` }}
         >
           <DeviceIcon className="w-3.5 h-3.5" style={{ color: accent }} />
           {isConnected && (
-            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full border-2 border-sidebar animate-live-pulse shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full border-2 border-sidebar" />
           )}
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 min-w-0">
-            <p className="text-[13px] font-semibold truncate leading-tight text-sidebar-foreground">{connection.name}</p>
-            {isConnected && (
-              <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400 shrink-0">Live</span>
-            )}
+            <p className="text-[13px] font-medium truncate leading-tight text-sidebar-foreground">{connection.name}</p>
           </div>
           <div className="flex items-center gap-1 mt-0.5 min-w-0">
             <p className="text-[11px] text-sidebar-foreground/50 truncate">
@@ -818,14 +814,13 @@ function ConnectionItem({
           </div>
         </div>
 
-        <div className="relative shrink-0 flex items-center">
-          {/* Protocol badge — hidden on hover */}
-          <span
-            className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded-md font-bold transition-all group-hover:opacity-0 group-hover:scale-75"
-            style={{ backgroundColor: `${accent}20`, color: accent }}
-          >
-            {connection.protocol}
-          </span>
+        <div className="relative shrink-0 flex items-center justify-end min-w-6 h-6">
+          {/* Protocol label for the non-default protocols — hidden on hover */}
+          {connection.protocol !== 'ssh' && (
+            <span className="text-[10px] uppercase font-medium tracking-wide text-sidebar-foreground/40 transition-opacity group-hover:opacity-0">
+              {connection.protocol}
+            </span>
+          )}
 
           {/* 3-dot menu — shown on hover, overlaid on badge */}
           <button

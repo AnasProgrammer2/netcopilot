@@ -1,6 +1,5 @@
 import { useRef, useState, useCallback } from 'react'
 import { useAppStore } from '../../store'
-import { TabBar } from './TabBar'
 import { TerminalTab } from './TerminalTab'
 import { SftpBrowser } from '../sftp/SftpBrowser'
 import { AiPanel } from '../ai/AiPanel'
@@ -99,7 +98,6 @@ export function TerminalArea(): JSX.Element {
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden min-h-0">
-      <TabBar />
 
       <div className="flex flex-1 overflow-hidden min-h-0">
         {/* Home screen — shown when no sessions */}

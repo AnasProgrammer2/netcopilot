@@ -44,11 +44,11 @@ export function GroupDialog({ group, onClose }: Props): JSX.Element {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={onClose}
     >
       <div
-        className="bg-card border border-border rounded-xl shadow-2xl w-80 overflow-hidden"
+        className="bg-card border border-border rounded-lg shadow-xl w-80 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

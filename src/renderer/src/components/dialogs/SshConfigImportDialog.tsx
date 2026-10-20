@@ -75,10 +75,10 @@ export function SshConfigImportDialog({ onImport, onCancel }: Props): JSX.Elemen
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={onCancel}>
       <div
-        className="bg-popover border border-border rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden flex flex-col"
+        className="bg-popover border border-border rounded-lg shadow-xl w-full max-w-lg mx-4 overflow-hidden flex flex-col"
         style={{ maxHeight: '80vh' }}
         onClick={(e) => e.stopPropagation()}
       >
