@@ -7,7 +7,8 @@ import {
   RefreshCw, ArrowUpCircle, AlertCircle, Minus, Plus, ChevronDown, Keyboard, Key, Cloud
 } from 'lucide-react'
 import { useAppStore, AriaMode, ChangePolicy, AiSource, AiProvider, AI_PROVIDER_LABELS } from '../../store'
-import { cn, getInstallerUrl } from '../../lib/utils'
+import { cn } from '../../lib/utils'
+import { useUpdater } from '../../lib/updater'
 import { TERMINAL_THEMES, getTerminalTheme } from '../../lib/terminalThemes'
 
 // ─── Settings data model ────────────────────────────────────────────────────
@@ -992,10 +993,9 @@ function AboutSection() {
   const info = window.api?.appInfo
   const [appVersion, setAppVersion] = useState('—')
   const [deviceId, setDeviceId] = useState('—')
-  const [updateState, setUpdateState] = useState<
-    'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'downloaded' | 'error'
-  >('idle')
-  const [updateVersion, setUpdateVersion] = useState<string | null>(null)
+  const { status: updateState, version: updateVersion, percent, canInstall, check, download, install, openDownloadPage } = useUpdater()
+  const [autoDownload, setAutoDownload] = useState(true)
+  const openSessions = useAppStore((st) => st.sessions.length)
 
   const platform = info?.platform === 'darwin' ? 'macOS'
     : info?.platform === 'win32' ? 'Windows'
@@ -1005,30 +1005,12 @@ function AboutSection() {
   useEffect(() => {
     window.api.appInfo.getVersion().then(setAppVersion).catch(() => {})
     window.api.license.getDeviceId().then(setDeviceId).catch(() => {})
-
-    const offAvailable = window.api.updater.onUpdateAvailable((i) => {
-      setUpdateVersion(i.version)
-      setUpdateState('available')
-    })
-    return () => { offAvailable() }
+    window.api.store.getSetting('autoDownloadUpdates').then((v) => setAutoDownload(v !== false)).catch(() => {})
   }, [])
 
-  const handleCheckUpdate = async () => {
-    setUpdateState('checking')
-    setUpdateVersion(null)
-    try {
-      const res = await window.api.updater.check()
-      if (!res.success || res.error) {
-        setUpdateState('error')
-      } else if (res.updateAvailable && res.updateInfo) {
-        setUpdateState('available')
-        setUpdateVersion(res.updateInfo.version)
-      } else {
-        setUpdateState('up-to-date')
-      }
-    } catch {
-      setUpdateState('error')
-    }
+  const toggleAutoDownload = (v: boolean) => {
+    setAutoDownload(v)
+    window.api.store.setSetting('autoDownloadUpdates', v).catch(() => {})
   }
 
   const rows = [
@@ -1070,21 +1052,22 @@ function AboutSection() {
         ))}
       </div>
 
-      {/* Check for Updates */}
+      {/* Updates */}
       <div className="w-full space-y-2">
-        <button
-          onClick={handleCheckUpdate}
-          disabled={updateState === 'checking'}
-          className={cn(
-            'w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer',
-            'border border-border bg-card hover:bg-accent disabled:opacity-60 disabled:cursor-not-allowed'
-          )}
-        >
-          <RefreshCw className={cn('w-4 h-4', updateState === 'checking' && 'animate-spin')} />
-          {updateState === 'checking' ? 'Checking…' : 'Check for Updates'}
-        </button>
+        {updateState !== 'downloading' && updateState !== 'downloaded' && (
+          <button
+            onClick={() => void check()}
+            disabled={updateState === 'checking'}
+            className={cn(
+              'w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer',
+              'border border-border bg-card hover:bg-accent disabled:opacity-60 disabled:cursor-not-allowed'
+            )}
+          >
+            <RefreshCw className={cn('w-4 h-4', updateState === 'checking' && 'animate-spin')} />
+            {updateState === 'checking' ? 'Checking…' : 'Check for Updates'}
+          </button>
+        )}
 
-        {/* Result banners */}
         {updateState === 'up-to-date' && (
           <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-success/10 border border-success/20 text-sm text-success">
             <Check className="w-4 h-4 shrink-0" />
@@ -1101,19 +1084,65 @@ function AboutSection() {
               </span>
             </div>
             <button
-              onClick={() => window.api.updater.openRelease(getInstallerUrl(updateVersion))}
+              onClick={() => (canInstall ? void download() : openDownloadPage())}
               className="shrink-0 text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium cursor-pointer"
             >
-              Download →
+              {canInstall ? 'Update' : 'Download →'}
             </button>
           </div>
         )}
 
-        {updateState === 'error' && (
-          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-danger/10 border border-danger/20 text-sm text-danger">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>Couldn't check for updates. Check your connection.</span>
+        {updateState === 'downloading' && (
+          <div className="px-3 py-2.5 rounded-lg bg-primary/10 border border-primary/25 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-foreground">Downloading <strong className="text-primary">v{updateVersion}</strong></span>
+              <span className="text-xs tabular-nums text-muted-foreground">{percent}%</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-primary transition-[width] duration-300" style={{ width: `${percent}%` }} />
+            </div>
           </div>
+        )}
+
+        {updateState === 'downloaded' && updateVersion && (
+          <div className="px-3 py-2.5 rounded-lg bg-primary/10 border border-primary/25 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-foreground"><strong className="text-primary">v{updateVersion}</strong> is ready to install</span>
+              <button
+                onClick={() => void install()}
+                className="shrink-0 text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium cursor-pointer"
+              >
+                Restart now
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {openSessions > 0 ? `Your ${openSessions} open session${openSessions === 1 ? '' : 's'} will be closed. ` : ''}
+              Otherwise it installs when you quit NetCopilot.
+            </p>
+          </div>
+        )}
+
+        {updateState === 'error' && (
+          <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-danger/10 border border-danger/20 text-sm text-danger">
+            <span className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {updateVersion ? 'The update didn\u2019t finish.' : 'Couldn\u2019t check for updates. Check your connection.'}
+            </span>
+            {updateVersion && (
+              <button onClick={openDownloadPage} className="shrink-0 text-xs underline underline-offset-2 cursor-pointer">
+                Download installer
+              </button>
+            )}
+          </div>
+        )}
+
+        {canInstall && (
+          <Toggle
+            label="Download updates automatically"
+            description="New versions download in the background and install when you restart or quit."
+            value={autoDownload}
+            onChange={toggleAutoDownload}
+          />
         )}
       </div>
 

@@ -41,8 +41,10 @@ const onAiPlan      = makeFanout<[{ sessionId: string; objective: string; steps:
 const onChangeStatus = makeFanout<[ChangeStatusEvent]>('ai:change-status')
 const onChangeStep   = makeFanout<[ChangeStepRequest]>('ai:change-step')
 const onWindowMaximized  = makeFanout<[boolean]>('window:maximized-change')
-const onUpdaterAvailable = makeFanout<[{ version: string; releaseDate: string; releaseNotes: string | null }]>('updater:update-available')
-const onUpdaterError     = makeFanout<[string]>('updater:error')
+const onUpdaterAvailable  = makeFanout<[{ version: string; releaseDate: string; releaseNotes: string | null; canInstall: boolean }]>('updater:update-available')
+const onUpdaterProgress   = makeFanout<[{ percent: number; transferred: number; total: number; bytesPerSecond: number }]>('updater:download-progress')
+const onUpdaterDownloaded = makeFanout<[{ version: string }]>('updater:update-downloaded')
+const onUpdaterError      = makeFanout<[string]>('updater:error')
 
 type HostKeyPrompt = {
   requestId: string; host: string; port: number; keyType: string; fingerprint: string
@@ -178,12 +180,16 @@ const api = {
     },
   },
 
-  // Auto-updater (check only — downloads open in browser)
+  // Auto-updater: download in the background, install on restart or quit.
   updater: {
     check:       () => ipcRenderer.invoke('updater:check'),
+    download:    () => ipcRenderer.invoke('updater:download'),
+    install:     () => ipcRenderer.invoke('updater:install'),
     openRelease: (url: string) => ipcRenderer.invoke('updater:open-release', url),
-    onUpdateAvailable: onUpdaterAvailable,
-    onError:           onUpdaterError,
+    onUpdateAvailable:  onUpdaterAvailable,
+    onDownloadProgress: onUpdaterProgress,
+    onUpdateDownloaded: onUpdaterDownloaded,
+    onError:            onUpdaterError,
   },
 
   // Serial

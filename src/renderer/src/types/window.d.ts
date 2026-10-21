@@ -137,9 +137,13 @@ declare global {
         getVersion(): Promise<string>
       }
       updater: {
-        check(): Promise<{ success: boolean; updateAvailable?: boolean; updateInfo?: { version: string } | null; error?: string }>
+        check(): Promise<{ success: boolean; updateAvailable?: boolean; updateInfo?: { version: string } | null; canInstall?: boolean; downloaded?: boolean; error?: string }>
+        download(): Promise<{ success: boolean; error?: string }>
+        install(): Promise<{ success: boolean; error?: string }>
         openRelease(url: string): void
-        onUpdateAvailable(cb: (info: { version: string; releaseDate: string; releaseNotes: string | null }) => void): () => void
+        onUpdateAvailable(cb: (info: { version: string; releaseDate: string; releaseNotes: string | null; canInstall: boolean }) => void): () => void
+        onDownloadProgress(cb: (p: { percent: number; transferred: number; total: number; bytesPerSecond: number }) => void): () => void
+        onUpdateDownloaded(cb: (info: { version: string }) => void): () => void
         onError(cb: (message: string) => void): () => void
       }
       store: {

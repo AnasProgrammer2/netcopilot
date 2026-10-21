@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState, useRef } from 'react'
-import { Lock, ArrowUpCircle, X, PanelLeftOpen } from 'lucide-react'
+import { Lock, PanelLeftOpen } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
 import { useAppStore, isAiReady } from './store'
 import { Sidebar } from './components/sidebar/Sidebar'
@@ -16,7 +16,8 @@ import { ChangeDock } from './components/ai/ChangeCard'
 import { useChangeEvents } from './lib/changeRunner'
 import { TitleBar } from './components/TitleBar'
 import { MasterPasswordLock } from './components/MasterPasswordLock'
-import { cn, getInstallerUrl } from './lib/utils'
+import { useUpdaterEvents } from './lib/updater'
+import { UpdateBanner } from './components/UpdateBanner'
 
 export default function App(): JSX.Element {
   const {
@@ -38,9 +39,6 @@ export default function App(): JSX.Element {
   const [helpTab,     setHelpTab]     = useState<'start' | 'aria' | 'shortcuts'>('start')
   const lastActivityRef = useRef(Date.now())
   const autoLockMinsRef = useRef(0)
-  const [updateBanner, setUpdateBanner] = useState<{
-    version: string
-  } | null>(null)
 
   // Request notification permission on startup
   useEffect(() => {
@@ -72,13 +70,7 @@ export default function App(): JSX.Element {
     }
   }, [masterLocked])
 
-  // Listen for auto-updater "update available" event
-  useEffect(() => {
-    const offAvailable = window.api.updater.onUpdateAvailable((info) => {
-      setUpdateBanner({ version: info.version })
-    })
-    return () => { offAvailable() }
-  }, [])
+  useUpdaterEvents()
 
   // Auto-lock idle timer
   useEffect(() => {
@@ -316,51 +308,7 @@ export default function App(): JSX.Element {
         onClose={() => setHelpOpen(false)}
       />
 
-      {/* Update notification banner */}
-      {updateBanner && (
-        <div className={cn(
-          'fixed bottom-5 right-5 z-[150] w-80 rounded-xl border border-primary/30',
-          'bg-background/95 backdrop-blur-sm shadow-2xl shadow-black/40',
-          'flex flex-col gap-3 p-4'
-        )}>
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
-                <ArrowUpCircle className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">Update Available</p>
-                <p className="text-xs text-muted-foreground">v{updateBanner.version} is ready</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setUpdateBanner(null)}
-              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                window.api.updater.openRelease(getInstallerUrl(updateBanner.version))
-                setUpdateBanner(null)
-              }}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors cursor-pointer"
-            >
-              <ArrowUpCircle className="w-3.5 h-3.5" />
-              Download Update
-            </button>
-            <button
-              onClick={() => setUpdateBanner(null)}
-              className="flex-1 px-3 py-2 rounded-lg bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80 transition-colors cursor-pointer"
-            >
-              Later
-            </button>
-          </div>
-        </div>
-      )}
+      <UpdateBanner />
 
       {locked && hasMasterPassword && (
         <MasterPasswordLock variant="idle" onUnlocked={unlock} />
