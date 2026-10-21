@@ -1,8 +1,9 @@
 name: Auto version
 
-# Push to main bumps the patch version and starts Build & Release.
+# A new version is built only when a push to main says so.
+# Put [release] in the commit message. Ordinary pushes do nothing here.
 # A commit that already raised package.json above the latest tag is released
-# as-is. Bot commits and "[skip release]" do not start another version.
+# as-is. Bot commits that start with "release:" do not start another version.
 
 on:
   push:
@@ -20,7 +21,7 @@ jobs:
   version:
     if: >-
       github.actor != 'github-actions[bot]' &&
-      !contains(github.event.head_commit.message, '[skip release]') &&
+      contains(github.event.head_commit.message, '[release]') &&
       !startsWith(github.event.head_commit.message, 'release:')
     runs-on: ubuntu-latest
     steps:
