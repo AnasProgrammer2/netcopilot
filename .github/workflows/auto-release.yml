@@ -1,0 +1,72 @@
+name: Auto version
+
+# Push to main bumps the patch version and starts Build & Release.
+# A commit that already raised package.json above the latest tag is released
+# as-is. Bot commits and "[skip release]" do not start another version.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: auto-version
+  cancel-in-progress: false
+
+jobs:
+  version:
+    if: >-
+      github.actor != 'github-actions[bot]' &&
+      !contains(github.event.head_commit.message, '[skip release]') &&
+      !startsWith(github.event.head_commit.message, 'release:')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Decide version
+        id: ver
+        run: |
+          set -euo pipefail
+          current="$(node -p "require('./package.json').version")"
+          latest="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -1)"
+          latest="${latest#v}"
+          echo "package.json=$current latest tag=${latest:-none}"
+          # Already newer than the last tag — release that version, don't bump again.
+          if [ -n "$latest" ] && [ "$(printf '%s\n%s\n' "$latest" "$current" | sort -V | tail -1)" = "$current" ] && [ "$current" != "$latest" ]; then
+            echo "tag=v$current" >> "$GITHUB_OUTPUT"
+            echo "bump=false" >> "$GITHUB_OUTPUT"
+          else
+            npm version patch --no-git-tag-version
+            next="$(node -p "require('./package.json').version")"
+            echo "tag=v$next" >> "$GITHUB_OUTPUT"
+            echo "bump=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit version bump
+        if: steps.ver.outputs.bump == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "release: ${{ steps.ver.outputs.tag }}"
+          git push origin HEAD:main
+
+      - name: Start Build & Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run "Build & Release" --repo "$GITHUB_REPOSITORY" --ref main -f tag="${{ steps.ver.outputs.tag }}"
+          echo "Started release ${{ steps.ver.outputs.tag }}"
