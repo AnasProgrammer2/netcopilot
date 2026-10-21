@@ -1,377 +1,320 @@
+<p align="center">
+  <img src="docs/media/logo.png" width="96" alt="NetCopilot logo" />
+</p>
+
 <h1 align="center">NetCopilot</h1>
 
 <p align="center">
-  <strong>The SSH client for network engineers — with an AI copilot that asks first.</strong>
-</p>
-
-<!-- Status -->
-<p align="center">
-  <a href="https://github.com/AnasProgrammer2/netcopilot/releases/latest"><img src="https://img.shields.io/github/v/release/AnasProgrammer2/netcopilot?style=for-the-badge&color=8B5CF6&label=Latest&labelColor=1a1625" alt="Latest Release" /></a>
-  <a href="https://github.com/AnasProgrammer2/netcopilot/releases"><img src="https://img.shields.io/github/downloads/AnasProgrammer2/netcopilot/total?style=for-the-badge&color=22c55e&label=Downloads&labelColor=1a1625" alt="Downloads" /></a>
-  <a href="https://github.com/AnasProgrammer2/netcopilot/actions"><img src="https://img.shields.io/github/actions/workflow/status/AnasProgrammer2/netcopilot/release.yml?style=for-the-badge&label=Build&labelColor=1a1625" alt="Build" /></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-BSL--1.1-3b82f6?style=for-the-badge&labelColor=1a1625" alt="License" /></a>
-</p>
-
-<!-- Community -->
-<p align="center">
-  <a href="https://github.com/AnasProgrammer2/netcopilot/stargazers"><img src="https://img.shields.io/github/stars/AnasProgrammer2/netcopilot?style=flat-square&color=f59e0b&logo=github&logoColor=white&labelColor=1a1625" alt="Stars" /></a>
-  <a href="https://github.com/AnasProgrammer2/netcopilot/network/members"><img src="https://img.shields.io/github/forks/AnasProgrammer2/netcopilot?style=flat-square&color=06b6d4&logo=git&logoColor=white&labelColor=1a1625" alt="Forks" /></a>
-  <a href="https://github.com/AnasProgrammer2/netcopilot/graphs/contributors"><img src="https://img.shields.io/github/contributors/AnasProgrammer2/netcopilot?style=flat-square&color=8B5CF6&labelColor=1a1625" alt="Contributors" /></a>
-  <a href="https://github.com/AnasProgrammer2/netcopilot/issues"><img src="https://img.shields.io/github/issues/AnasProgrammer2/netcopilot?style=flat-square&color=ef4444&labelColor=1a1625" alt="Open Issues" /></a>
-  <a href="https://github.com/AnasProgrammer2/netcopilot/commits/main"><img src="https://img.shields.io/github/last-commit/AnasProgrammer2/netcopilot?style=flat-square&color=22c55e&logo=git&logoColor=white&labelColor=1a1625" alt="Last Commit" /></a>
-  <a href="https://github.com/AnasProgrammer2/netcopilot"><img src="https://hits.sh/github.com/AnasProgrammer2/netcopilot.svg?style=flat-square&label=visits&color=8B5CF6&labelColor=1a1625" alt="Visits" /></a>
-</p>
-
-<!-- Platforms & Stack -->
-<p align="center">
-  <img src="https://img.shields.io/badge/macOS-Apple%20Silicon%20%26%20Intel-000000?style=flat-square&logo=apple&logoColor=white&labelColor=1a1625" alt="macOS" />
-  <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=flat-square&logo=windows&logoColor=white&labelColor=1a1625" alt="Windows" />
-  <img src="https://img.shields.io/badge/Linux-AppImage-FCC624?style=flat-square&logo=linux&logoColor=black&labelColor=1a1625" alt="Linux" />
-  <img src="https://img.shields.io/badge/Electron-32-47848F?style=flat-square&logo=electron&logoColor=white&labelColor=1a1625" alt="Electron" />
-  <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black&labelColor=1a1625" alt="React" />
-  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white&labelColor=1a1625" alt="TypeScript" />
+  <strong>The SSH client for network engineers — with an AI copilot that asks first.</strong><br />
+  SSH, Telnet and Serial in one modern app. ARIA reads your sessions, finds the root cause,<br />
+  and suggests the fix. Nothing changes on a device until you approve it.
 </p>
 
 <p align="center">
-  <a href="#download">Download</a> · <a href="#aria--the-ai-copilot">ARIA Copilot</a> · <a href="#features">Features</a> · <a href="#security">Security</a> · <a href="#getting-started">Dev Setup</a>
+  <a href="https://github.com/AnasProgrammer2/netcopilot/releases/latest"><img src="https://img.shields.io/github/v/release/AnasProgrammer2/netcopilot?style=flat-square&color=8B5CF6&label=release&labelColor=1a1625" alt="Latest release" /></a>
+  <a href="https://github.com/AnasProgrammer2/netcopilot/releases"><img src="https://img.shields.io/github/downloads/AnasProgrammer2/netcopilot/total?style=flat-square&color=22c55e&labelColor=1a1625" alt="Downloads" /></a>
+  <a href="https://github.com/AnasProgrammer2/netcopilot/stargazers"><img src="https://img.shields.io/github/stars/AnasProgrammer2/netcopilot?style=flat-square&color=f59e0b&labelColor=1a1625" alt="Stars" /></a>
+  <img src="https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-64748b?style=flat-square&labelColor=1a1625" alt="macOS, Windows, Linux" />
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-BSL--1.1-3b82f6?style=flat-square&labelColor=1a1625" alt="License: BSL 1.1" /></a>
 </p>
 
----
+<p align="center">
+  <a href="https://github.com/AnasProgrammer2/netcopilot/releases/latest"><b>Download</b></a> ·
+  <a href="https://netcopilot.app">Website</a> ·
+  <a href="#how-aria-stays-safe">How ARIA stays safe</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#compared-to">Compared to</a> ·
+  <a href="https://www.linkedin.com/company/netcopilot/">LinkedIn</a>
+</p>
 
-NetCopilot is a full SSH, Telnet and Serial client with an **AI copilot** built in. It reads your sessions, checks your devices with read-only commands and explains what is wrong — and nothing changes on a device until you approve it.
+<p align="center">
+  <img src="docs/media/hero.webp" alt="NetCopilot: an SSH session to a Cisco switch, with ARIA proposing a change plan that waits for approval" />
+</p>
 
-The copilot is **ARIA**. It plans an investigation, runs read-only checks you can see in the chat, reads the output and gives you a structured diagnosis — all without leaving your terminal. You describe the problem; ARIA does the legwork and you make the call. The AI is optional: the client works fully without it.
-
-### See It in Action
-
+<!-- DEMO VIDEO: to update it, edit this file on github.com, drag the new .mp4 onto the line below,
+     and delete the old link. GitHub uploads it and turns the link into a video player. -->
 https://github.com/user-attachments/assets/1be0a1d5-f7a2-45c8-b667-1f49f356d0f3
 
 ---
 
-## Download
+## Why NetCopilot
 
-Pre-built binaries for all platforms — no build step required.
+- **A complete, free SSH client.** Sessions, SFTP, port forwarding, jump hosts, serial consoles, snippets and an encrypted vault — no trial clock, no account required. The AI is optional.
+- **An AI copilot built for network gear.** ARIA knows Cisco, Juniper, Arista, Palo Alto, Fortinet, MikroTik and more. It runs the read-only checks a senior engineer would, and tells you *why* — not just what.
+- **Changes only when you say so.** ARIA suggests a plan with the exact lines and a way back. NetCopilot applies it with the device's own undo timer, and you keep it or roll it back with one click.
+- **Private by default.** Everything is encrypted on your machine. Bring your own Claude, OpenAI or Grok key — or run a local model with Ollama, and nothing leaves your network.
 
-<p align="center">
-  <a href="https://github.com/AnasProgrammer2/netcopilot/releases/latest">
-    <img src="https://img.shields.io/badge/Download-Latest%20Release-8B5CF6?style=for-the-badge&logo=github" alt="Download Latest Release" />
-  </a>
-</p>
+## Quick start
 
-| Platform | File | Architecture | Code Signing |
-|:--------:|:----:|:------------:|:------------:|
-| macOS | `.dmg` | Apple Silicon (arm64) / Intel (x64) | ✅ Signed & Notarized by Apple |
-| Windows | `.exe` installer | x64 | ⏳ Pending (see note below) |
-| Linux | `.AppImage` / `.deb` | x64 | — (not required) |
+1. **[Download](https://github.com/AnasProgrammer2/netcopilot/releases/latest)** for macOS (Apple Silicon & Intel, signed and notarized), Windows (installer or portable) or Linux (AppImage or .deb).
+2. Add a host — or import your `~/.ssh/config` or a Termius CSV export in one step.
+3. Connect. When you want a second pair of eyes, open **ARIA** (`⌘⇧A` / `Ctrl+Shift+A`) and describe the problem.
 
-> **Windows users:** the current Windows build is unsigned, so SmartScreen may display a "Windows protected your PC" warning. Click **More info → Run anyway** to continue. Free Windows code signing for NetCopilot has been requested from the [SignPath Foundation](https://signpath.org/) — once approved, all future Windows releases will be signed by [SignPath.io](https://signpath.io/) with a certificate issued by the SignPath Foundation.
+NetCopilot updates itself from then on: new versions download in the background and install when you restart.
 
 ---
 
-## ARIA — The AI Copilot
+## Meet ARIA
 
-ARIA is not a chatbot bolted onto a terminal. It works inside your sessions, checks devices with read-only commands and explains what it finds — built specifically for network and infrastructure engineers.
+<p align="center">
+  <img src="docs/media/investigate.webp" alt="ARIA investigating a BGP neighbor: a plan, two read-only show commands and their output" />
+</p>
 
-### How It Works
+Describe the problem in plain words — *"BGP to 10.10.30.3 is down, find out why"*. ARIA:
 
-When you describe a problem, ARIA **investigates before it answers**:
+1. **Plans** the investigation before touching anything
+2. **Checks** with read-only commands, each one visible in the chat and in your terminal
+3. **Reads** all the output together, with the device's vendor and context in mind
+4. **Explains** the root cause and, if a fix is needed, **suggests a change plan**
 
-```
-You: "There's a BGP flapping issue on this router"
+ARIA carries a playbook per platform — the signature commands, the common root causes and the right order to isolate a fault. On a Cisco ASA it reaches for `packet-tracer`, on a FortiGate `diagnose debug flow`, on Palo Alto `test security-policy-match`.
 
-ARIA:
-  Plan → [Check BGP summary] [Check neighbor state] [Check route table] [Check logs]
-  ↓ show ip bgp summary          ✓
-  ↓ show ip bgp neighbors        ✓
-  ↓ show ip route bgp            ✓
-  ↓ show logging | include BGP   ✓
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/media/change-plan.webp" alt="Change plan: evidence, exact lines, safety net, Approve & apply" /><br />
+      <b>It suggests the fix.</b> Evidence, every line it wants to change, how the result is checked and how to undo it. Nothing runs until you click <b>Approve</b>.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/media/keep-or-rollback.webp" alt="Device diff, ARIA recommends keeping the change, Keep change and Roll back buttons with a countdown" /><br />
+      <b>You keep it — or undo it.</b> Before and after side by side, with ARIA's read of the result. If your connection drops, the device rolls back by itself.
+    </td>
+  </tr>
+</table>
 
-  Analysis: Neighbor 10.0.0.1 is flapping due to hold-timer expiry.
-  MTU mismatch detected on Gi0/0/1. Recommended fix: ...
-```
+---
 
-1. **Plans** — generates a structured investigation plan before touching anything
-2. **Checks** — runs read-only commands one after another, each one visible in the chat
-3. **Analyzes** — reads all output collectively, not per-command
-4. **Delivers** — complete, structured diagnosis with actionable recommendations
+## How ARIA stays safe
 
-### Per-Platform Mastery
-
-ARIA carries deep, vendor-specific knowledge for every supported platform — not generic advice. Each device type has a dedicated playbook:
-
-- **Signature commands** — the exact commands a senior engineer would run first
-- **Common root causes** — the failure modes that actually happen in production
-- **Diagnostic flow** — the correct order to isolate the failing layer
-
-> On Cisco ASA → `packet-tracer`. On FortiGate → `diagnose debug flow`. On Palo Alto → `test security-policy-match`. These are the expert moves.
-
-### Key Capabilities
-
-| Capability | Description |
-|:---|:---|
-| **Batch Execution** | 2–5 independent commands in a single round-trip |
-| **Structured Context** | Every message includes parsed hostname, prompt, last 5 commands + outputs |
-| **Auto Device Detection** | Identifies device type from live terminal output before responding |
-| **Smart Retry** | Auto-retries with vendor-appropriate syntax when output is empty |
-| **Conversation Compression** | Summarizes older messages intelligently while preserving intent |
-| **L4 Planning Mode** | Visual investigation plan card with live step-by-step progress |
-| **Multi-Session Intelligence** | Aware of all open sessions; a command for another device waits for your Run |
-| **Session Summary** | Delivers a recap of all commands when closing a tab |
-
-### Modes & Change Control
-
-ARIA never types configuration into your devices by itself. Its own commands are **read-only in every mode**; any change goes through a **change plan** that NetCopilot applies with the platform's own safety net.
+ARIA's own commands are **read-only in every mode**. It cannot change a device with a command at all — every change goes through a plan you review.
 
 | Mode | What ARIA can do |
 |:---|:---|
-| **Investigate** | Read-only diagnosis — `show`, `display`, `ping`, `traceroute`… run without clicks; heavy commands (`show tech`, captures) ask first |
-| **Change** | Proposes change plans. Nothing touches the device until you click **Approve** |
-| **Autopilot** | Lab and staging devices only — ARIA approves and confirms its own plans, with the same safety nets |
+| **Investigate** (default) | Read-only diagnosis — `show`, `display`, `ping`, `traceroute`. Long-running commands (`show tech`, captures) ask first |
+| **Change** | Suggests change plans. Nothing touches the device until you click **Approve** |
+| **Autopilot** | Lab and staging devices only — ARIA may approve and confirm its own plans, with the same safety nets. Never on production |
 
-Every connection is **Production**, **Staging** or **Lab** (set in the connection dialog). Production devices never run Autopilot, and the **Change Policy** in Settings → ARIA can keep production read-only or require a written reason for changes outside a maintenance window.
+Every connection is marked **Production**, **Staging** or **Lab**. The change policy can keep production read-only, or require a written reason for changes outside a maintenance window.
 
-**What happens when you approve a change plan**
+**When you approve a plan, NetCopilot:**
 
-1. **Snapshot** — the running configuration is saved (encrypted, inside NetCopilot)
-2. **Pre-checks** — ARIA's read-only baseline commands
-3. **Safety net** — Junos `commit confirmed`, Arista EOS config session with `commit timer`, Cisco IOS `reload in` when the management path is touched, NX-OS checkpoint, RouterOS Safe Mode
-4. **Apply** — if the device rejects a line, NetCopilot backs the change out automatically
-5. **Verify** — the same checks again; ARIA compares before and after
-6. **Keep or roll back** — your click. On timer-based platforms the device reverts by itself if the session is lost
+1. **Snapshots** the running configuration (encrypted, inside NetCopilot)
+2. Runs the **pre-checks** to record a baseline
+3. Arms the **device's own safety net** — Junos `commit confirmed`, Arista EOS config session `commit timer`, Cisco IOS `reload in` when the management path is touched, NX-OS checkpoint, RouterOS Safe Mode
+4. **Applies** the change — if the device rejects a line, it is backed out right away
+5. **Verifies** with the same checks; ARIA compares before and after
+6. Waits for **your click**: keep it or roll it back
 
-Every plan — approved, rejected, rolled back or failed — is kept in **Change History** with the device diff and full execution log, exportable as Markdown for change tickets.
-
-| Control | Behavior |
+| Guardrail | What it does |
 |:---|:---|
-| **Blocked Patterns** | `reload`, `rm -rf`, `write erase`, etc. — never run, and screened in every change plan |
-| **Untrusted output** | Device output reaches the model marked as data, so text on a device (banners, logs, descriptions) can't instruct ARIA |
+| **Blocked commands** | `reload`, `write erase`, `rm -rf` and your own patterns never run, and are screened in every plan |
+| **Clicks for anything unusual** | Commands on another device, long-running commands and anything Auto Watch suggests wait for you |
+| **Untrusted device output** | Output reaches the model marked as data, so a banner or log line can't instruct ARIA |
+| **Change History** | Every plan — approved, rejected, rolled back or failed — with the diff and full execution log, exportable as Markdown for change tickets |
 
-### Auto Watch & Error Alert Badge
-
-When enabled, ARIA reads your terminal output when a command finishes. If it spots errors, misconfigurations or anomalies, it tells you in the side panel without interrupting your work — and any command it suggests waits for your click.
-
-Even when the AI panel is **closed**, a pulsing red badge appears on the ARIA button the moment an error pattern is detected (`%Error`, `command not found`, `connection refused`, etc.). Click it to open ARIA and analyze the issue instantly.
-
-### ARIA Setup
-
-ARIA can run on a NetCopilot license (hosted Claude), your own cloud API key, or a model you host yourself:
-
-1. Open the app → **Settings → ARIA**
-2. Choose **NetCopilot hosted** and activate a license, or **My own provider**
-3. Pick a provider:
-
-| Provider | What you need | Example models |
-|---|---|---|
-| **Claude** | Anthropic API key (`sk-ant-…`) | `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5` |
-| **OpenAI** | OpenAI API key | `gpt-4.1`, `gpt-5` |
-| **Grok** | xAI API key | `grok-4` |
-| **Local / Custom** | Any OpenAI-compatible URL — Ollama (`http://localhost:11434/v1`), LM Studio (`http://localhost:1234/v1`), vLLM, LocalAI. API key optional | `qwen2.5:14b`, `llama3.1:8b` |
-
-4. Click **Test**, then pick a model (click ↻ to list the models your key or server offers)
-
-API keys are stored in the **OS keychain**. With your own provider, requests go directly from the app to that provider or server — they never pass through NetCopilot servers. For local models, choose one with tool-calling support so ARIA can run commands, and give it a context window of 16K tokens or more.
+<p align="center">
+  <img src="docs/media/change-history.webp" width="820" alt="Change History: confirmed, rolled back, failed and rejected changes with device diff and ARIA's recommendation" />
+</p>
 
 ---
 
 ## Features
 
-### Supported Protocols
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/media/multi-session.webp" alt="ARIA on core-router-02 asking to run a command on core-switch-01, with Run and Skip" /><br />
+      <b>One copilot, every session.</b> ARIA sees all your open sessions and connects what it finds across devices. A command meant for another device waits for your <b>Run</b>.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/media/modes.webp" alt="ARIA mode menu: Investigate, Change, Autopilot unavailable on production" /><br />
+      <b>You decide how much ARIA can do.</b> Investigate by default, Change when you want a fix, Autopilot only in the lab.
+    </td>
+  </tr>
+</table>
 
-| Protocol | Details |
+<p align="center">
+  <img src="docs/media/auto-watch.webp" alt="Auto Watch: the engineer runs show logging and ARIA explains the BGP drops in the side panel" />
+</p>
+
+**Auto Watch reads along.** When a command finishes, ARIA reads the output and points out what looks wrong — in the side panel, without touching your session. Even with the panel closed, a badge appears when an error like `%Error` or `connection refused` shows up.
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/media/import-termius.webp" alt="Import from Termius CSV: hosts, groups and jump hosts mapped before import" /><br />
+      <b>Bring your hosts with you.</b> Import from <code>~/.ssh/config</code> or a Termius CSV export — groups, tags and jump hosts included.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/media/whats-new.webp" alt="What's new window after an in-app update" /><br />
+      <img src="docs/media/update-ready.webp" width="70%" alt="Update ready: Restart now or Later" /><br />
+      <b>Updates itself.</b> New versions download in the background and install on restart — then show you what changed.
+    </td>
+  </tr>
+</table>
+
+### Everything a daily driver needs
+
+| | |
 |:---|:---|
-| **SSH** | Password, SSH key, key+passphrase, Cisco Enable Password |
-| **Telnet** | Full NAWS negotiation, automatic terminal resize |
-| **Serial** | RS-232 / USB-to-Serial, configurable baud/parity/data bits/stop bits/flow control |
+| **Protocols** | SSH (password, key, key + passphrase, Cisco enable), Telnet with NAWS resize, Serial (RS-232 / USB, baud, parity, data and stop bits, flow control) |
+| **Terminal** | xterm.js with true color, vendor-aware highlighting on connect, regex search with a live `n / total` counter, split view, session logging with optional timestamps, auto-reconnect |
+| **Files** | SFTP browser in its own tab — browse, upload, download, rename, delete, create folders |
+| **Networking** | Jump host / bastion, local and remote port forwarding, SOCKS proxy (dynamic forwarding), agent forwarding |
+| **Connections** | Groups, colors, tags and notes; Quick Connect (`⌘K`) for `user@host:port`; startup commands; reusable SSH keys; health monitor with live latency |
+| **Import / export** | `~/.ssh/config`, Termius or generic CSV, full export as AES-256 encrypted JSON |
 
-### Supported Devices
+### Supported devices
 
 | Category | Platforms |
 |:---|:---|
-| **Auto-detect** | Automatically identifies device type on first login |
 | Cisco | IOS, IOS-XE, NX-OS, ASA |
-| Routing & Switching | Juniper JunOS, Arista EOS, Nokia SR-OS, Huawei VRP, MikroTik RouterOS, HP/Aruba ProCurve |
+| Routing & switching | Juniper Junos, Arista EOS, Nokia SR OS, Huawei VRP, MikroTik RouterOS, HPE Aruba ProCurve |
 | Firewalls | Palo Alto PAN-OS, Fortinet FortiOS |
-| Load Balancers | F5 BIG-IP TMOS |
+| Load balancers | F5 BIG-IP TMOS |
 | Servers | Linux / Unix, Windows Server |
-| Generic | Any SSH/Telnet/Serial device |
+| Anything else | Any SSH, Telnet or Serial device — the type is detected on first login |
 
-### SFTP Browser
-
-- Visual file manager that opens as a dedicated tab alongside your terminal sessions
-- Browse remote directories, upload, download, rename, delete files and folders
-- Create new directories with a single click
-- Access via right-click context menu or the 3-dot (⋯) hover menu on any SSH connection
-- Progress indicator for file transfers
-
-### Connection Health Monitor
-
-- Ping dashboard on the home screen — check latency for all connections at a glance
-- Color-coded latency badges: green (fast) → yellow → orange (slow) → red (offline)
-- Refresh button to re-scan all connections on demand
-- Non-blocking — runs in the background while you work
-
-### Terminal
-
-- In-terminal search with regex and case-sensitivity (`⌘F`)
-- Result counter shows `n / total` matches as you type; red indicator when nothing is found
-- Right-click context menu (Copy, Paste, Search, Clear)
-- Configurable font family, size, line height, cursor style, and scrollback
-- Session logging with ANSI stripping and optional timestamps
-- Split view — two sessions side by side
-- Auto-reconnect on session drop
-- Connection overlays (spinner, disconnect, error states)
-
-### Networking
-
-- **Port Forwarding** — local port forwarding rules per connection with live status
-- **SOCKS Proxy** — dynamic port forwarding (SOCKS4/SOCKS5) through SSH
-- **Jump Host / Bastion** — connect through intermediate servers transparently
-
-### Connection Management
-
-- Organized library with groups, colors, tags, and notes
-- **Smart sidebar sorting** — active sessions always float to the top; default sort by last connected so your most-used hosts are always first
-- Tags filter from the HomeScreen pills bar
-- **Quick Connect** (`⌘K`) — instant session from `user@host:port` without saving
-- Startup commands that run automatically after connecting
-- SSH key manager with reusable named keys
-- Full import / export as JSON
-- Import directly from `~/.ssh/config`
-
-### Keyboard Shortcuts
-
-| Shortcut | Action |
-|:--------:|:------:|
-| `⌘K` / `Ctrl+K` | Quick Connect |
-| `⌘T` / `Ctrl+T` | New tab |
-| `⌘W` / `Ctrl+W` | Close active tab |
-| `⌘,` | Settings |
-| `⌘D` / `Ctrl+D` | Toggle Split View |
-| `⌘⇧A` | Toggle ARIA panel |
-| `⌘1–9` | Switch to tab N |
-| `⌘F` | Search in terminal |
+Missing your platform? [Request vendor support](https://github.com/AnasProgrammer2/netcopilot/issues/new?template=vendor_support.yml).
 
 ---
 
-## Security
+## Bring your own AI — or none at all
+
+ARIA runs on a NetCopilot license (hosted Claude), your own API key, or a model you host yourself. **Settings → ARIA**:
+
+| Provider | What you need | Example models |
+|---|---|---|
+| **Claude** | Anthropic API key | `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5` |
+| **OpenAI** | OpenAI API key | `gpt-4.1`, `gpt-5` |
+| **Grok** | xAI API key | `grok-4` |
+| **Local / custom** | Any OpenAI-compatible URL — Ollama (`http://localhost:11434/v1`), LM Studio (`http://localhost:1234/v1`), vLLM, LocalAI | `qwen2.5:14b`, `llama3.1:8b` |
+
+With your own provider, requests go straight from the app to that provider or server — never through NetCopilot servers. API keys live in the OS keychain. For local models, pick one with tool calling and a context window of 16K tokens or more.
+
+---
+
+## Compared to
+
+| | NetCopilot | Termius | SecureCRT | PuTTY |
+|:---|:---:|:---:|:---:|:---:|
+| Price | **Free** | Free · Pro from $10/mo | Paid | Free |
+| SSH, Telnet & Serial | ✅ | ✅ | ✅ | ✅ |
+| SFTP browser | ✅ | ✅ | ✅ | CLI only |
+| Jump host | ✅ | ✅ | ✅ | Manual |
+| AI that troubleshoots network devices | ✅ | — | — | — |
+| Change plans with device-side rollback | ✅ | — | — | — |
+| Bring your own AI key or a local model | ✅ | — | — | — |
+| Session logs | ✅ | Pro | ✅ | ✅ |
+| Source available | ✅ | — | — | ✅ |
+
+Need cloud sync across devices or mobile apps? Termius does that well, and NetCopilot doesn't (yet). NetCopilot is built for the engineer at the desk with a console cable and a production network to look after.
+
+---
+
+## Security & privacy
 
 | Layer | Protects | Technology |
 |:---|:---|:---|
-| **Encrypted Database** | All connections, settings, configuration | SQLCipher (AES-256) |
-| **OS Keychain** | Passwords, SSH keys, license keys, DB encryption key | Electron safeStorage |
-| **Master Password** | App-level lock on startup | scrypt + timing-safe comparison |
-| **Command Blacklist** | Dangerous command execution | Code-level enforcement, always-on |
+| **Encrypted database** | Connections, settings, change snapshots | SQLCipher (AES-256) |
+| **OS keychain** | Passwords, SSH keys, API and license keys, the database key | Electron `safeStorage` |
+| **Master password** | Optional app lock, with auto-lock when idle | scrypt, timing-safe comparison |
+| **Blocked commands** | Destructive commands, in every mode | Enforced in code, always on |
 
-Credentials are **never stored in plaintext**. The database encryption key is generated on first launch, stored in the OS keychain, and never written to disk directly.
-
----
-
-## Who Is It For?
-
-- **Network engineers** working daily with Cisco, Juniper, Arista, Palo Alto, and similar platforms
-- **DevOps and infrastructure teams** managing Linux and Windows servers remotely
-- **NOC teams** that need fast diagnostics and a clean, modern interface
-- **Security teams** performing network audits and configuration reviews
-- Anyone who spends serious time in SSH sessions and wants real AI assistance
+Credentials are never stored in plaintext. The database key is generated on first launch and kept in the OS keychain. The source is open to read, so you can check all of this yourself. Found an issue? See [SECURITY.md](./SECURITY.md).
 
 ---
 
-## Getting Started
+## Who it's for
 
-### Prerequisites
+- **Network engineers** working with Cisco, Juniper, Arista, Palo Alto, Fortinet and MikroTik every day
+- **NOC teams** that need fast, consistent first-line diagnostics
+- **Infrastructure and DevOps teams** managing Linux and Windows servers
+- **Security teams** running audits and configuration reviews
+- Anyone who lives in SSH sessions and wants an assistant that knows when to ask
 
-- [Node.js](https://nodejs.org/) v20+
-- npm v9+
-- Git
+<details>
+<summary><b>Keyboard shortcuts</b></summary>
 
-### Setup
+| Shortcut | Action |
+|:---|:---|
+| `⌘K` / `Ctrl+K` | Quick Connect |
+| `⌘T` / `Ctrl+T` | New tab |
+| `⌘W` / `Ctrl+W` | Close tab |
+| `⌘,` / `Ctrl+,` | Settings |
+| `⌘D` / `Ctrl+D` | Split view |
+| `⌘⇧A` / `Ctrl+Shift+A` | ARIA panel |
+| `⌘1–9` / `Ctrl+1–9` | Switch to tab N |
+| `⌘F` / `Ctrl+F` | Search in terminal |
+
+</details>
+
+<details>
+<summary><b>Build from source</b></summary>
+
+Requires [Node.js](https://nodejs.org/) 20+, npm 9+ and Git.
 
 ```bash
 git clone https://github.com/AnasProgrammer2/netcopilot.git
 cd netcopilot
 npm install
-npm run dev
+npm run dev          # launches with hot reload
 ```
-
-The app launches immediately with hot-reload enabled.
-
-### Build
 
 ```bash
-npm run build:mac     # macOS
-npm run build:win     # Windows
-npm run build:linux   # Linux
+npm run build:mac    # macOS
+npm run build:win    # Windows
+npm run build:linux  # Linux
 ```
 
-Output files in `dist/`.
-
----
-
-## Tech Stack
+Packages land in `dist/`. Run the checks with `npm run typecheck` and `npx vitest run`.
 
 | Layer | Technology |
 |:---|:---|
-| Framework | Electron 44 + electron-vite |
-| Frontend | React 19, Tailwind CSS, Zustand |
+| App | Electron 44, electron-vite |
+| UI | React 19, Tailwind CSS, Zustand |
 | Terminal | xterm.js 6 |
-| Database | SQLite (SQLCipher AES-256) via better-sqlite3 |
-| AI Backend | NetCopilot API |
+| Storage | SQLite with SQLCipher (AES-256) via better-sqlite3-multiple-ciphers |
 | Protocols | ssh2, serialport, raw TCP (Telnet) |
+| AI | NetCopilot API, or Claude / OpenAI / Grok / any OpenAI-compatible server |
 
----
+</details>
 
-## Roadmap
-
-### Released
-- [x] **SFTP Browser** — visual file transfer (browse, upload, download, rename, delete, mkdir) via right-click or sidebar context menu
-- [x] **ARIA Error Alert Badge** — pulsing red badge on the ARIA button when an error is detected in the terminal, even while the AI panel is closed
-- [x] **Session Summary Dialog** — closing a tab with AI activity shows a full summary of commands run, stats, and ARIA's last response
-- [x] **Thinking… / Running… indicators** — live feedback while ARIA is waiting for the first token or executing between tool calls
-- [x] **Port Forwarding** — local, remote, and dynamic (SOCKS) tunnels per connection with live status
-- [x] **Connection Health Monitor** — ping dashboard with live latency badges directly on the home screen
-- [x] **Smart sidebar sorting** — open sessions always on top, sorted by last connected
-- [x] **Terminal search counter** — live `n / total` result count with no-match indicator
 ---
 
 ## Contributing
 
-Contributions are welcome! Please open an issue first to discuss what you'd like to change.
+Bug reports, vendor playbooks and pull requests are welcome. Start with [CONTRIBUTING.md](./CONTRIBUTING.md), then open an [issue](https://github.com/AnasProgrammer2/netcopilot/issues/new/choose) to discuss bigger changes.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+**If NetCopilot saves you time on a bad day, a ⭐ helps other engineers find it.**
+
+<a href="https://star-history.com/#AnasProgrammer2/netcopilot&Date">
+  <img src="https://api.star-history.com/svg?repos=AnasProgrammer2/netcopilot&type=Date" width="600" alt="Star history" />
+</a>
 
 ---
 
 ## License
 
-This project is licensed under the **Business Source License 1.1 (BSL-1.1)**.
+**Business Source License 1.1** — the source is fully visible, so you can verify NetCopilot never exfiltrates your credentials, configs or keys.
 
 | | |
 |:---|:---|
-| **View & learn** | Anyone can read the source code |
-| **Personal use** | Free — unlimited |
-| **Academic / research** | Free |
-| **Internal evaluation** | Free |
-| **Commercial use** | Requires a license — [support@netcopilot.app](mailto:support@netcopilot.app) |
-| **Change Date** | January 1, 2029 → Apache 2.0 |
+| Read and learn from the code | ✅ Free |
+| Personal use | ✅ Free, unlimited |
+| Academic and research use | ✅ Free |
+| Internal evaluation | ✅ Free |
+| Commercial use | License required — [support@netcopilot.app](mailto:support@netcopilot.app) |
+| Change date | January 1, 2029 → Apache 2.0 |
 
-> **Why BSL?** The source code is fully visible so you can verify NetCopilot never exfiltrates your credentials, passwords, or SSH keys. BSL ensures no one can take this codebase and launch a competing commercial product without a license.
-
-See the [LICENSE](./LICENSE) file for full details.
-
----
+See [LICENSE](./LICENSE) for the full text.
 
 ## Acknowledgments
 
-- **macOS code signing & notarization** — courtesy of the [Apple Developer Program](https://developer.apple.com).
-- **Windows code signing** — pending free OSS code signing from the [SignPath Foundation](https://signpath.org/), with signing services provided by [SignPath.io](https://signpath.io/).
-- Built on the shoulders of giants: [Electron](https://www.electronjs.org/), [React](https://react.dev/), [xterm.js](https://xtermjs.org/), [ssh2](https://github.com/mscdex/ssh2), [better-sqlite3-multiple-ciphers](https://github.com/m4heshd/better-sqlite3-multiple-ciphers), and the [Anthropic Claude](https://www.anthropic.com/) API.
-
----
+- macOS code signing and notarization through the [Apple Developer Program](https://developer.apple.com)
+- Windows code signing requested from the [SignPath Foundation](https://signpath.org/), with signing by [SignPath.io](https://signpath.io/)
+- Built on [Electron](https://www.electronjs.org/), [React](https://react.dev/), [xterm.js](https://xtermjs.org/), [ssh2](https://github.com/mscdex/ssh2), [better-sqlite3-multiple-ciphers](https://github.com/m4heshd/better-sqlite3-multiple-ciphers) and the [Anthropic Claude](https://www.anthropic.com/) API
 
 <p align="center">
-  <sub>Built with purpose for the engineers who keep networks running.</sub>
+  <sub>Built for the engineers who keep networks running · <a href="https://netcopilot.app">netcopilot.app</a> · <a href="https://www.linkedin.com/company/netcopilot/">LinkedIn</a></sub>
 </p>
