@@ -59,7 +59,7 @@ export function TitleBar({ onShortcuts, onWelcome }: Props): JSX.Element {
 
       {sessions.length > 0
         ? <TabBar />
-        : <div className="flex-1 text-center text-[13px] font-semibold text-muted-foreground/80 truncate">NetCopilot</div>
+        : <div className="flex-1 text-center text-sm font-semibold text-muted-foreground truncate">NetCopilot</div>
       }
 
       {/* Global actions */}
@@ -86,18 +86,18 @@ export function TitleBar({ onShortcuts, onWelcome }: Props): JSX.Element {
             <div className="absolute right-0 top-full mt-1.5 w-52 bg-popover border border-border rounded-lg shadow-xl z-50 overflow-hidden p-1">
               <button
                 onClick={() => { onWelcome(); setHelpOpen(false) }}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] text-foreground hover:bg-primary hover:text-primary-foreground transition-colors text-left group"
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm text-foreground hover:bg-accent transition-colors text-left group"
               >
-                <BookOpen className="w-4 h-4 text-primary group-hover:text-primary-foreground shrink-0" />
+                <BookOpen className="w-4 h-4 text-muted-foreground shrink-0" />
                 Getting Started
               </button>
               <button
                 onClick={() => { onShortcuts(); setHelpOpen(false) }}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] text-foreground hover:bg-primary hover:text-primary-foreground transition-colors text-left group"
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm text-foreground hover:bg-accent transition-colors text-left group"
               >
-                <Keyboard className="w-4 h-4 text-muted-foreground group-hover:text-primary-foreground shrink-0" />
+                <Keyboard className="w-4 h-4 text-muted-foreground shrink-0" />
                 <span className="flex-1">Keyboard Shortcuts</span>
-                <span className="text-[11px] text-muted-foreground group-hover:text-primary-foreground/80">?</span>
+                <span className="text-2xs text-subtle">?</span>
               </button>
             </div>
           )}
@@ -130,7 +130,7 @@ export function TitleBar({ onShortcuts, onWelcome }: Props): JSX.Element {
           </button>
           <button
             onClick={() => window.api.window.close()}
-            className="w-11 h-full flex items-center justify-center text-muted-foreground hover:bg-red-500 hover:text-white transition-colors"
+            className="w-11 h-full flex items-center justify-center text-muted-foreground hover:bg-danger hover:text-white transition-colors"
             title="Close"
           >
             <X className="w-4 h-4" />

@@ -50,20 +50,20 @@ export function HostKeyDialog(): JSX.Element | null {
         aria-modal="true"
         aria-labelledby="host-key-title"
         className={`bg-card border rounded-lg shadow-xl w-full max-w-lg mx-4 overflow-hidden ${
-          current.changed ? 'border-red-500/60' : 'border-border'
+          current.changed ? 'border-danger/60' : 'border-border'
         }`}
       >
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
           <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-            current.changed ? 'bg-red-500/15' : 'bg-primary/10'
+            current.changed ? 'bg-danger/15' : 'bg-primary/10'
           }`}>
             {current.changed
-              ? <ShieldAlert className="w-4 h-4 text-red-400" />
+              ? <ShieldAlert className="w-4 h-4 text-danger" />
               : <ShieldQuestion className="w-4 h-4 text-primary" />}
           </div>
           <div className="min-w-0">
-            <p id="host-key-title" className={`text-sm font-semibold ${current.changed ? 'text-red-400' : 'text-foreground'}`}>
+            <p id="host-key-title" className={`text-sm font-semibold ${current.changed ? 'text-danger' : 'text-foreground'}`}>
               {current.changed ? 'WARNING: Host key has changed!' : 'Unknown host key'}
             </p>
             <p className="text-xs text-muted-foreground truncate">{target}</p>
@@ -82,7 +82,7 @@ export function HostKeyDialog(): JSX.Element | null {
               <p>Do not continue unless you have verified the new fingerprint with the device administrator.</p>
               <div className="space-y-1">
                 <p className="font-medium text-muted-foreground">Previously trusted ({current.oldKeyType}):</p>
-                <code className="block break-all rounded-md bg-background border border-border px-2 py-1.5 font-mono text-[11px] text-foreground/70">
+                <code className="block break-all rounded-md bg-background border border-border px-2 py-1.5 font-mono text-2xs text-foreground">
                   {current.oldFingerprint}
                 </code>
               </div>
@@ -97,14 +97,14 @@ export function HostKeyDialog(): JSX.Element | null {
             <p className="font-medium text-muted-foreground">
               {current.changed ? 'New key' : 'Key'} ({current.keyType}):
             </p>
-            <code className={`block break-all rounded-md bg-background border px-2 py-1.5 font-mono text-[11px] text-foreground ${
-              current.changed ? 'border-red-500/40' : 'border-border'
+            <code className={`block break-all rounded-md bg-background border px-2 py-1.5 font-mono text-2xs text-foreground ${
+              current.changed ? 'border-danger/40' : 'border-border'
             }`}>
               {current.fingerprint}
             </code>
           </div>
           {queue.length > 1 && (
-            <p className="text-[11px] text-muted-foreground/70">{queue.length - 1} more host key prompt(s) waiting</p>
+            <p className="text-2xs text-muted-foreground">{queue.length - 1} more host key prompt(s) waiting</p>
           )}
         </div>
 
@@ -126,7 +126,7 @@ export function HostKeyDialog(): JSX.Element | null {
             <button
               type="button"
               onClick={() => respond(true)}
-              className="px-3 py-1.5 text-sm rounded-md border border-red-500/50 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+              className="px-3 py-1.5 text-sm rounded-md border border-danger/50 text-danger hover:bg-danger/10 transition-colors cursor-pointer"
             >
               Replace key and connect
             </button>

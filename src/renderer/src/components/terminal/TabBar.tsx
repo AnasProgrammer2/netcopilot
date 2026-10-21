@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Plus, PanelLeftClose, PanelRightClose, ChevronDown, Sparkles, RefreshCw, Globe, FolderOpen, Palette, Pin, PinOff, Copy, XCircle, Pencil, Code2 } from 'lucide-react'
+import { X, Plus, PanelLeftClose, PanelRightClose, Sparkles, RefreshCw, Globe, FolderOpen, Palette, Pin, PinOff, Copy, XCircle, Pencil, Code2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { terminalRegistry } from '../../lib/terminalRegistry'
 import { useAppStore, isAiReady } from '../../store'
@@ -144,17 +144,17 @@ export function TabBar(): JSX.Element {
         className={cn(
           'shrink-0 self-center relative flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors ml-auto',
           aiPanelOpen
-            ? 'text-primary bg-primary/15 hover:bg-primary/25'
+            ? 'text-foreground bg-accent'
             : hasErrorAlert
-              ? 'text-red-400 bg-red-500/10 hover:bg-red-500/20'
+              ? 'text-danger bg-danger/10 hover:bg-danger/20'
               : 'text-muted-foreground hover:text-foreground hover:bg-accent'
         )}
       >
         {hasErrorAlert && (
-          <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-danger animate-pulse" />
         )}
         <Sparkles className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">ARIA AI</span>
+        <span className="hidden sm:inline">ARIA</span>
       </button>
 
       {/* Terminal Theme panel toggle */}
@@ -164,12 +164,11 @@ export function TabBar(): JSX.Element {
         className={cn(
           'shrink-0 self-center flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors',
           themePanelOpen
-            ? 'text-primary bg-primary/15 hover:bg-primary/25'
+            ? 'text-foreground bg-accent'
             : 'text-muted-foreground hover:text-foreground hover:bg-accent'
         )}
       >
         <Palette className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">Theme</span>
       </button>
 
       {/* Snippets button */}
@@ -179,12 +178,11 @@ export function TabBar(): JSX.Element {
         className={cn(
           'shrink-0 self-center flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors',
           snippetPanelOpen
-            ? 'text-primary bg-primary/15 hover:bg-primary/25'
+            ? 'text-foreground bg-accent'
             : 'text-muted-foreground hover:text-foreground hover:bg-accent'
         )}
       >
         <Code2 className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">Snippets</span>
       </button>
 
       {/* Port Forwarding button */}
@@ -196,13 +194,13 @@ export function TabBar(): JSX.Element {
             className={cn(
               'shrink-0 self-center flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors',
               activeForwardIds.size > 0
-                ? 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20'
+                ? 'text-foreground bg-accent'
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent'
             )}
           >
             <Globe className="w-3.5 h-3.5" />
             {activeForwardIds.size > 0 && (
-              <span className="text-[10px] font-bold">{activeForwardIds.size}</span>
+              <span className="text-2xs font-medium tabular-nums">{activeForwardIds.size}</span>
             )}
           </button>
           <PortForwardDialog
@@ -219,10 +217,9 @@ export function TabBar(): JSX.Element {
           <button
             onClick={() => setSplitSession(null)}
             title="Close split view"
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-foreground bg-accent transition-colors"
           >
             <PanelLeftClose className="w-3.5 h-3.5" />
-            Split
           </button>
         ) : (
           <button
@@ -233,8 +230,6 @@ export function TabBar(): JSX.Element {
             className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             <PanelRightClose className="w-3.5 h-3.5" />
-            Split
-            {canSplit && <ChevronDown className="w-3 h-3" />}
           </button>
         )}
 
@@ -252,7 +247,7 @@ export function TabBar(): JSX.Element {
             }}
             className="bg-popover border border-border rounded-lg shadow-xl w-48 py-1 overflow-hidden"
           >
-            <p className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest">
+            <p className="px-3 py-1.5 text-2xs font-semibold text-muted-foreground uppercase tracking-widest">
               Show alongside
             </p>
             {sessions
@@ -326,11 +321,12 @@ function Tab({ session, isActive, isSplit, groupColor, onActivate, onClose, onPi
     setRenaming(false)
   }
 
+  // Connected is the normal state, so it gets no mark; only problems do.
   const statusDot = {
-    connecting:   'bg-amber-400 animate-pulse',
-    connected:    'bg-emerald-400',
-    disconnected: 'bg-muted-foreground/50',
-    error:        'bg-red-400',
+    connecting:   'bg-warning animate-pulse',
+    connected:    null,
+    disconnected: 'bg-subtle',
+    error:        'bg-danger',
   }[session.status]
 
   const displayName = session.label ?? (session.type === 'sftp' ? `SFTP · ${session.connection.name}` : session.connection.name)
@@ -349,9 +345,9 @@ function Tab({ session, isActive, isSplit, groupColor, onActivate, onClose, onPi
         'relative flex items-center gap-1.5 pl-2.5 pr-1.5 h-7 shrink-0 group max-w-52 select-none',
         'rounded-md border transition-colors',
         isActive
-          ? 'bg-accent border-border/60 text-foreground shadow-sm'
+          ? 'bg-accent border-transparent text-foreground'
           : 'bg-transparent border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50',
-        isSplit && !isActive && 'border-primary/30 bg-primary/5 text-primary/80',
+        isSplit && !isActive && 'border-border text-foreground',
         isDragOver && !isActive && 'border-primary/60 bg-primary/10'
       )}
     >
@@ -365,13 +361,13 @@ function Tab({ session, isActive, isSplit, groupColor, onActivate, onClose, onPi
 
       {/* Pin indicator */}
       {session.pinned && (
-        <Pin className="w-2.5 h-2.5 shrink-0 text-primary/60" />
+        <Pin className="w-2.5 h-2.5 shrink-0 text-muted-foreground" />
       )}
 
       {!session.pinned && (
         session.type === 'sftp'
-          ? <FolderOpen className="w-3 h-3 shrink-0 text-amber-400" />
-          : <span className={cn('w-1.5 h-1.5 rounded-full shrink-0 transition-colors', statusDot)} />
+          ? <FolderOpen className="w-3 h-3 shrink-0 text-muted-foreground" />
+          : statusDot && <span className={cn('w-1.5 h-1.5 rounded-full shrink-0 transition-colors', statusDot)} />
       )}
 
       {renaming ? (
@@ -402,14 +398,14 @@ function Tab({ session, isActive, isSplit, groupColor, onActivate, onClose, onPi
         <button
           onClick={(e) => { e.stopPropagation(); terminalRegistry.get(session.id)?.reconnect() }}
           title="Reconnect"
-          className="shrink-0 p-0.5 rounded text-amber-400 hover:text-amber-300 hover:bg-amber-400/10 transition-all"
+          className="shrink-0 p-0.5 rounded text-warning hover:text-warning hover:bg-warning/10 transition-all"
         >
           <RefreshCw className="w-3 h-3" />
         </button>
       )}
 
       {isSplit && !isActive && (
-        <span className="text-[9px] font-semibold text-primary/70 uppercase tracking-wider shrink-0">split</span>
+        <span className="text-2xs text-subtle shrink-0">split</span>
       )}
 
       <button
@@ -433,13 +429,13 @@ function Tab({ session, isActive, isSplit, groupColor, onActivate, onClose, onPi
           style={{ left: menuPos.x, top: menuPos.y }}
         >
           <button
-            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground/90 hover:text-foreground transition-colors cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground hover:text-foreground transition-colors cursor-pointer"
             onClick={() => { setMenuPos(null); startRename() }}
           >
             <Pencil className="w-3.5 h-3.5 text-muted-foreground" /> Rename
           </button>
           <button
-            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground/90 hover:text-foreground transition-colors cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground hover:text-foreground transition-colors cursor-pointer"
             onClick={() => { setMenuPos(null); onPin() }}
           >
             {session.pinned
@@ -448,20 +444,20 @@ function Tab({ session, isActive, isSplit, groupColor, onActivate, onClose, onPi
             }
           </button>
           <button
-            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground/90 hover:text-foreground transition-colors cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground hover:text-foreground transition-colors cursor-pointer"
             onClick={() => { setMenuPos(null); onDuplicate() }}
           >
             <Copy className="w-3.5 h-3.5 text-muted-foreground" /> Duplicate
           </button>
           <div className="my-1 border-t border-border" />
           <button
-            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground/90 hover:text-foreground transition-colors cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-foreground hover:text-foreground transition-colors cursor-pointer"
             onClick={() => { setMenuPos(null); onCloseOthers() }}
           >
             <XCircle className="w-3.5 h-3.5 text-muted-foreground" /> Close others
           </button>
           <button
-            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-red-400 hover:text-red-300 transition-colors cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-accent text-left text-danger hover:text-danger transition-colors cursor-pointer"
             onClick={() => { setMenuPos(null); onClose() }}
           >
             <X className="w-3.5 h-3.5" /> Close

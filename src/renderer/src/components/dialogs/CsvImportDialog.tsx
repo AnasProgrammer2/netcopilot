@@ -179,7 +179,7 @@ export function CsvImportDialog({ onDone, onCancel }: Props): JSX.Element {
             <p className="text-sm font-semibold text-foreground">Import from Termius / CSV</p>
             <p className="text-xs text-muted-foreground mt-0.5 truncate">
               {fileName
-                ? <>Reading <code className="bg-secondary px-1 rounded text-[10px]">{fileName}</code></>
+                ? <>Reading <code className="bg-secondary px-1 rounded text-2xs">{fileName}</code></>
                 : 'Hosts from a CSV file'}
             </p>
           </div>
@@ -206,10 +206,10 @@ export function CsvImportDialog({ onDone, onCancel }: Props): JSX.Element {
           {!loading && !hasPreview && (
             <div className="flex flex-col items-center gap-3 py-10 px-6 text-center">
               {error
-                ? <AlertCircle className="w-8 h-8 text-amber-400" />
-                : <FileSpreadsheet className="w-8 h-8 text-muted-foreground/40" />}
+                ? <AlertCircle className="w-8 h-8 text-warning" />
+                : <FileSpreadsheet className="w-8 h-8 text-subtle" />}
               {error && <p className="text-sm text-muted-foreground">{error}</p>}
-              <p className="text-xs text-muted-foreground/80 leading-relaxed max-w-sm">
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-sm">
                 From Termius: export your hosts to CSV (e.g. with a Termius exporter tool) or use the
                 Termius CSV import template. Columns: Groups, Label, Tags, Hostname/IP, Protocol, Port,
                 Username, Password.
@@ -227,10 +227,10 @@ export function CsvImportDialog({ onDone, onCancel }: Props): JSX.Element {
             <div className="py-2">
               {/* Password notice */}
               {passwordCount > 0 && (
-                <div className="mx-4 mb-2 px-3 py-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 space-y-2">
+                <div className="mx-4 mb-2 px-3 py-2.5 rounded-lg border border-warning/30 bg-warning/10 space-y-2">
                   <div className="flex items-start gap-2">
-                    <KeyRound className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
-                    <p className="text-[11px] text-foreground/80 leading-relaxed">
+                    <KeyRound className="w-3.5 h-3.5 text-warning mt-0.5 shrink-0" />
+                    <p className="text-2xs text-foreground leading-relaxed">
                       This file contains {passwordCount} plaintext password{passwordCount !== 1 ? 's' : ''}.
                       Delete the CSV after importing.
                     </p>
@@ -246,7 +246,7 @@ export function CsvImportDialog({ onDone, onCancel }: Props): JSX.Element {
                     )}>
                       {storePasswords && <Check className="w-3 h-3 text-white" />}
                     </div>
-                    <span className="text-[12px] text-foreground">
+                    <span className="text-xs text-foreground">
                       Import saved passwords
                       <span className="text-muted-foreground">
                         {canSavePasswords
@@ -265,14 +265,14 @@ export function CsvImportDialog({ onDone, onCancel }: Props): JSX.Element {
                     onClick={() => setShowWarnings((v) => !v)}
                     className="w-full flex items-center gap-2 text-left cursor-pointer"
                   >
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    <span className="text-[11px] text-muted-foreground flex-1">
+                    <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" />
+                    <span className="text-2xs text-muted-foreground flex-1">
                       {warnings.length} warning{warnings.length !== 1 ? 's' : ''}
                     </span>
-                    <span className="text-[11px] text-primary">{showWarnings ? 'Hide' : 'Show'}</span>
+                    <span className="text-2xs text-primary">{showWarnings ? 'Hide' : 'Show'}</span>
                   </button>
                   {showWarnings && (
-                    <ul className="mt-1.5 max-h-32 overflow-y-auto text-[11px] font-mono text-muted-foreground space-y-0.5">
+                    <ul className="mt-1.5 max-h-32 overflow-y-auto text-2xs font-mono text-muted-foreground space-y-0.5">
                       {warnings.map((w, i) => <li key={i}>{w}</li>)}
                     </ul>
                   )}
@@ -297,7 +297,7 @@ export function CsvImportDialog({ onDone, onCancel }: Props): JSX.Element {
                   Select all
                 </span>
                 {duplicates.size > 0 && (
-                  <span className="text-[11px] text-muted-foreground/70">
+                  <span className="text-2xs text-muted-foreground">
                     {duplicates.size} duplicate{duplicates.size !== 1 ? 's' : ''}
                   </span>
                 )}
@@ -331,8 +331,8 @@ export function CsvImportDialog({ onDone, onCancel }: Props): JSX.Element {
 
                     {/* Info */}
                     <div className={cn('flex-1 min-w-0', dupe && 'opacity-60')}>
-                      <p className="text-[13px] font-medium text-foreground truncate">{host.name}</p>
-                      <p className="text-[11px] text-muted-foreground font-mono truncate">
+                      <p className="text-sm font-medium text-foreground truncate">{host.name}</p>
+                      <p className="text-2xs text-muted-foreground font-mono truncate">
                         {host.protocol === 'telnet' ? 'telnet://' : ''}
                         {host.username ? `${host.username}@` : ''}{host.host}:{host.port}
                       </p>
@@ -341,12 +341,12 @@ export function CsvImportDialog({ onDone, onCancel }: Props): JSX.Element {
                     {/* Group / duplicate badges */}
                     <div className="flex flex-col items-end gap-0.5 shrink-0 max-w-[40%]">
                       {host.group && (
-                        <span className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded truncate max-w-full">
+                        <span className="text-2xs text-muted-foreground bg-secondary px-1.5 py-0.5 rounded truncate max-w-full">
                           {host.group}
                         </span>
                       )}
                       {dupe && (
-                        <span className="text-[10px] text-amber-500">{dupe}</span>
+                        <span className="text-2xs text-warning">{dupe}</span>
                       )}
                     </div>
                   </div>

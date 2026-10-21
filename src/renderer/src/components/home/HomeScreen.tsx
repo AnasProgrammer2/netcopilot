@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import {
   Search, Plus, FolderPlus, Router, Server, Monitor, Usb,
   ChevronRight, Zap, Terminal, ArrowRight,
-  Layers, X, FolderInput, Trash2, ArrowUpDown, Filter, Activity, RefreshCw
+ X, FolderInput, Trash2, ArrowUpDown, Filter, Activity, RefreshCw
 } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { Connection, ConnectionGroup, DeviceType } from '../../types'
@@ -26,23 +26,6 @@ function getDeviceIcon(deviceType: DeviceType, protocol?: string) {
   }
 }
 
-function getDeviceAccent(deviceType: DeviceType, protocol?: string): string {
-  if (protocol === 'serial') return '#f59e0b'
-  switch (deviceType) {
-    case 'cisco-ios': case 'cisco-iosxe': case 'cisco-nxos':
-      return '#3b82f6'
-    case 'cisco-asa': case 'panos': case 'fortios':
-      return '#f97316'
-    case 'junos': case 'arista-eos':
-      return '#a855f7'
-    case 'linux':
-      return '#22c55e'
-    case 'windows':
-      return '#60a5fa'
-    default:
-      return '#94a3b8'
-  }
-}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface PingState {
@@ -67,25 +50,25 @@ function GroupCard({ group, hostCount, connectedCount, onClick }: {
     >
       <div
         className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
-        style={{ backgroundColor: `${color}18` }}
+        style={{ backgroundColor: 'transparent' }}
       >
-        <Layers className="w-4 h-4" style={{ color }} />
+        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-semibold text-foreground truncate">{group.name}</p>
+        <p className="text-sm font-semibold text-foreground truncate">{group.name}</p>
         <div className="flex items-center gap-2.5 mt-0.5">
-          <span className="text-[12px] text-muted-foreground">{hostCount} {hostCount === 1 ? 'host' : 'hosts'}</span>
+          <span className="text-xs text-muted-foreground">{hostCount} {hostCount === 1 ? 'host' : 'hosts'}</span>
           {connectedCount > 0 && (
-            <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              {connectedCount} live
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <span className="w-1.5 h-1.5 rounded-full bg-success" />
+              {connectedCount} connected
             </span>
           )}
         </div>
       </div>
 
-      <ChevronRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors shrink-0" />
+      <ChevronRight className="w-4 h-4 text-subtle group-hover:text-muted-foreground transition-colors shrink-0" />
     </button>
   )
 }
@@ -94,26 +77,25 @@ function GroupCard({ group, hostCount, connectedCount, onClick }: {
 function LatencyBadge({ ping }: { ping: PingState }) {
   if (ping.checking) {
     return (
-      <span className="flex items-center gap-1 text-[10px] text-muted-foreground/50">
+      <span className="flex items-center gap-1 text-2xs text-subtle">
         <RefreshCw className="w-3 h-3 animate-spin" />
       </span>
     )
   }
   if (!ping.alive) {
     return (
-      <span className="flex items-center gap-1 text-[10px] font-medium text-red-400/80">
-        <span className="w-1.5 h-1.5 rounded-full bg-red-400/80" />
+      <span className="flex items-center gap-1 text-2xs font-medium text-danger/80">
+        <span className="w-1.5 h-1.5 rounded-full bg-danger/80" />
         offline
       </span>
     )
   }
   const ms = ping.latency ?? 0
-  const color = ms < 50 ? 'text-emerald-500' : ms < 150 ? 'text-yellow-500' : 'text-orange-500'
-  const dot   = ms < 50 ? 'bg-emerald-500'   : ms < 150 ? 'bg-yellow-500'   : 'bg-orange-500'
+  // Only slow links get a colour; a normal round-trip is just a number.
+  const color = ms < 150 ? 'text-muted-foreground' : 'text-warning'
   return (
-    <span className={cn('flex items-center gap-1 text-[10px] font-medium tabular-nums', color)}>
-      <span className={cn('w-1.5 h-1.5 rounded-full', dot)} />
-      {ms}ms
+    <span className={cn('text-2xs tabular-nums', color)}>
+      {ms} ms
     </span>
   )
 }
@@ -128,7 +110,6 @@ function HostCard({ connection, isConnected, onConnect, isSelected, onSelect, pi
   ping?: PingState
 }) {
   const Icon   = getDeviceIcon(connection.deviceType, connection.protocol)
-  const accent = getDeviceAccent(connection.deviceType, connection.protocol)
 
   const host = connection.protocol === 'serial'
     ? (connection.serialConfig?.path ?? connection.host)
@@ -147,33 +128,33 @@ function HostCard({ connection, isConnected, onConnect, isSelected, onSelect, pi
         isSelected
           ? 'border-primary/50 bg-primary/10 ring-1 ring-primary/40'
           : isConnected
-            ? 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/50'
+            ? 'border-border bg-card hover:bg-accent/40'
             : 'border-border bg-card hover:bg-accent/40'
       )}
     >
       {/* Device icon */}
       <div
         className="relative w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-        style={{ backgroundColor: `${accent}15` }}
+
       >
-        <Icon className="w-4 h-4" style={{ color: accent }} />
+        <Icon className="w-4 h-4 text-muted-foreground" />
         {isConnected && (
-          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-card" />
+          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-success border-2 border-card" />
         )}
       </div>
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-semibold text-foreground truncate leading-tight group-hover:text-primary transition-colors">
+        <p className="text-sm font-semibold text-foreground truncate leading-tight transition-colors">
           {connection.name || connection.host}
         </p>
-        <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+        <p className="text-2xs text-muted-foreground truncate mt-0.5">
           {host}{showPort ? `:${connection.port}` : ''}
           {connection.protocol && (
-            <span className="ml-1.5 text-muted-foreground/60">{connection.protocol}</span>
+            <span className="ml-1.5 text-muted-foreground">{connection.protocol}</span>
           )}
           {connection.username && (
-            <span className="ml-1.5 text-muted-foreground/50">{connection.username}</span>
+            <span className="ml-1.5 text-subtle">{connection.username}</span>
           )}
         </p>
       </div>
@@ -181,14 +162,14 @@ function HostCard({ connection, isConnected, onConnect, isSelected, onSelect, pi
       {/* Right side — status / latency */}
       <div className="shrink-0 self-center">
         {isConnected ? (
-          <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            live
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="w-1.5 h-1.5 rounded-full bg-success" />
+            Connected
           </span>
         ) : ping ? (
           <LatencyBadge ping={ping} />
         ) : (
-          <ArrowRight className="w-4 h-4 text-muted-foreground/20 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+          <ArrowRight className="w-4 h-4 text-subtle group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
         )}
       </div>
     </button>
@@ -355,20 +336,20 @@ export function HomeScreen(): JSX.Element {
 
         {/* Live sessions pill */}
         {totalConnected > 0 && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[12px] text-emerald-600 font-medium">{totalConnected} live</span>
+          <div className="flex items-center gap-1.5 px-1 shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-success" />
+            <span className="text-xs text-muted-foreground">{totalConnected} connected</span>
           </div>
         )}
 
         {/* Search */}
         <div className="flex-1 relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/45" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-subtle" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Find a host or ssh user@hostname..."
-            className="w-full h-7 pl-8 pr-3 text-[13px] bg-secondary/70 border border-transparent rounded-md text-foreground placeholder:text-muted-foreground/45 focus:outline-none focus:border-primary/50 transition-colors"
+            className="w-full h-7 pl-8 pr-3 text-sm bg-secondary/70 border border-transparent rounded-md text-foreground placeholder:text-subtle focus:outline-none focus:border-primary/50 transition-colors"
           />
         </div>
 
@@ -379,8 +360,8 @@ export function HomeScreen(): JSX.Element {
             className={cn(
               'w-7 h-7 flex items-center justify-center rounded-md transition-colors',
               sortBy !== 'name'
-                ? 'bg-primary/15 text-primary'
-                : 'text-muted-foreground/60 hover:text-foreground hover:bg-accent'
+                ? 'bg-accent text-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
             )}
             title={`Sort: ${sortBy === 'name' ? 'Name' : sortBy === 'recent' ? 'Recent' : 'Protocol'}`}
           >
@@ -395,8 +376,8 @@ export function HomeScreen(): JSX.Element {
                     key={key}
                     onClick={() => { setSortBy(key); setSortMenuOpen(false) }}
                     className={cn(
-                      'w-full text-left px-3 py-1.5 text-[12px] transition-colors cursor-pointer rounded-lg',
-                      sortBy === key ? 'text-primary font-semibold bg-primary/5' : 'text-foreground hover:bg-accent'
+                      'w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer rounded-lg',
+                      sortBy === key ? 'text-foreground font-medium bg-accent' : 'text-foreground hover:bg-accent'
                     )}
                   >
                     {label}
@@ -414,8 +395,8 @@ export function HomeScreen(): JSX.Element {
             className={cn(
               'w-7 h-7 flex items-center justify-center rounded-md transition-colors',
               hasActiveFilter
-                ? 'bg-primary/15 text-primary'
-                : 'text-muted-foreground/60 hover:text-foreground hover:bg-accent'
+                ? 'bg-accent text-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
             )}
             title="Filter"
           >
@@ -425,28 +406,28 @@ export function HomeScreen(): JSX.Element {
             <>
               <div className="fixed inset-0 z-40" onClick={() => setFilterMenuOpen(false)} />
               <div className="absolute right-0 top-full mt-1.5 w-44 bg-popover border border-border rounded-lg shadow-xl z-50 py-1.5">
-                <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Protocol</p>
+                <p className="px-3 py-1 text-2xs font-semibold text-muted-foreground uppercase tracking-wider">Protocol</p>
                 {['ssh', 'telnet', 'serial'].map((p) => (
                   <button
                     key={p}
                     onClick={() => setFilterProtocol(filterProtocol === p ? null : p)}
                     className={cn(
-                      'w-full text-left px-3 py-1.5 text-[12px] transition-colors cursor-pointer rounded-lg',
-                      filterProtocol === p ? 'text-primary font-semibold bg-primary/5' : 'text-foreground hover:bg-accent'
+                      'w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer rounded-lg',
+                      filterProtocol === p ? 'text-foreground font-medium bg-accent' : 'text-foreground hover:bg-accent'
                     )}
                   >
                     {p.toUpperCase()}
                   </button>
                 ))}
                 <div className="my-1.5 border-t border-border" />
-                <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status</p>
+                <p className="px-3 py-1 text-2xs font-semibold text-muted-foreground uppercase tracking-wider">Status</p>
                 {([['all', 'All'], ['connected', 'Connected'], ['disconnected', 'Disconnected']] as const).map(([key, label]) => (
                   <button
                     key={key}
                     onClick={() => setFilterStatus(key)}
                     className={cn(
-                      'w-full text-left px-3 py-1.5 text-[12px] transition-colors cursor-pointer rounded-lg',
-                      filterStatus === key ? 'text-primary font-semibold bg-primary/5' : 'text-foreground hover:bg-accent'
+                      'w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer rounded-lg',
+                      filterStatus === key ? 'text-foreground font-medium bg-accent' : 'text-foreground hover:bg-accent'
                     )}
                   >
                     {label}
@@ -457,7 +438,7 @@ export function HomeScreen(): JSX.Element {
                     <div className="my-1.5 border-t border-border" />
                     <button
                       onClick={() => { setFilterProtocol(null); setFilterStatus('all'); setFilterMenuOpen(false) }}
-                      className="w-full text-left px-3 py-1.5 text-[12px] text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer rounded-lg"
+                      className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer rounded-lg"
                     >
                       Clear filters
                     </button>
@@ -474,9 +455,9 @@ export function HomeScreen(): JSX.Element {
           onClick={() => setHealthMode(v => !v)}
           title={healthMode ? 'Stop health scan' : 'Scan host reachability'}
           className={cn(
-            'flex items-center gap-1.5 h-7 px-2.5 rounded-md text-[12px] font-medium transition-colors shrink-0',
+            'flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium transition-colors shrink-0',
             healthMode
-              ? 'bg-primary/15 text-primary'
+              ? 'bg-accent text-foreground'
               : 'text-muted-foreground hover:text-foreground hover:bg-accent'
           )}
         >
@@ -496,7 +477,7 @@ export function HomeScreen(): JSX.Element {
 
         <button
           onClick={() => setConnectionDialogOpen(true)}
-          className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-[12px] font-medium hover:bg-primary/90 transition-colors shrink-0"
+          className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors shrink-0"
         >
           <Plus className="w-3.5 h-3.5" />
           New Host
@@ -504,7 +485,7 @@ export function HomeScreen(): JSX.Element {
 
         <button
           onClick={() => setQuickConnectOpen(true)}
-          className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-secondary text-foreground text-[12px] font-medium hover:bg-accent transition-colors shrink-0"
+          className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-secondary text-foreground text-xs font-medium hover:bg-accent transition-colors shrink-0"
         >
           <Zap className="w-3.5 h-3.5 text-muted-foreground" />
           Quick
@@ -514,13 +495,13 @@ export function HomeScreen(): JSX.Element {
       {/* ── Tags filter bar ─────────────────────────────────────────────────── */}
       {allTags.length > 0 && (
         <div className="flex items-center gap-1.5 px-5 py-2 border-b border-border/60 overflow-x-auto shrink-0 scrollbar-none">
-          <span className="text-[10px] text-muted-foreground/40 font-semibold uppercase tracking-wider shrink-0">Tags</span>
+          <span className="text-2xs text-subtle font-semibold uppercase tracking-wider shrink-0">Tags</span>
           {allTags.map(tag => (
             <button
               key={tag}
               onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
               className={cn(
-                'text-[11px] px-2.5 py-1 rounded-full border font-medium transition-all cursor-pointer shrink-0 whitespace-nowrap',
+                'text-2xs px-2.5 py-1 rounded-full border font-medium transition-all cursor-pointer shrink-0 whitespace-nowrap',
                 selectedTag === tag
                   ? 'bg-primary/15 border-primary/40 text-primary'
                   : 'bg-muted/40 border-border/60 text-muted-foreground hover:text-foreground hover:border-border'
@@ -532,7 +513,7 @@ export function HomeScreen(): JSX.Element {
           {selectedTag && (
             <button
               onClick={() => setSelectedTag(null)}
-              className="text-[11px] px-2 py-1 rounded-full text-muted-foreground/50 hover:text-muted-foreground transition-colors cursor-pointer shrink-0"
+              className="text-2xs px-2 py-1 rounded-full text-subtle hover:text-muted-foreground transition-colors cursor-pointer shrink-0"
             >
               Clear ×
             </button>
@@ -552,9 +533,9 @@ export function HomeScreen(): JSX.Element {
             >
               All
             </button>
-            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/40" />
+            <ChevronRight className="w-3.5 h-3.5 text-subtle" />
             <span className="text-foreground font-medium">{currentGroup.name}</span>
-            <span className="text-muted-foreground/50 text-xs ml-1">
+            <span className="text-subtle text-xs ml-1">
               ({displayConns.length} hosts)
             </span>
           </div>
@@ -563,8 +544,8 @@ export function HomeScreen(): JSX.Element {
         {/* ── Empty state ─────────────────────────────────────────────────── */}
         {connections.length === 0 && (
           <div className="flex flex-col items-center justify-center py-24 gap-5">
-            <div className="w-16 h-16 rounded-2xl bg-card border border-border flex items-center justify-center">
-              <Terminal className="w-7 h-7 text-muted-foreground/30" />
+            <div className="w-16 h-16 rounded-xl bg-card border border-border flex items-center justify-center">
+              <Terminal className="w-7 h-7 text-subtle" />
             </div>
             <div className="text-center">
               <p className="text-base font-semibold text-foreground">No connections yet</p>
@@ -584,7 +565,7 @@ export function HomeScreen(): JSX.Element {
                 onClick={() => setQuickConnectOpen(true)}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-card border border-border text-foreground text-sm hover:bg-accent transition-all cursor-pointer"
               >
-                <Zap className="w-4 h-4 text-yellow-500" />
+                <Zap className="w-4 h-4 text-muted-foreground" />
                 Quick Connect
               </button>
             </div>
@@ -595,12 +576,12 @@ export function HomeScreen(): JSX.Element {
         {!selectedGroup && groups.length > 0 && (
           <section>
             <div className="flex items-center justify-between mb-4">
-              <span className="text-base font-bold text-foreground">
+              <span className="text-base font-semibold text-foreground">
                 Groups
               </span>
               <button
                 onClick={() => setGroupDialogOpen(true)}
-                className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
                 <FolderPlus className="w-4 h-4" />
                 New
@@ -626,11 +607,11 @@ export function HomeScreen(): JSX.Element {
         {(ungrouped.length > 0 || (selectedGroup && displayConns.length > 0)) && (
           <section>
             <div className="flex items-center justify-between mb-4">
-              <span className="text-base font-bold text-foreground">
+              <span className="text-base font-semibold text-foreground">
                 {selectedGroup ? 'Hosts' : groups.length > 0 ? 'All Hosts' : 'Hosts'}
               </span>
               {!selectedGroup && (
-                <span className="text-[13px] text-muted-foreground">
+                <span className="text-sm text-muted-foreground">
                   {filtered.length} connection{filtered.length !== 1 ? 's' : ''}
                 </span>
               )}
@@ -639,11 +620,11 @@ export function HomeScreen(): JSX.Element {
             {/* Bulk actions bar */}
             {selCount > 0 && (
               <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-primary/5 border border-primary/20">
-                <span className="text-[13px] font-semibold text-primary flex-1">{selCount} selected</span>
+                <span className="text-sm font-semibold text-primary flex-1">{selCount} selected</span>
                 <div className="relative">
                   <button
                     onClick={() => setBulkMoveOpen(!bulkMoveOpen)}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-medium text-foreground hover:bg-accent transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-foreground hover:bg-accent transition-colors cursor-pointer"
                   >
                     <FolderInput className="w-3.5 h-3.5" />
                     Move
@@ -652,10 +633,10 @@ export function HomeScreen(): JSX.Element {
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setBulkMoveOpen(false)} />
                       <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-44 bg-popover border border-border rounded-lg shadow-xl z-50 py-1.5 animate-in fade-in slide-in-from-bottom-2">
-                        <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Move to</p>
+                        <p className="px-3 py-1 text-2xs font-semibold text-muted-foreground uppercase tracking-wider">Move to</p>
                         <button
                           onClick={() => handleBulkMove(undefined)}
-                          className="w-full text-left px-3 py-2 text-[13px] text-foreground hover:bg-accent rounded-lg transition-colors cursor-pointer"
+                          className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-accent rounded-lg transition-colors cursor-pointer"
                         >
                           Ungrouped
                         </button>
@@ -663,7 +644,7 @@ export function HomeScreen(): JSX.Element {
                           <button
                             key={g.id}
                             onClick={() => handleBulkMove(g.id)}
-                            className="w-full text-left px-3 py-2 text-[13px] text-foreground hover:bg-accent rounded-lg transition-colors cursor-pointer"
+                            className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-accent rounded-lg transition-colors cursor-pointer"
                           >
                             {g.name}
                           </button>
@@ -674,7 +655,7 @@ export function HomeScreen(): JSX.Element {
                 </div>
                 <button
                   onClick={handleBulkDelete}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-medium text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-danger hover:bg-danger/10 transition-colors cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   Delete
@@ -708,7 +689,7 @@ export function HomeScreen(): JSX.Element {
         {/* No search results */}
         {search && filtered.length === 0 && connections.length > 0 && (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <Search className="w-7 h-7 text-muted-foreground/20" />
+            <Search className="w-7 h-7 text-subtle" />
             <p className="text-sm text-muted-foreground">
               No results for "<span className="text-foreground">{search}</span>"
             </p>

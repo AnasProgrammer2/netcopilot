@@ -16,17 +16,8 @@ const GROUP_COLORS = [
   '#f59e0b', '#ef4444', '#ec4899', '#84cc16'
 ]
 
-function getDeviceAccent(deviceType: string, protocol?: string): string {
-  if (protocol === 'serial') return '#f59e0b'
-  switch (deviceType) {
-    case 'cisco-ios': case 'cisco-iosxe': case 'cisco-nxos': return '#3b82f6'
-    case 'cisco-asa': case 'panos': case 'fortios':           return '#f97316'
-    case 'junos': case 'arista-eos':                          return '#a855f7'
-    case 'linux':                                             return '#22c55e'
-    case 'windows':                                           return '#60a5fa'
-    default:                                                  return '#94a3b8'
-  }
-}
+/** The palette's first swatch is the dialog default, not a deliberate choice. */
+const DEFAULT_CONNECTION_COLOR = '#8b5cf6'
 
 export function Sidebar(): JSX.Element {
   const {
@@ -184,19 +175,19 @@ export function Sidebar(): JSX.Element {
         {/* Header */}
         <div className="shrink-0 px-2.5 pt-2 pb-2 border-b border-sidebar-border">
           <div className="flex items-center gap-0.5 mb-1.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/50 flex-1 pl-1">
+            <span className="text-2xs font-semibold uppercase tracking-wider text-subtle flex-1 pl-1">
               Connections
             </span>
             <button
               onClick={() => setConnectionDialogOpen(true)}
-              className="p-1 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
+              className="p-1 rounded-md hover:bg-sidebar-accent text-subtle hover:text-sidebar-foreground transition-colors"
               title="New Connection"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => setGroupDialog({ open: true })}
-              className="p-1 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
+              className="p-1 rounded-md hover:bg-sidebar-accent text-subtle hover:text-sidebar-foreground transition-colors"
               title="New Group"
             >
               <FolderPlus className="w-3.5 h-3.5" />
@@ -206,12 +197,12 @@ export function Sidebar(): JSX.Element {
           {/* Search + Sort */}
           <div className="flex items-center gap-1.5">
             <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-sidebar-foreground/30" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-subtle" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search..."
-                className="w-full h-7 pl-8 pr-3 text-[13px] bg-sidebar-accent/60 border border-transparent rounded-md text-sidebar-foreground placeholder:text-sidebar-foreground/35 focus:outline-none focus:border-sidebar-ring/60 transition-colors"
+                className="w-full h-7 pl-8 pr-3 text-sm bg-sidebar-accent/60 border border-transparent rounded-md text-sidebar-foreground placeholder:text-subtle focus:outline-none focus:border-sidebar-ring/60 transition-colors"
             />
             </div>
             <div className="relative">
@@ -219,14 +210,14 @@ export function Sidebar(): JSX.Element {
                 onClick={() => setViewMenuOpen(!viewMenuOpen)}
                 className={cn(
                   'relative w-7 h-7 flex items-center justify-center rounded-md transition-colors',
-                  (hasActiveFilter || sortBy !== 'name')
-                    ? 'bg-primary/15 text-primary'
-                    : 'text-sidebar-foreground/45 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                  (hasActiveFilter || sortBy !== 'recent')
+                    ? 'bg-sidebar-accent text-sidebar-foreground'
+                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground'
                 )}
                 title="Sort & Filter"
               >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
-                {(hasActiveFilter || sortBy !== 'name') && (
+                {(hasActiveFilter || sortBy !== 'recent') && (
                   <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-primary rounded-full" />
                 )}
               </button>
@@ -234,13 +225,13 @@ export function Sidebar(): JSX.Element {
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setViewMenuOpen(false)} />
                   <div className="absolute right-0 top-full mt-1.5 w-52 bg-popover border border-border rounded-lg shadow-xl z-50 py-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
-                    <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Sort by</p>
+                    <p className="px-3 py-1 text-2xs font-semibold text-muted-foreground uppercase tracking-wider">Sort by</p>
                     {([['name', 'Name'], ['recent', 'Last Connected'], ['protocol', 'Protocol']] as const).map(([key, label]) => (
                       <button
                         key={key}
                         onClick={() => setSortBy(key)}
                         className={cn(
-                          'w-full flex items-center justify-between px-3 py-1.5 text-[12px] transition-colors cursor-pointer rounded-lg mx-0.5',
+                          'w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors cursor-pointer rounded-lg mx-0.5',
                           sortBy === key ? 'text-primary font-semibold' : 'text-foreground hover:bg-accent'
                         )}
                       >
@@ -251,14 +242,14 @@ export function Sidebar(): JSX.Element {
 
                     <div className="my-1.5 border-t border-border" />
 
-                    <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Protocol</p>
+                    <p className="px-3 py-1 text-2xs font-semibold text-muted-foreground uppercase tracking-wider">Protocol</p>
                     <div className="flex flex-wrap gap-1 px-2 pb-1">
                       {['ssh', 'telnet', 'serial'].map((p) => (
                         <button
                           key={p}
                           onClick={() => setFilterProtocol(filterProtocol === p ? null : p)}
                           className={cn(
-                            'flex-1 px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-colors cursor-pointer',
+                            'flex-1 px-2 py-1 text-2xs font-semibold uppercase tracking-wider rounded-md transition-colors cursor-pointer',
                             filterProtocol === p
                               ? 'bg-primary text-primary-foreground'
                               : 'bg-accent text-muted-foreground hover:text-foreground'
@@ -269,14 +260,14 @@ export function Sidebar(): JSX.Element {
                       ))}
                     </div>
 
-                    <p className="px-3 py-1 mt-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status</p>
+                    <p className="px-3 py-1 mt-1 text-2xs font-semibold text-muted-foreground uppercase tracking-wider">Status</p>
                     <div className="flex gap-1 px-2 pb-1">
                       {([['all', 'All'], ['connected', 'Live'], ['disconnected', 'Offline']] as const).map(([key, label]) => (
                         <button
                           key={key}
                           onClick={() => setFilterStatus(key)}
                           className={cn(
-                            'flex-1 px-2 py-1 text-[10px] font-bold rounded-md transition-colors cursor-pointer',
+                            'flex-1 px-2 py-1 text-2xs font-semibold rounded-md transition-colors cursor-pointer',
                             filterStatus === key
                               ? 'bg-primary text-primary-foreground'
                               : 'bg-accent text-muted-foreground hover:text-foreground'
@@ -287,12 +278,12 @@ export function Sidebar(): JSX.Element {
                       ))}
                     </div>
 
-                    {(hasActiveFilter || sortBy !== 'name') && (
+                    {(hasActiveFilter || sortBy !== 'recent') && (
                       <>
                         <div className="my-1.5 border-t border-border" />
                         <button
-                          onClick={() => { setFilterProtocol(null); setFilterStatus('all'); setSortBy('name'); setViewMenuOpen(false) }}
-                          className="w-full text-left px-3 py-1.5 text-[12px] text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer rounded-lg mx-0.5"
+                          onClick={() => { setFilterProtocol(null); setFilterStatus('all'); setSortBy('recent'); setViewMenuOpen(false) }}
+                          className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer rounded-lg mx-0.5"
                         >
                           Reset all
                         </button>
@@ -308,11 +299,11 @@ export function Sidebar(): JSX.Element {
         {/* Bulk actions bar */}
         {selCount > 0 && (
           <div className="shrink-0 flex items-center gap-1 px-2 py-1.5 border-b border-sidebar-border bg-primary/5">
-            <span className="text-[12px] font-semibold text-primary flex-1 pl-1">{selCount} selected</span>
+            <span className="text-xs font-semibold text-primary flex-1 pl-1">{selCount} selected</span>
             <div className="relative">
               <button
                 onClick={() => setBulkMoveOpen(!bulkMoveOpen)}
-                className="p-1.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors cursor-pointer"
                 title="Move to group"
               >
                 <FolderInput className="w-3.5 h-3.5" />
@@ -321,10 +312,10 @@ export function Sidebar(): JSX.Element {
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setBulkMoveOpen(false)} />
                   <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-44 bg-popover border border-border rounded-lg shadow-xl z-50 py-1.5 animate-in fade-in slide-in-from-bottom-2">
-                    <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Move to</p>
+                    <p className="px-3 py-1 text-2xs font-semibold text-muted-foreground uppercase tracking-wider">Move to</p>
                     <button
                       onClick={() => handleBulkMove(undefined)}
-                      className="w-full text-left px-3 py-2 text-[13px] text-foreground hover:bg-accent rounded-lg transition-colors cursor-pointer"
+                      className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-accent rounded-lg transition-colors cursor-pointer"
                     >
                       Ungrouped
                     </button>
@@ -332,7 +323,7 @@ export function Sidebar(): JSX.Element {
                       <button
                         key={g.id}
                         onClick={() => handleBulkMove(g.id)}
-                        className="w-full text-left px-3 py-2 text-[13px] text-foreground hover:bg-accent rounded-lg transition-colors cursor-pointer"
+                        className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-accent rounded-lg transition-colors cursor-pointer"
                       >
                         {g.name}
                       </button>
@@ -343,14 +334,14 @@ export function Sidebar(): JSX.Element {
             </div>
             <button
               onClick={handleBulkDelete}
-              className="p-1.5 rounded-lg hover:bg-red-500/10 text-sidebar-foreground/60 hover:text-red-400 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg hover:bg-danger/10 text-muted-foreground hover:text-danger transition-colors cursor-pointer"
               title="Delete selected"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={clearSelection}
-              className="p-1.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors cursor-pointer"
               title="Clear selection"
             >
               <X className="w-3.5 h-3.5" />
@@ -379,41 +370,41 @@ export function Sidebar(): JSX.Element {
           {/* Better empty state */}
           {connectionsLoaded && connections.length === 0 && (
             <div className="flex flex-col items-center gap-3 px-4 py-10 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-sidebar-accent/50 flex items-center justify-center">
-                <Server className="w-6 h-6 text-sidebar-foreground/20" />
+              <div className="w-12 h-12 rounded-xl bg-sidebar-accent/50 flex items-center justify-center">
+                <Server className="w-6 h-6 text-subtle" />
               </div>
               <div>
-                <p className="text-[13px] font-medium text-sidebar-foreground/50">No connections yet</p>
-                <p className="text-[11px] text-sidebar-foreground/30 mt-1">Add your first host to get started</p>
+                <p className="text-sm font-medium text-subtle">No connections yet</p>
+                <p className="text-2xs text-subtle mt-1">Add your first host to get started</p>
               </div>
               <div className="flex flex-col gap-1.5 w-full">
                 <button
                   onClick={() => setConnectionDialogOpen(true)}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-primary/10 text-primary text-[12px] font-medium hover:bg-primary/20 transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" /> New Connection
                 </button>
                 <button
                   onClick={() => setQuickConnectOpen(true)}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-sidebar-accent/50 text-sidebar-foreground/60 text-[12px] hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-sidebar-accent/50 text-muted-foreground text-xs hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
                 >
                   <Zap className="w-3.5 h-3.5" /> Quick Connect
                 </button>
                 <button
                   onClick={() => setImportDialogOpen(true)}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-sidebar-accent/50 text-sidebar-foreground/60 text-[12px] hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-sidebar-accent/50 text-muted-foreground text-xs hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
                 >
                   <Upload className="w-3.5 h-3.5" /> Import Connections
                 </button>
                 <button
                   onClick={() => setSshConfigDialogOpen(true)}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-sidebar-accent/50 text-sidebar-foreground/60 text-[12px] hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-sidebar-accent/50 text-muted-foreground text-xs hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
                 >
                   <FileCode className="w-3.5 h-3.5" /> Import SSH Config
                 </button>
                 <button
                   onClick={() => setCsvDialogOpen(true)}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-sidebar-accent/50 text-sidebar-foreground/60 text-[12px] hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-sidebar-accent/50 text-muted-foreground text-xs hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors cursor-pointer"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5" /> Import from Termius / CSV…
                 </button>
@@ -439,31 +430,31 @@ export function Sidebar(): JSX.Element {
                 <div className="flex items-center group/grp hover:bg-sidebar-accent/50 mx-1 rounded-xl transition-colors">
                   <button
                     onClick={() => toggleGroup(group.id)}
-                    className="flex-1 flex items-center gap-2 px-2.5 py-2 text-[13px] text-sidebar-foreground/70 group-hover/grp:text-sidebar-foreground min-w-0 cursor-pointer"
+                    className="flex-1 flex items-center gap-2 px-2.5 py-2 text-sm text-sidebar-foreground group-hover/grp:text-sidebar-foreground min-w-0 cursor-pointer"
                   >
                     {isCollapsed
-                      ? <ChevronRight className="w-3.5 h-3.5 shrink-0 text-sidebar-foreground/40" />
-                      : <ChevronDown  className="w-3.5 h-3.5 shrink-0 text-sidebar-foreground/40" />
+                      ? <ChevronRight className="w-3.5 h-3.5 shrink-0 text-subtle" />
+                      : <ChevronDown  className="w-3.5 h-3.5 shrink-0 text-subtle" />
                     }
                     <div
                       className="w-2.5 h-2.5 rounded-full shrink-0"
                       style={{ backgroundColor: groupColor }}
                     />
-                    <span className="font-bold text-[13px] truncate tracking-tight">{group.name}</span>
-                    <span className="ml-auto text-sidebar-foreground/40 shrink-0 tabular-nums text-[12px] font-medium">{groupConns.length}</span>
+                    <span className="font-semibold text-sm truncate tracking-tight">{group.name}</span>
+                    <span className="ml-auto text-subtle shrink-0 tabular-nums text-xs font-medium">{groupConns.length}</span>
                   </button>
                   {/* Edit / Delete group */}
                   <div className="flex items-center pr-1 opacity-0 group-hover/grp:opacity-100 transition-opacity">
                     <button
                       onClick={() => setGroupDialog({ open: true, group })}
-                      className="p-1 rounded hover:bg-sidebar-accent text-sidebar-foreground/30 hover:text-sidebar-foreground cursor-pointer"
+                      className="p-1 rounded hover:bg-sidebar-accent text-subtle hover:text-sidebar-foreground cursor-pointer"
                       title="Edit group"
                     >
                       <Pencil className="w-3 h-3" />
                     </button>
                     <button
                       onClick={() => useAppStore.getState().deleteGroup(group.id)}
-                      className="p-1 rounded hover:bg-sidebar-accent text-sidebar-foreground/30 hover:text-destructive cursor-pointer"
+                      className="p-1 rounded hover:bg-sidebar-accent text-subtle hover:text-destructive cursor-pointer"
                       title="Delete group"
                     >
                       <Trash2 className="w-3 h-3" />
@@ -519,7 +510,7 @@ export function Sidebar(): JSX.Element {
                 {showDivider && (
                   <div className="flex items-center gap-2 px-3 py-1.5 mt-0.5">
                     <div className="h-px flex-1 bg-sidebar-border/60" />
-                    <span className="text-[9px] font-semibold uppercase tracking-widest text-sidebar-foreground/30">Recent</span>
+                    <span className="text-2xs font-semibold uppercase tracking-widest text-subtle">Recent</span>
                     <div className="h-px flex-1 bg-sidebar-border/60" />
                   </div>
                 )}
@@ -546,7 +537,7 @@ export function Sidebar(): JSX.Element {
         <div className="shrink-0 border-t border-sidebar-border">
           <button
             onClick={() => setFooterOpen((v) => !v)}
-            className="w-full flex items-center justify-between px-3 py-2 text-[11px] font-medium text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-2 text-2xs font-medium text-subtle hover:text-sidebar-foreground transition-colors cursor-pointer"
           >
             <span className="uppercase tracking-wider">Tools</span>
             <ChevronDown className={cn('w-3.5 h-3.5 transition-transform duration-200', footerOpen && 'rotate-180')} />
@@ -567,7 +558,7 @@ export function Sidebar(): JSX.Element {
                 <button
                   key={label}
                   onClick={action}
-                  className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-[13px] font-medium text-sidebar-foreground hover:bg-sidebar-accent transition-colors cursor-pointer group"
+                  className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent transition-colors cursor-pointer group"
                 >
                   <div
                     className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
@@ -583,8 +574,8 @@ export function Sidebar(): JSX.Element {
                 <p className={cn(
                   'text-xs px-2 py-1 rounded-lg mt-1',
                   importMsg.startsWith('Imported')
-                    ? 'text-emerald-500 bg-emerald-500/10'
-                    : 'text-red-400 bg-red-400/10'
+                    ? 'text-success bg-success/10'
+                    : 'text-danger bg-danger/10'
                 )}>
                   {importMsg}
                 </p>
@@ -723,7 +714,8 @@ function ConnectionItem({
 
   const DeviceIcon = getDeviceIcon(connection.deviceType, connection.protocol)
 
-  const accent = connection.color || getDeviceAccent(connection.deviceType, connection.protocol)
+  // Icons stay neutral; only a colour the user picked on purpose tints them.
+  const userColor = connection.color && connection.color.toLowerCase() !== DEFAULT_CONNECTION_COLOR ? connection.color : null
 
   return (
     <>
@@ -736,18 +728,18 @@ function ConnectionItem({
           'opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150',
           'hidden group-hover/tip:block'
         )}>
-          <p className="text-[12px] font-semibold text-foreground truncate">{connection.name}</p>
-          <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
+          <p className="text-xs font-semibold text-foreground truncate">{connection.name}</p>
+          <p className="text-2xs text-muted-foreground font-mono mt-0.5">
             {connection.protocol.toUpperCase()} · {connection.host}{connection.port ? `:${connection.port}` : ''}
           </p>
           {connection.lastConnectedAt && (
-            <div className="flex items-center gap-1 mt-1.5 text-[10px] text-muted-foreground/60">
+            <div className="flex items-center gap-1 mt-1.5 text-2xs text-muted-foreground">
               <Clock className="w-2.5 h-2.5 shrink-0" />
               Last connected {timeAgo(connection.lastConnectedAt)}
             </div>
           )}
           {connection.notes && (
-            <p className="text-[11px] text-muted-foreground/70 mt-1.5 border-t border-border pt-1.5 line-clamp-3">
+            <p className="text-2xs text-muted-foreground mt-1.5 border-t border-border pt-1.5 line-clamp-3">
               {connection.notes}
             </p>
           )}
@@ -766,50 +758,42 @@ function ConnectionItem({
           'w-full flex items-center gap-2.5 px-2 py-1.5 text-left group transition-colors rounded-md',
           indent && 'pl-5',
           isSelected
-            ? 'bg-primary/10 ring-1 ring-primary/40 text-sidebar-foreground'
+            ? 'bg-primary/10 ring-1 ring-primary/50 text-sidebar-foreground'
             : isActive
               ? 'bg-sidebar-accent text-sidebar-foreground'
               : 'text-sidebar-foreground hover:bg-sidebar-accent/70'
         )}
       >
-        <div
-          className="relative w-6 h-6 rounded-md flex items-center justify-center shrink-0"
-          style={{ backgroundColor: `${accent}1a` }}
-        >
-          <DeviceIcon className="w-3.5 h-3.5" style={{ color: accent }} />
+        <div className="relative w-6 h-6 flex items-center justify-center shrink-0">
+          <DeviceIcon className={cn('w-4 h-4', !userColor && 'text-muted-foreground')} style={userColor ? { color: userColor } : undefined} />
           {isConnected && (
-            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full border-2 border-sidebar" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-success rounded-full border-2 border-sidebar" />
           )}
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 min-w-0">
-            <p className="text-[13px] font-medium truncate leading-tight text-sidebar-foreground">{connection.name}</p>
+            <p className="text-sm font-medium truncate leading-tight text-sidebar-foreground">{connection.name}</p>
             {connection.environment && connection.environment !== 'production' && (
               <EnvTag environment={connection.environment} />
             )}
           </div>
           <div className="flex items-center gap-1 mt-0.5 min-w-0">
-            <p className="text-[11px] text-sidebar-foreground/50 truncate">
-              {connection.lastConnectedAt
-                ? <span className="inline-flex items-center gap-1"><Clock className="w-2.5 h-2.5 shrink-0" />{timeAgo(connection.lastConnectedAt)}</span>
-                : (connection.protocol === 'serial'
-                    ? (connection.serialConfig?.path ?? connection.host)
-                    : connection.host)
-              }
+            <p className="text-2xs text-subtle truncate">
+              {connection.protocol === 'serial' ? (connection.serialConfig?.path ?? connection.host) : connection.host}
             </p>
             {connection.tags && connection.tags.length > 0 && (
               <div className="flex items-center gap-1 shrink min-w-0 overflow-hidden">
                 {connection.tags.slice(0, 2).map((tag) => (
                   <span
                     key={tag}
-                    className="text-[9px] font-medium px-1.5 py-px rounded-md bg-sidebar-accent text-sidebar-foreground/60 truncate max-w-[60px]"
+                    className="text-2xs font-medium px-1.5 py-px rounded-md bg-sidebar-accent text-muted-foreground truncate max-w-[60px]"
                   >
                     {tag}
                   </span>
                 ))}
                 {connection.tags.length > 2 && (
-                  <span className="text-[9px] font-medium text-sidebar-foreground/40 shrink-0">
+                  <span className="text-2xs font-medium text-subtle shrink-0">
                     +{connection.tags.length - 2}
                   </span>
                 )}
@@ -821,7 +805,7 @@ function ConnectionItem({
         <div className="relative shrink-0 flex items-center justify-end min-w-6 h-6">
           {/* Protocol label for the non-default protocols — hidden on hover */}
           {connection.protocol !== 'ssh' && (
-            <span className="text-[10px] uppercase font-medium tracking-wide text-sidebar-foreground/40 transition-opacity group-hover:opacity-0">
+            <span className="text-2xs uppercase font-medium tracking-wide text-subtle transition-opacity group-hover:opacity-0">
               {connection.protocol}
             </span>
           )}
@@ -834,7 +818,7 @@ function ConnectionItem({
               setMenuPos({ x: rect.right, y: rect.bottom + 4 })
             }}
             title="More options"
-            className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground"
+            className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground"
           >
             <MoreHorizontal className="w-3.5 h-3.5" />
           </button>

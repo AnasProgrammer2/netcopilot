@@ -12,7 +12,7 @@ interface Props {
   sessionId: string | null   // active session to bind forwards to
 }
 
-const inputCls = 'w-full bg-input border border-border rounded-lg px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/40'
+const inputCls = 'w-full bg-input border border-border rounded-lg px-3 py-1.5 text-sm text-foreground placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-primary/40'
 
 export function PortForwardDialog({ open, onClose, sessionId }: Props): JSX.Element | null {
   const {
@@ -78,9 +78,9 @@ export function PortForwardDialog({ open, onClose, sessionId }: Props): JSX.Elem
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {rules.length === 0 && !adding && (
             <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
-              <Globe className="w-8 h-8 text-muted-foreground/30" />
-              <p className="text-sm text-muted-foreground/60">No forwarding rules yet</p>
-              <p className="text-xs text-muted-foreground/40">Forward local ports to remote services via SSH tunnel</p>
+              <Globe className="w-8 h-8 text-subtle" />
+              <p className="text-sm text-muted-foreground">No forwarding rules yet</p>
+              <p className="text-xs text-subtle">Forward local ports to remote services via SSH tunnel</p>
             </div>
           )}
 
@@ -89,10 +89,10 @@ export function PortForwardDialog({ open, onClose, sessionId }: Props): JSX.Elem
             return (
               <div key={rule.id} className={cn(
                 'flex items-center gap-3 p-3 rounded-xl border transition-all',
-                active ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-border bg-card/50'
+                active ? 'border-success/30 bg-success/5' : 'border-border bg-card/50'
               )}>
                 {/* Status dot */}
-                <span className={cn('w-2 h-2 rounded-full shrink-0', active ? 'bg-emerald-400' : 'bg-muted-foreground/30')} />
+                <span className={cn('w-2 h-2 rounded-full shrink-0', active ? 'bg-success' : 'bg-muted-foreground/30')} />
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
@@ -101,9 +101,9 @@ export function PortForwardDialog({ open, onClose, sessionId }: Props): JSX.Elem
                   )}
                   <div className="flex items-center gap-1.5 text-xs font-mono">
                     <span className="text-primary">localhost:{rule.localPort}</span>
-                    <ArrowRight className="w-3 h-3 text-muted-foreground/50" />
-                    <span className="text-foreground/70">{rule.remoteHost}:{rule.remotePort}</span>
-                    <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground font-sans uppercase">
+                    <ArrowRight className="w-3 h-3 text-subtle" />
+                    <span className="text-foreground">{rule.remoteHost}:{rule.remotePort}</span>
+                    <span className="ml-1 text-2xs px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground font-sans uppercase">
                       {rule.type}
                     </span>
                   </div>
@@ -116,7 +116,7 @@ export function PortForwardDialog({ open, onClose, sessionId }: Props): JSX.Elem
                   className={cn(
                     'shrink-0 p-1.5 rounded-lg transition-all',
                     active
-                      ? 'text-emerald-400 hover:bg-emerald-500/10'
+                      ? 'text-success hover:bg-success/10'
                       : 'text-muted-foreground hover:text-foreground hover:bg-accent',
                     (!sessionId || session?.status !== 'connected') && 'opacity-40 cursor-not-allowed'
                   )}
@@ -128,7 +128,7 @@ export function PortForwardDialog({ open, onClose, sessionId }: Props): JSX.Elem
                 {/* Delete */}
                 <button
                   onClick={() => deletePortForwardRule(rule.id)}
-                  className="shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-all"
+                  className="shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-danger hover:bg-danger/10 transition-all"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -143,7 +143,7 @@ export function PortForwardDialog({ open, onClose, sessionId }: Props): JSX.Elem
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Type</label>
+                  <label className="text-2xs text-muted-foreground font-medium mb-1 block">Type</label>
                   <select
                     value={form.type}
                     onChange={e => setForm(f => ({ ...f, type: e.target.value as 'local' | 'dynamic' }))}
@@ -154,7 +154,7 @@ export function PortForwardDialog({ open, onClose, sessionId }: Props): JSX.Elem
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Local Port</label>
+                  <label className="text-2xs text-muted-foreground font-medium mb-1 block">Local Port</label>
                   <input
                     type="number"
                     min={1} max={65535}
@@ -168,7 +168,7 @@ export function PortForwardDialog({ open, onClose, sessionId }: Props): JSX.Elem
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Remote Host</label>
+                  <label className="text-2xs text-muted-foreground font-medium mb-1 block">Remote Host</label>
                   <input
                     value={form.remoteHost ?? ''}
                     onChange={e => setForm(f => ({ ...f, remoteHost: e.target.value }))}
@@ -178,7 +178,7 @@ export function PortForwardDialog({ open, onClose, sessionId }: Props): JSX.Elem
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Remote Port</label>
+                  <label className="text-2xs text-muted-foreground font-medium mb-1 block">Remote Port</label>
                   <input
                     type="number"
                     min={1} max={65535}
@@ -191,13 +191,13 @@ export function PortForwardDialog({ open, onClose, sessionId }: Props): JSX.Elem
                 </div>
               </div>
               {form.type === 'dynamic' && (
-                <p className="text-[11px] text-muted-foreground/60 bg-muted/40 rounded-lg px-3 py-2">
+                <p className="text-2xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
                   SOCKS5 proxy — configure your browser or app to use <span className="font-mono text-primary">127.0.0.1:{form.localPort}</span> as a SOCKS5 proxy.
                 </p>
               )}
 
               <div>
-                <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Description (optional)</label>
+                <label className="text-2xs text-muted-foreground font-medium mb-1 block">Description (optional)</label>
                 <input
                   value={form.description ?? ''}
                   onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
@@ -226,7 +226,7 @@ export function PortForwardDialog({ open, onClose, sessionId }: Props): JSX.Elem
 
         {/* Footer */}
         <div className="px-4 py-3 border-t border-border flex items-center justify-between">
-          <p className="text-[11px] text-muted-foreground/50">
+          <p className="text-2xs text-subtle">
             localhost:<span className="font-mono">port</span> → remote via SSH tunnel
           </p>
           {!adding && (

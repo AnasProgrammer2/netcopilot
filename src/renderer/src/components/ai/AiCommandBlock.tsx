@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Terminal, CheckCircle2, XCircle, Loader2, ShieldAlert, Play } from 'lucide-react'
+import { CheckCircle2, ChevronRight, Loader2, ShieldAlert, Circle } from 'lucide-react'
 import { cn, isCommandBlacklisted } from '../../lib/utils'
 import { AiToolCall } from '../../store'
 import { useAppStore } from '../../store'
@@ -12,101 +12,90 @@ interface Props {
   onBlock:    (callId: string) => void
 }
 
+/**
+ * One command ARIA ran (or wants to run). Neutral by default; colour appears
+ * only when something needs the engineer: a pending approval or a block.
+ */
 export function AiCommandBlock({ call, blacklist, onApprove, onBlock }: Props): JSX.Element {
   const [expanded, setExpanded] = useState(false)
   const sessions = useAppStore(s => s.sessions)
 
   const isBlacklisted = isCommandBlacklisted(call.command, blacklist)
+  const needsClick    = call.status === 'pending' && !call.autoApprove && !isBlacklisted
 
-  // Find target session name for multi-session display
   const targetSessionName = call.targetSession
     ? sessions.find(s => s.id === call.targetSession)?.connection.name ?? call.targetSession
     : null
 
   const statusIcon = {
-    pending:  <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />,
-    approved: <Play className="w-3 h-3 text-emerald-400" />,
-    blocked:  <ShieldAlert className="w-3 h-3 text-red-400" />,
-    running:  <Loader2 className="w-3 h-3 text-primary animate-spin" />,
-    done:     <CheckCircle2 className="w-3 h-3 text-emerald-400" />,
+    pending:  needsClick ? <Circle className="w-3 h-3 text-warning fill-warning" /> : <Loader2 className="w-3 h-3 text-subtle animate-spin" />,
+    approved: <Loader2 className="w-3 h-3 text-subtle animate-spin" />,
+    blocked:  <ShieldAlert className="w-3 h-3 text-danger" />,
+    running:  <Loader2 className="w-3 h-3 text-muted-foreground animate-spin" />,
+    done:     <CheckCircle2 className="w-3 h-3 text-subtle" />,
   }[call.status]
 
   return (
-    <div className="mt-2 rounded-lg border border-primary/20 bg-muted/60 overflow-hidden text-xs">
-      {/* Header row */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-primary/10">
-        <Terminal className="w-3 h-3 text-primary/60 shrink-0" />
-        <code className="flex-1 font-mono text-primary truncate">{call.command}</code>
-        {targetSessionName && (
-          <span className="shrink-0 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[11px] font-medium">
-            → {targetSessionName}
-          </span>
-        )}
+    <div className={cn(
+      'mt-2 rounded-md border text-xs overflow-hidden',
+      needsClick ? 'border-warning/50' : 'border-border',
+    )}>
+      <div className="flex items-center gap-2 px-2.5 h-8">
         {statusIcon}
+        <code className="flex-1 min-w-0 font-mono text-foreground truncate" title={call.command}>{call.command}</code>
+        {targetSessionName && (
+          <span className="shrink-0 text-2xs text-muted-foreground">on {targetSessionName}</span>
+        )}
       </div>
 
-      {/* Reason */}
-      <div className="px-3 py-1.5 text-muted-foreground border-t border-border/40 leading-relaxed">
-        {call.reason}
-      </div>
+      {(call.reason || call.policyBlock || needsClick) && (
+        <div className="px-2.5 pb-2 -mt-0.5 space-y-2">
+          {call.reason && <p className="text-muted-foreground leading-relaxed">{call.reason}</p>}
 
-      {/* Server-side policy rejection — already blocked by main process */}
-      {call.policyBlock && (
-        <div className="flex items-start gap-2 px-3 py-2 border-t border-red-500/20 bg-red-500/5 text-red-400">
-          <ShieldAlert className="w-3 h-3 shrink-0 mt-0.5" />
-          <span className="text-[11px] leading-relaxed">{call.policyBlock}</span>
-        </div>
-      )}
+          {call.policyBlock && (
+            <p className="flex items-start gap-1.5 text-danger leading-relaxed">
+              <ShieldAlert className="w-3 h-3 shrink-0 mt-0.5" />
+              {call.policyBlock}
+            </p>
+          )}
 
-      {/* Action buttons — only when pending */}
-      {call.status === 'pending' && (
-        <div className="flex items-center gap-2 px-3 py-2 border-t border-border/40">
-          {isBlacklisted ? (
-            <span className="flex items-center gap-1.5 text-red-400">
-              <ShieldAlert className="w-3 h-3" />
-              Blocked by blacklist
-            </span>
-          ) : !call.autoApprove ? (
-            <>
-              <span className="flex items-center gap-1 text-amber-500 mr-1">
-                <ShieldAlert className="w-3 h-3" />
-                {call.targetSession ? 'Runs on another device' : 'Needs your OK'}
-              </span>
+          {call.status === 'pending' && isBlacklisted && (
+            <p className="flex items-center gap-1.5 text-danger"><ShieldAlert className="w-3 h-3" />Blocked by your blocked-commands list</p>
+          )}
+
+          {needsClick && (
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => onApprove(call.id)}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-primary/20 text-primary hover:bg-primary/30 transition-colors font-medium"
+                className="h-6 px-2.5 rounded-md bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
               >
-                <CheckCircle2 className="w-3 h-3" />
                 Run
               </button>
               <button
                 onClick={() => onBlock(call.id)}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                className="h-6 px-2.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               >
-                <XCircle className="w-3 h-3" />
                 Skip
               </button>
-            </>
-          ) : (
-            <span className="text-emerald-500/80">Read-only — running automatically</span>
+              <span className="text-2xs text-subtle">
+                {call.targetSession ? 'Runs on another device' : 'Heavy or unprompted command — needs your OK'}
+              </span>
+            </div>
           )}
         </div>
       )}
 
-      {/* Output toggle */}
       {call.output && call.status === 'done' && (
         <>
           <button
             onClick={() => setExpanded(v => !v)}
-            className="w-full text-left px-3 py-1 border-t border-border/40 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            className="w-full flex items-center gap-1 px-2.5 h-7 border-t border-border text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
           >
-            {expanded ? '▾ Hide output' : '▸ Show output'}
+            <ChevronRight className={cn('w-3 h-3 transition-transform', expanded && 'rotate-90')} />
+            Output
           </button>
           {expanded && (
-            <pre className={cn(
-              'px-3 py-2 font-mono text-[11px] leading-relaxed border-t border-border/40',
-              'max-h-48 overflow-y-auto whitespace-pre-wrap break-all text-foreground/80'
-            )}>
+            <pre className="px-2.5 py-2 font-mono text-2xs leading-relaxed border-t border-border max-h-48 overflow-y-auto whitespace-pre-wrap break-all text-foreground select-text">
               {call.output}
             </pre>
           )}

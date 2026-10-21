@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { nanoid } from 'nanoid'
-import { X, Send, Sparkles, Trash2, Square, Search, Wrench, AlertCircle, ChevronDown, Check, Eye, EyeOff, ShieldAlert, RotateCcw, Download, Zap, History } from 'lucide-react'
+import { X, Send, Sparkles, Loader2, MoreHorizontal, Trash2, Square, Search, Wrench, AlertCircle, ChevronDown, Check, Eye, EyeOff, ShieldAlert, RotateCcw, Download, Zap, History } from 'lucide-react'
 import { useAppStore, AiMessage as AiMessageType, AriaMode, ChangePolicy, isAiReady, aiDestinationLabel, AI_PROVIDER_LABELS } from '../../store'
 import { ChangeCard, ENV_BADGE } from './ChangeCard'
 import { normalizeEnvironment, resolveMode, type Environment } from '../../../../shared/changeControl'
@@ -523,113 +523,71 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 
   return (
     <div className="flex flex-col h-full min-h-0 border-l border-border bg-background">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/60 shrink-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent">
-        {/* ARIA logo */}
-        <div className="relative flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-primary/40 to-primary/10 shrink-0 shadow-sm">
-          <Sparkles className="w-3.5 h-3.5 text-primary" />
-          <span className="absolute inset-0 rounded-lg ring-1 ring-primary/20" />
-        </div>
-        <span className="text-sm font-bold text-foreground tracking-tight">ARIA</span>
-
-        {aiSource === 'byok' && aiConfigured ? (
-          <span
-            title={aiModel}
-            className="text-[11px] px-1.5 py-0.5 rounded-md bg-sky-500/10 text-sky-400 font-medium border border-sky-500/20 leading-none hidden sm:inline shrink-0 uppercase tracking-wide"
-          >
-            {aiProvider === 'custom' ? aiDestinationLabel(aiProvider, aiBaseUrl) : AI_PROVIDER_LABELS[aiProvider]}
-          </span>
-        ) : licenseValid ? (
-          <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/20 leading-none hidden sm:inline shrink-0 uppercase tracking-wide">
-            {licensePlan || 'active'}
-          </span>
-        ) : (
-          <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-red-500/10 text-red-400 font-medium border border-red-500/20 leading-none hidden sm:inline shrink-0">
-            {aiSource === 'byok' ? 'Not set up' : 'No License'}
-          </span>
+      {/* Header — one quiet row: identity, device, and a single overflow menu */}
+      <div className="flex items-center gap-2 h-10 px-3 border-b border-border shrink-0">
+        <Sparkles className="w-4 h-4 text-primary shrink-0" />
+        <span
+          className="text-sm font-semibold text-foreground"
+          title={aiSource === 'byok' && aiConfigured
+            ? `${aiProvider === 'custom' ? aiDestinationLabel(aiProvider, aiBaseUrl) : AI_PROVIDER_LABELS[aiProvider]} · ${aiModel}`
+            : licenseValid ? `NetCopilot ${licensePlan || ''}`.trim() : undefined}
+        >
+          ARIA
+        </span>
+        {!aiReady && (
+          <span className="text-2xs text-danger shrink-0">{aiSource === 'byok' ? 'Not set up' : 'No license'}</span>
         )}
 
-        {/* Connection Health Indicator */}
-        {activeSession && (() => {
+        {activeSession ? (() => {
           const s = activeSession.status
-          const dot   = s === 'connected'    ? 'bg-emerald-400'
-                      : s === 'connecting'   ? 'bg-amber-400 animate-pulse'
-                      : s === 'error'        ? 'bg-red-400'
-                      : 'bg-muted-foreground/40'
-          const label = s === 'connected'    ? 'Connected'
-                      : s === 'connecting'   ? 'Connecting…'
-                      : s === 'error'        ? 'Error'
-                      : 'Disconnected'
-          const color = s === 'connected'    ? 'text-emerald-400'
-                      : s === 'connecting'   ? 'text-amber-400'
-                      : s === 'error'        ? 'text-red-400'
-                      : 'text-muted-foreground/50'
+          const problem = s === 'connecting' ? 'bg-warning' : s === 'error' || s === 'disconnected' ? 'bg-danger' : null
           return (
-            <div className="flex items-center gap-1 flex-1 min-w-0" title={`${activeSession.connection.name} — ${activeSession.connection.host} (${label})`}>
-              <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', dot)} />
-              <span className={cn('text-[11px] font-medium truncate', color)}>
-                {activeSession.connection.name}
-              </span>
+            <div className="flex items-center gap-1.5 flex-1 min-w-0 text-xs text-muted-foreground" title={`${activeSession.connection.name} — ${activeSession.connection.host}`}>
+              <span className="text-subtle">·</span>
+              {problem && <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', problem)} />}
+              <span className="truncate">{activeSession.connection.name}</span>
+              {splitSession && <span className="truncate text-subtle">⇄ {splitSession.connection.name}</span>}
               <span
-                title={`${activeEnv} device — ${activeEnv === 'production' ? 'every change needs your approval' : 'Autopilot allowed'}`}
-                className={cn('shrink-0 px-1 rounded border text-[9px] font-semibold tracking-wide leading-[14px]', ENV_BADGE[activeEnv].className)}
+                title={activeEnv === 'production' ? 'Production — every change needs your approval' : `${activeEnv} — Autopilot allowed`}
+                className="shrink-0 px-1 rounded border border-border text-2xs text-muted-foreground leading-[15px]"
               >
                 {ENV_BADGE[activeEnv].label}
               </span>
             </div>
           )
-        })()}
-        {/* Split View indicator */}
-        {splitSession && (
-          <span className="text-[11px] px-1.5 py-0.5 rounded bg-primary/15 text-primary/70 font-medium shrink-0">
-            ⇄ {splitSession.connection.name}
-          </span>
-        )}
-        {!activeSession && <span className="flex-1" />}
+        })() : <span className="flex-1" />}
 
-        {/* Token counter next to clear button */}
         {(aiTokens.input > 0 || aiTokens.output > 0) && (
           <span
-            title={`Input: ${aiTokens.input.toLocaleString()} · Output: ${aiTokens.output.toLocaleString()}`}
-            className="text-[11px] font-mono text-muted-foreground/50 select-none cursor-default"
+            title={`Input: ${aiTokens.input.toLocaleString()} · Output: ${aiTokens.output.toLocaleString()} tokens`}
+            className="text-2xs font-mono text-subtle select-none cursor-default"
           >
             {formatTokens(aiTokens.input + aiTokens.output)}
           </span>
         )}
-        {aiMessages.length > 0 && (
-          <button
-            onClick={async () => {
-              const msgs = aiMessages.map(m => ({
-                role:      m.role,
-                content:   m.content,
-                toolCalls: m.toolCalls?.map(tc => ({ command: tc.command, output: tc.output })),
-              }))
-              await window.api.ai.exportMarkdown({ host: activeSession?.connection.host ?? 'unknown', messages: msgs })
-            }}
-            title="Export conversation as Markdown"
-            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-          >
-            <Download className="w-3.5 h-3.5" />
-          </button>
-        )}
-        <button
-          onClick={() => setChangeHistoryOpen(true)}
-          title="Change history"
-          className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-        >
-          <History className="w-3.5 h-3.5" />
-        </button>
-        <button
-          onClick={() => { clearAiMessages(); commandQueueRef.current = Promise.resolve() }}
-          title="Clear conversation"
-          className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        <PanelMenu
+          items={[
+            { label: 'Change history', icon: <History className="w-3.5 h-3.5" />, onClick: () => setChangeHistoryOpen(true) },
+            ...(aiMessages.length > 0 ? [
+              {
+                label: 'Export conversation', icon: <Download className="w-3.5 h-3.5" />,
+                onClick: () => {
+                  const msgs = aiMessages.map(m => ({
+                    role:      m.role,
+                    content:   m.content,
+                    toolCalls: m.toolCalls?.map(tc => ({ command: tc.command, output: tc.output })),
+                  }))
+                  void window.api.ai.exportMarkdown({ host: activeSession?.connection.host ?? 'unknown', messages: msgs })
+                },
+              },
+              { label: 'Clear conversation', icon: <Trash2 className="w-3.5 h-3.5" />, onClick: () => { clearAiMessages(); commandQueueRef.current = Promise.resolve() } },
+            ] : []),
+          ]}
+        />
         <button
           onClick={() => setAiPanelOpen(false)}
-          title="Close AI panel"
-          className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          title="Close ARIA"
+          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
         >
           <X className="w-3.5 h-3.5" />
         </button>
@@ -638,15 +596,10 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       {/* No session notice */}
       {!activeSession && (
         <div className="flex flex-col items-center justify-center flex-1 gap-4 p-6 text-center">
-          <div className="relative">
-            <div className="absolute inset-0 rounded-2xl bg-muted/30 blur-xl scale-150" />
-            <div className="relative flex items-center justify-center w-12 h-12 rounded-2xl bg-muted/60 border border-border/60">
-              <AlertCircle className="w-5 h-5 text-muted-foreground/40" />
-            </div>
-          </div>
+          <AlertCircle className="w-5 h-5 text-subtle" />
           <div className="space-y-1.5">
-            <p className="text-sm font-semibold text-foreground/60">No active session</p>
-            <p className="text-xs text-muted-foreground/50 max-w-[170px] leading-relaxed">
+            <p className="text-sm font-semibold text-muted-foreground">No active session</p>
+            <p className="text-xs text-subtle max-w-[170px] leading-relaxed">
               Connect to a device to start chatting with ARIA
             </p>
           </div>
@@ -658,39 +611,13 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         <>
           <div ref={scrollRef} className="flex-1 overflow-y-auto py-2 select-text">
             {aiMessages.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full gap-5 px-5 py-8 text-center">
-                {/* Glowing icon */}
-                <div className="relative">
-                  <div className="absolute inset-0 rounded-3xl bg-primary/25 blur-2xl scale-[1.8]" />
-                  <div className="relative flex items-center justify-center w-16 h-16 rounded-3xl bg-gradient-to-br from-primary/30 to-primary/5 border border-primary/25 shadow-lg shadow-primary/10">
-                    <Sparkles className="w-7 h-7 text-primary drop-shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
-                  </div>
-                </div>
-
-                {/* Heading */}
-                <div className="space-y-2">
-                  <p className="text-base font-bold text-foreground tracking-tight">
-                    Hi, I'm ARIA
-                  </p>
-                  <p className="text-xs text-muted-foreground/60 leading-relaxed max-w-[190px]">
-                    AI agent for <span className="font-semibold text-foreground/70">{activeSession.connection.name}</span>.
-                    Describe a problem and I'll investigate it.
-                  </p>
-                </div>
-
-                {/* Capability chips */}
-                <div className="flex flex-wrap gap-1.5 justify-center max-w-[220px]">
-                  {[
-                    { label: 'Diagnose', icon: '🔍' },
-                    { label: 'Configs',  icon: '📋' },
-                    { label: 'Commands', icon: '⚡' },
-                    { label: 'Plan',     icon: '🗺️' },
-                  ].map(cap => (
-                    <span key={cap.label} className="text-[11px] px-2.5 py-1 rounded-full bg-primary/8 border border-primary/15 text-primary/75 font-medium flex items-center gap-1">
-                      <span>{cap.icon}</span>{cap.label}
-                    </span>
-                  ))}
-                </div>
+              <div className="flex flex-col items-center justify-center h-full gap-2 px-6 py-8 text-center">
+                <Sparkles className="w-5 h-5 text-subtle" />
+                <p className="text-sm font-medium text-foreground">Ask ARIA about {activeSession.connection.name}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed max-w-[240px]">
+                  Describe a problem. ARIA investigates with read-only commands
+                  {modeResolution.mode === 'investigate' ? '.' : ' and proposes changes for your approval.'}
+                </p>
               </div>
             )}
 
@@ -722,57 +649,30 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
               ))
             })()}
 
-            {/* Waiting for first token — last message is user and we're streaming */}
+            {/* Activity — one quiet line while ARIA thinks or runs commands */}
             {(() => {
               const lastMsg = aiMessages[aiMessages.length - 1]
-              const isWaitingForFirstToken = aiStreaming && (lastMsg?.role === 'user' || lastMsg?.role === 'auto')
-              if (!isWaitingForFirstToken) return null
+              const waitingFirstToken = aiStreaming && (lastMsg?.role === 'user' || lastMsg?.role === 'auto')
+              const between = aiAgentActive && !aiStreaming
+              if (!waitingFirstToken && !between) return null
               return (
-                <div className="flex items-center gap-2.5 px-3 py-2">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                    <Sparkles className="w-3.5 h-3.5 text-primary animate-spin" style={{ animationDuration: '2s' }} />
-                  </div>
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-card/80 border border-border/40 shadow-sm">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '120ms' }} />
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '240ms' }} />
-                    <span className="text-[11px] text-muted-foreground/60 font-medium ml-1">Thinking…</span>
-                  </div>
+                <div className="flex items-center gap-2 px-4 py-2 text-xs text-muted-foreground">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  {waitingFirstToken ? 'Thinking…' : 'Working…'}
                 </div>
               )
             })()}
 
-            {/* Thinking indicator — between tool calls (agent active, not streaming) */}
-            {aiAgentActive && !aiStreaming && (
-              <div className="flex items-center gap-2.5 px-3 py-2">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                  <Sparkles className="w-3.5 h-3.5 text-primary animate-pulse" />
-                </div>
-                <div className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-card/80 border border-border/40 shadow-sm">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '120ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '240ms' }} />
-                  <span className="text-[11px] text-muted-foreground/60 font-medium ml-1">Running…</span>
-                </div>
-              </div>
-            )}
-
             <div ref={bottomRef} />
           </div>
 
-          <PendingCommandBar
-            messages={aiMessages}
-            onApprove={handleApproveCommand}
-            onBlock={handleBlockCommand}
-          />
-
           {/* Quick Suggestions Bar — blends Smart History with predefined commands */}
-          {!aiStreaming && !aiAgentActive && (() => {
+          {aiMessages.length === 0 && !aiStreaming && !aiAgentActive && (() => {
             const rawDt    = activeSession.connection.deviceType ?? 'generic'
             const deviceType = (rawDt === 'auto' ? 'generic' : rawDt) as keyof typeof QUICK_COMMANDS
             const predef = QUICK_COMMANDS[deviceType] ?? QUICK_COMMANDS['default']
             const asked  = new Set(aiMessages.filter(m => m.role === 'user').map(m => m.content))
-            const limit  = aiMessages.length === 0 ? 5 : 3
+            const limit  = 4
 
             // History items that haven't been asked yet (most-used first, already sorted by DB)
             const fromHistory = historyCommands.filter(c => !asked.has(c))
@@ -787,8 +687,8 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 
             if (cmds.length === 0) return null
             return (
-              <div className="px-3 pt-1 pb-1.5 shrink-0">
-                <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+              <div className="px-3 pb-2 shrink-0">
+                <div className="flex flex-wrap gap-1.5">
                   {cmds.map((cmd) => (
                     <button
                       key={cmd}
@@ -797,21 +697,8 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                         setTimeout(() => inputRef.current?.focus(), 50)
                       }}
                       title={historySet.has(cmd) ? 'From your history' : undefined}
-                      className={cn(
-                        'shrink-0 text-[11px] px-2.5 py-1 rounded-lg flex items-center gap-1.5',
-                        historySet.has(cmd)
-                          ? 'bg-amber-500/10 border border-amber-500/25 text-amber-500 hover:bg-amber-500/18 hover:border-amber-500/40'
-                          : 'bg-muted/60 border border-border/60 text-muted-foreground hover:bg-primary/10 hover:border-primary/25 hover:text-primary',
-                        'transition-all whitespace-nowrap font-medium'
-                      )}
+                      className="max-w-full truncate text-xs px-2.5 h-7 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                     >
-                      {historySet.has(cmd) ? (
-                        <svg className="w-2.5 h-2.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                        </svg>
-                      ) : (
-                        <Sparkles className="w-2.5 h-2.5 shrink-0 opacity-50" />
-                      )}
                       {cmd}
                     </button>
                   ))}
@@ -822,16 +709,16 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 
           {/* Privacy notice — shown once until dismissed */}
           {aiReady && !privacyDismissed && aiMessages.length === 0 && (
-            <div className="mx-3 mb-1.5 px-3 py-2 rounded-lg border border-amber-500/20 bg-amber-500/5 flex items-start gap-2">
-              <AlertCircle className="w-3.5 h-3.5 text-amber-500/70 shrink-0 mt-0.5" />
-              <p className="text-[11px] text-muted-foreground/70 leading-relaxed flex-1">
+            <div className="mx-3 mb-2 px-3 py-2 rounded-md bg-muted/50 flex items-start gap-2">
+              <AlertCircle className="w-3.5 h-3.5 text-subtle shrink-0 mt-0.5" />
+              <p className="text-2xs text-muted-foreground leading-relaxed flex-1">
                 {aiSource === 'byok'
-                  ? <>ARIA sends your terminal context directly to <span className="text-foreground/60 font-medium">{aiDestinationLabel(aiProvider, aiBaseUrl)}</span>, not through NetCopilot servers. Avoid using ARIA on sessions with sensitive credentials.</>
-                  : <>ARIA sends your terminal context and conversation to <span className="text-foreground/60 font-medium">api.netcopilot.app</span> to generate responses. Avoid using ARIA on sessions with sensitive credentials.</>}
+                  ? <>ARIA sends your terminal context directly to <span className="text-muted-foreground font-medium">{aiDestinationLabel(aiProvider, aiBaseUrl)}</span>, not through NetCopilot servers. Avoid using ARIA on sessions with sensitive credentials.</>
+                  : <>ARIA sends your terminal context and conversation to <span className="text-muted-foreground font-medium">api.netcopilot.app</span> to generate responses. Avoid using ARIA on sessions with sensitive credentials.</>}
               </p>
               <button
                 onClick={() => { localStorage.setItem('aria-privacy-notice-accepted', '1'); setPrivacyDismissed(true) }}
-                className="shrink-0 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                className="shrink-0 text-subtle hover:text-muted-foreground transition-colors"
                 title="Dismiss"
               >
                 <X className="w-3 h-3" />
@@ -840,11 +727,11 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
           )}
 
           {/* Input box */}
-          <div className="border-t border-border/40 px-3 pt-2.5 pb-3 shrink-0">
+          <div className="px-3 pt-1 pb-3 shrink-0">
             {!aiReady ? (
-              <div className="flex flex-col items-center gap-3 py-4 px-3 rounded-xl border border-red-500/20 bg-red-500/5">
-                <div className="flex items-center gap-2 text-red-400">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
+              <div className="flex flex-col items-center gap-3 py-4 px-3 rounded-lg border border-border">
+                <div className="flex items-center gap-2 text-foreground">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-danger" />
                   <span className="text-xs font-medium">
                     {aiSource === 'byok' ? 'Set up an AI provider to use ARIA' : 'License required to use ARIA'}
                   </span>
@@ -852,7 +739,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                 {aiSource === 'byok' ? (
                   <button
                     onClick={() => setSettingsOpen(true, 'ai')}
-                    className="text-xs px-4 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
+                    className="text-xs px-4 h-8 inline-flex items-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
                   >
                     Set up provider →
                   </button>
@@ -862,27 +749,21 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                     target="_blank"
                     rel="noreferrer"
                     onClick={(e) => { e.preventDefault(); window.open('https://netcopilot.app/register') }}
-                    className="text-xs px-4 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
+                    className="text-xs px-4 h-8 inline-flex items-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
                   >
                     Get a License →
                   </a>
                 )}
-                <p className="text-[11px] text-muted-foreground/60 text-center">
+                <p className="text-2xs text-muted-foreground text-center">
                   {aiSource === 'byok' ? 'Claude, OpenAI, Grok, or a local model (Ollama / LM Studio)' : 'Enter your key in Settings → ARIA'}
                 </p>
               </div>
             ) : (
               <div
-                className={cn(
-                  'rounded-2xl border transition-all duration-200',
-                  'bg-card/80 backdrop-blur-sm',
-                  'border-border/60',
-                  'shadow-[0_2px_12px_rgba(0,0,0,0.15)]',
-                  'focus-within:border-primary/50 focus-within:shadow-[0_0_0_3px_rgba(139,92,246,0.10),0_2px_16px_rgba(139,92,246,0.08)]'
-                )}
+                className="rounded-lg border border-border bg-card transition-colors focus-within:border-primary/60"
               >
                 {/* Textarea */}
-                <div className="px-3.5 pt-3 pb-1">
+                <div className="px-3 pt-2.5 pb-1">
                   <textarea
                     ref={inputRef}
                     value={input}
@@ -898,7 +779,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                     disabled={aiStreaming}
                     className={cn(
                       'w-full resize-none bg-transparent text-sm text-foreground',
-                      'placeholder:text-muted-foreground/50',
+                      'placeholder:text-subtle',
                       'outline-none max-h-36 overflow-y-auto leading-relaxed',
                       'disabled:opacity-40'
                     )}
@@ -912,7 +793,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                 </div>
 
                 {/* Toolbar */}
-                <div className="flex items-center gap-0.5 px-2.5 pb-2.5 pt-1 whitespace-nowrap">
+                <div className="flex items-center gap-1 px-2 pb-2 pt-1 whitespace-nowrap">
                   <AgentModeSelector value={modeResolution.mode} onChange={setSessionMode} environment={activeEnv} policy={aiChangePolicy} />
                   <BlacklistButton blacklist={sessionBlacklist} onChange={setSessionBlacklist} />
 
@@ -920,10 +801,8 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                     onClick={() => setAutoWatch(!autoWatch)}
                     title={autoWatch ? 'Auto Watch ON — click to disable' : 'Auto Watch OFF — click to enable'}
                     className={cn(
-                      'flex items-center justify-center w-6 h-6 rounded-lg transition-all',
-                      autoWatch
-                        ? 'text-primary/70 hover:text-primary hover:bg-primary/10'
-                        : 'text-muted-foreground/35 hover:text-muted-foreground hover:bg-muted/50'
+                      'flex items-center justify-center w-6 h-6 rounded-md transition-colors hover:bg-accent',
+                      autoWatch ? 'text-muted-foreground hover:text-foreground' : 'text-subtle hover:text-muted-foreground'
                     )}
                   >
                     {autoWatch ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -931,16 +810,11 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 
                   <div className="flex-1" />
 
-                  {/* hint */}
-                  <span className="text-[10px] text-muted-foreground/30 mr-2 hidden sm:block min-w-0 truncate select-none">
-                    ↵ send · ⇧↵ newline
-                  </span>
-
                   {aiStreaming ? (
                     <button
                       onClick={() => window.api.ai.cancel(activeSession?.id)}
                       title="Stop generation"
-                      className="shrink-0 flex items-center gap-1.5 px-2.5 h-7 rounded-xl text-[11px] font-medium bg-red-500/12 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/35 transition-all"
+                      className="shrink-0 flex items-center gap-1.5 px-2.5 h-7 rounded-md text-xs font-medium border border-border text-foreground hover:bg-accent transition-colors"
                     >
                       <Square className="w-3 h-3" />
                       Stop
@@ -949,14 +823,8 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                     <button
                       onClick={handleSubmit}
                       disabled={!input.trim()}
-                      title="Send (Enter)"
-                      className={cn(
-                        'shrink-0 flex items-center justify-center w-7 h-7 rounded-xl transition-all duration-150',
-                        'bg-primary text-primary-foreground',
-                        'shadow-[0_1px_8px_rgba(139,92,246,0.35)]',
-                        'hover:brightness-110 hover:shadow-[0_2px_12px_rgba(139,92,246,0.45)]',
-                        'disabled:opacity-25 disabled:cursor-not-allowed disabled:shadow-none'
-                      )}
+                      title="Send (Enter) · Shift+Enter for a new line"
+                      className="shrink-0 flex items-center justify-center w-7 h-7 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:bg-muted disabled:text-subtle disabled:cursor-not-allowed"
                     >
                       <Send className="w-3.5 h-3.5" />
                     </button>
@@ -1031,9 +899,9 @@ function PillSelect<T extends string>({
             title={opt.disabledReason}
             onClick={() => { onChange(opt.id); setOpen(false) }}
             className={cn(
-              'w-full flex items-start gap-2.5 px-3 py-2 text-[12px] transition-colors text-left',
+              'w-full flex items-start gap-2.5 px-3 py-2 text-xs transition-colors text-left',
               disabled
-                ? 'text-muted-foreground/40 cursor-not-allowed'
+                ? 'text-subtle cursor-not-allowed'
                 : isActive
                   ? `${opt.activeColor} bg-muted/60`
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
@@ -1043,7 +911,7 @@ function PillSelect<T extends string>({
             <span className="flex-1 min-w-0">
               <span className="block font-medium leading-snug">{opt.label}</span>
               {(opt.disabledReason ?? opt.desc) && (
-                <span className={cn('block text-[10px] leading-relaxed mt-0.5', isActive ? 'opacity-70' : 'text-muted-foreground/60')}>
+                <span className={cn('block text-2xs leading-relaxed mt-0.5', isActive ? 'opacity-70' : 'text-muted-foreground')}>
                   {opt.disabledReason ?? opt.desc}
                 </span>
               )}
@@ -1062,7 +930,7 @@ function PillSelect<T extends string>({
         ref={btnRef}
         onClick={openMenu}
         className={cn(
-          'flex items-center gap-1 h-6 px-2 rounded-md text-[11px] font-medium transition-all',
+          'flex items-center gap-1 h-6 px-2 rounded-md text-2xs font-medium transition-all',
           'border',
           open
             ? `${current.activeColor} border-current/40 bg-current/10`
@@ -1074,6 +942,43 @@ function PillSelect<T extends string>({
         <ChevronDown className={cn('w-2.5 h-2.5 opacity-50 transition-transform', open && 'rotate-180')} />
       </button>
       {menu}
+    </div>
+  )
+}
+
+/** Overflow menu for secondary panel actions (one control instead of four icons). */
+function PanelMenu({ items }: { items: { label: string; icon: JSX.Element; onClick: () => void }[] }): JSX.Element {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        title="More"
+        className={cn('p-1 rounded-md transition-colors', open ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent')}
+      >
+        <MoreHorizontal className="w-3.5 h-3.5" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-50 min-w-[190px] py-1 rounded-lg border border-border bg-popover shadow-xl">
+          {items.map((it) => (
+            <button
+              key={it.label}
+              onClick={() => { setOpen(false); it.onClick() }}
+              className="w-full flex items-center gap-2 px-3 h-8 text-xs text-foreground hover:bg-accent transition-colors"
+            >
+              <span className="text-muted-foreground">{it.icon}</span>
+              {it.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -1094,20 +999,20 @@ function AgentModeSelector({ value, onChange, environment, policy }: {
           id: 'investigate', label: 'Investigate', short: 'Investigate',
           desc: 'Read-only. ARIA runs show / display / ping commands to diagnose and never changes the device.',
           icon: <Search className="w-3 h-3" />,
-          dimColor: 'text-emerald-500/70', activeColor: 'text-emerald-500',
+          dimColor: 'text-muted-foreground', activeColor: 'text-foreground',
         },
         {
           id: 'change', label: 'Change', short: 'Change',
           desc: 'ARIA can propose change plans. Nothing runs until you approve; NetCopilot applies it with a safety net and rollback.',
           icon: <Wrench className="w-3 h-3" />,
-          dimColor: 'text-amber-500/70', activeColor: 'text-amber-500',
+          dimColor: 'text-warning', activeColor: 'text-warning',
           disabledReason: prodLocked ? 'Your change policy keeps production devices read-only.' : undefined,
         },
         {
           id: 'autopilot', label: 'Autopilot', short: 'Autopilot',
           desc: 'Lab and staging only: ARIA applies and confirms its own change plans, with the same safety nets.',
           icon: <Zap className="w-3 h-3" />,
-          dimColor: 'text-red-500/70', activeColor: 'text-red-500',
+          dimColor: 'text-danger', activeColor: 'text-danger',
           disabledReason: environment === 'production' ? 'Not available on production devices — mark the device as lab or staging.' : undefined,
         },
       ]}
@@ -1149,21 +1054,13 @@ function BlacklistButton({ blacklist, onChange }: { blacklist: string[]; onChang
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(v => !v)}
-        title="Session blacklist — commands blocked in this conversation"
+        title={`Blocked commands for this conversation (${activeCount})`}
         className={cn(
-          'flex items-center gap-1 h-6 px-2 rounded-md text-[11px] font-medium transition-all border',
-          open
-            ? 'text-red-400 border-red-500/30 bg-red-500/10'
-            : activeCount > 0
-              ? 'text-red-400/70 border-transparent hover:border-border hover:bg-muted/50'
-              : 'text-muted-foreground/50 border-transparent hover:border-border hover:bg-muted/50'
+          'flex items-center justify-center w-6 h-6 rounded-md transition-colors',
+          open ? 'text-foreground bg-accent' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
         )}
       >
-        <ShieldAlert className="w-3 h-3" />
-        <span>Blocked</span>
-        {activeCount > 0 && (
-          <span className="text-[11px] opacity-70">({activeCount})</span>
-        )}
+        <ShieldAlert className="w-3.5 h-3.5" />
       </button>
 
       {open && (
@@ -1171,7 +1068,7 @@ function BlacklistButton({ blacklist, onChange }: { blacklist: string[]; onChang
           {/* Header */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
             <div className="flex items-center gap-1.5">
-              <ShieldAlert className="w-3 h-3 text-red-400" />
+              <ShieldAlert className="w-3 h-3 text-danger" />
               <span className="text-xs font-semibold text-foreground">Session Blacklist</span>
             </div>
             <button
@@ -1181,7 +1078,7 @@ function BlacklistButton({ blacklist, onChange }: { blacklist: string[]; onChang
                 onChange(defaults)
               }}
               title="Reset to defaults"
-              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1 text-2xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <RotateCcw className="w-2.5 h-2.5" />
               Reset
@@ -1196,9 +1093,9 @@ function BlacklistButton({ blacklist, onChange }: { blacklist: string[]; onChang
               rows={5}
               spellCheck={false}
               className={cn(
-                'w-full font-mono text-[11px] leading-relaxed resize-none',
+                'w-full font-mono text-2xs leading-relaxed resize-none',
                 'bg-muted/80 border border-border/60 rounded-lg px-2.5 py-2',
-                'text-foreground/80 placeholder:text-muted-foreground/40',
+                'text-foreground placeholder:text-subtle',
                 'focus:outline-none focus:border-primary/40',
               )}
               placeholder={'reload\nshutdown\nrm -rf\n...'}
@@ -1207,7 +1104,7 @@ function BlacklistButton({ blacklist, onChange }: { blacklist: string[]; onChang
 
           {/* Footer */}
           <div className="flex items-center justify-between px-3 py-2 border-t border-border/60">
-            <span className="text-[11px] text-muted-foreground/50">
+            <span className="text-2xs text-subtle">
               {draft.split('\n').filter(s => s.trim()).length} patterns
             </span>
             <button
@@ -1238,51 +1135,4 @@ function collectTerminalOutput(cb: (data: string) => void, filterSessionId?: str
   }
 
   return () => handlers.forEach((off) => off())
-}
-
-
-// ── Pending command sticky bar ────────────────────────────────────────────────
-
-interface PendingCommandBarProps {
-  messages:  AiMessageType[]
-  onApprove: (msgId: string, callId: string) => void
-  onBlock:   (msgId: string, callId: string) => void
-}
-
-function PendingCommandBar({ messages, onApprove, onBlock }: PendingCommandBarProps): JSX.Element | null {
-  const pendingCall = messages.flatMap(m => m.toolCalls ?? []).find(t => t.status === 'pending' && !t.autoApprove)
-  const pendingMsg  = pendingCall ? messages.find(m => m.toolCalls?.some(t => t.id === pendingCall.id)) : null
-
-  if (!pendingCall || !pendingMsg) return null
-
-  return (
-    <div className="border-t border-primary/20 bg-primary/5 px-3 py-2.5 shrink-0">
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
-        <span className="text-[11px] font-semibold text-primary/70 uppercase tracking-wider">
-          Action Required
-        </span>
-      </div>
-      <code className="block w-full text-xs font-mono bg-muted/70 rounded px-2 py-1.5 text-foreground/90 break-all mb-1">
-        {pendingCall.command}
-      </code>
-      {pendingCall.reason && (
-        <p className="text-[11px] text-muted-foreground mb-2">{pendingCall.reason}</p>
-      )}
-      <div className="flex gap-2">
-        <button
-          onClick={() => onApprove(pendingMsg.id, pendingCall.id)}
-          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary/90 transition-colors"
-        >
-          <span>▶</span> Run
-        </button>
-        <button
-          onClick={() => onBlock(pendingMsg.id, pendingCall.id)}
-          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive/15 text-destructive text-xs font-medium hover:bg-destructive/25 transition-colors"
-        >
-          <span>✕</span> Skip
-        </button>
-      </div>
-    </div>
-  )
 }

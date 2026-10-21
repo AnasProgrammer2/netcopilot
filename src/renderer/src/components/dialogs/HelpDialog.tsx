@@ -83,33 +83,33 @@ function StartTab(): JSX.Element {
       num: '01', icon: Plus,
       title: 'Add a host',
       desc: 'Click "+ New Host" or press ⌘N to save an SSH, Telnet, or Serial connection to your library.',
-      color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/20',
+      color: 'text-muted-foreground', bg: 'bg-muted border-transparent',
     },
     {
       num: '02', icon: Zap,
       title: 'Or use Quick Connect',
       desc: `Press ${mod}K to connect to any host instantly without saving it first.`,
-      color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20',
+      color: 'text-muted-foreground', bg: 'bg-muted border-transparent',
     },
     {
       num: '03', icon: Terminal,
       title: 'Open a session',
       desc: 'Click any host card to open a terminal session. Use Split view to manage multiple at once.',
-      color: 'text-sky-400', bg: 'bg-sky-500/10 border-sky-500/20',
+      color: 'text-muted-foreground', bg: 'bg-muted border-transparent',
     },
     {
       num: '04', icon: Cpu,
       title: 'Ask ARIA',
       desc: `Press ${mod}⇧A to open the AI panel. ARIA can diagnose issues, run commands, and explain anything on your devices.`,
-      color: 'text-primary', bg: 'bg-primary/10 border-primary/20',
+      color: 'text-muted-foreground', bg: 'bg-muted border-transparent',
     },
   ]
 
   const features = [
-    { icon: Network,   label: 'SSH · Telnet · Serial',   color: 'text-violet-400' },
-    { icon: Cpu,       label: 'ARIA AI Assistant',        color: 'text-primary'    },
-    { icon: ShieldCheck, label: 'Encrypted credential vault', color: 'text-emerald-400' },
-    { icon: Zap,       label: 'Quick Connect',            color: 'text-amber-400'  },
+    { icon: Network,   label: 'SSH · Telnet · Serial',   color: 'text-muted-foreground' },
+    { icon: Cpu,       label: 'ARIA AI Assistant',        color: 'text-muted-foreground'    },
+    { icon: ShieldCheck, label: 'Encrypted credential vault', color: 'text-muted-foreground' },
+    { icon: Zap,       label: 'Quick Connect',            color: 'text-muted-foreground'  },
   ]
 
   return (
@@ -118,7 +118,7 @@ function StartTab(): JSX.Element {
       <div>
         <SectionLabel>Getting started in 4 steps</SectionLabel>
         <div className="relative space-y-3 mt-4">
-          <div className="absolute left-[19px] top-10 bottom-10 w-px bg-gradient-to-b from-border via-border/40 to-transparent" />
+          <div className="absolute left-[19px] top-10 bottom-10 w-px bg-border" />
           {steps.map((step) => {
             const Icon = step.icon
             return (
@@ -128,7 +128,7 @@ function StartTab(): JSX.Element {
                 </div>
                 <div className="flex-1 p-3.5 rounded-xl border border-border bg-background/50 hover:bg-accent/20 transition-colors">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[10px] font-bold text-muted-foreground/40 font-mono">{step.num}</span>
+                    <span className="text-2xs font-semibold text-subtle font-mono">{step.num}</span>
                     <p className="text-sm font-semibold text-foreground">{step.title}</p>
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">{step.desc}</p>
@@ -178,7 +178,7 @@ function AriaTab(): JSX.Element {
                 ARIA is your built-in AI copilot powered by Claude. It can read your terminal output, run diagnostic commands, explain device configurations, troubleshoot issues, and even make configuration changes — all within your active SSH/Telnet session.
               </p>
               <p className="text-xs text-muted-foreground">
-                Open with <kbd className="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] font-mono">{mod}⇧A</kbd>
+                Open with <kbd className="px-1.5 py-0.5 rounded bg-muted border border-border text-2xs font-mono">{mod}⇧A</kbd>
               </p>
             </div>
           </div>
@@ -190,14 +190,14 @@ function AriaTab(): JSX.Element {
         <SectionLabel>Agent Mode — what ARIA can do</SectionLabel>
         <div className="mt-4 space-y-2">
           <ModeCard
-            icon={<ShieldCheck className="w-4 h-4 text-amber-400" />}
+            icon={<ShieldCheck className="w-4 h-4 text-warning" />}
             title="Troubleshoot"
             badge="Recommended"
-            badgeColor="text-amber-400 bg-amber-500/10 border-amber-500/20"
+            badgeColor="text-warning bg-warning/10 border-warning/20"
             desc="ARIA uses read-only commands only — show, ping, ls, ps, df, netstat, journalctl… Safe for monitoring without changing anything."
           />
           <ModeCard
-            icon={<Wrench className="w-4 h-4 text-red-400" />}
+            icon={<Wrench className="w-4 h-4 text-danger" />}
             title="Full Access"
             desc="ARIA can run any command including configuration changes, writing files, restarting services, etc. Use with caution."
           />
@@ -216,7 +216,7 @@ function AriaTab(): JSX.Element {
             desc="Every command ARIA wants to run will pause and ask for your approval first. You see exactly what will run before it runs."
           />
           <ModeCard
-            icon={<PlayCircle className="w-4 h-4 text-emerald-400" />}
+            icon={<PlayCircle className="w-4 h-4 text-success" />}
             title="Auto-approve"
             desc="ARIA executes commands immediately without asking. Best for speed when you trust the task. Commands run sequentially."
           />
@@ -228,13 +228,13 @@ function AriaTab(): JSX.Element {
         <SectionLabel>Blocked Command Patterns</SectionLabel>
         <div className="mt-4 p-4 rounded-xl border border-border bg-background/50 space-y-2">
           <div className="flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
+            <ShieldAlert className="w-4 h-4 text-danger shrink-0" />
             <p className="text-sm font-semibold text-foreground">Always-blocked safety list</p>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            In both Ask and Auto modes, any command matching your block list is <strong className="text-foreground">automatically rejected</strong> — no approval prompt. Add patterns like <code className="px-1 py-0.5 rounded bg-muted text-[11px] font-mono">rm -rf</code>, <code className="px-1 py-0.5 rounded bg-muted text-[11px] font-mono">reload</code>, <code className="px-1 py-0.5 rounded bg-muted text-[11px] font-mono">write erase</code> to protect critical operations.
+            In both Ask and Auto modes, any command matching your block list is <strong className="text-foreground">automatically rejected</strong> — no approval prompt. Add patterns like <code className="px-1 py-0.5 rounded bg-muted text-2xs font-mono">rm -rf</code>, <code className="px-1 py-0.5 rounded bg-muted text-2xs font-mono">reload</code>, <code className="px-1 py-0.5 rounded bg-muted text-2xs font-mono">write erase</code> to protect critical operations.
           </p>
-          <p className="text-xs text-muted-foreground/60">Configure in Settings → ARIA → Blocked Command Patterns</p>
+          <p className="text-xs text-muted-foreground">Configure in Settings → ARIA → Blocked Command Patterns</p>
         </div>
       </div>
 
@@ -243,10 +243,10 @@ function AriaTab(): JSX.Element {
         <SectionLabel>Tips</SectionLabel>
         <div className="mt-4 space-y-2">
           {[
-            { icon: '💡', text: 'Ask ARIA in plain language — "why is eth0 down?" or "show me running processes sorted by CPU"' },
-            { icon: '🔍', text: 'ARIA reads your terminal output automatically. You don\'t need to paste it — just ask.' },
+            { icon: '', text: 'Ask ARIA in plain language — "why is eth0 down?" or "show me running processes sorted by CPU"' },
+            { icon: '', text: 'ARIA reads your terminal output automatically. You don\'t need to paste it — just ask.' },
             { icon: '⚡', text: 'Use Auto mode for routine tasks like health checks across multiple devices.' },
-            { icon: '🛡️', text: 'Keep Troubleshoot mode for production devices — it can\'t accidentally change config.' },
+            { icon: '', text: 'Keep Troubleshoot mode for production devices — it can\'t accidentally change config.' },
           ].map(({ icon, text }) => (
             <div key={text} className="flex items-start gap-3 px-3.5 py-2.5 rounded-lg bg-background/50 border border-border/40">
               <span className="text-base shrink-0 mt-0.5">{icon}</span>
@@ -315,12 +315,12 @@ function ShortcutsTab(): JSX.Element {
                 key={sc.label}
                 className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-accent/50 transition-colors"
               >
-                <span className="text-sm text-foreground/80">{sc.label}</span>
+                <span className="text-sm text-foreground">{sc.label}</span>
                 <div className="flex items-center gap-1.5">
                   {sc.keys.map((key, i) => (
                     <span key={key} className="flex items-center gap-1">
-                      {i > 0 && <span className="text-xs text-muted-foreground/40">or</span>}
-                      <kbd className="inline-flex items-center justify-center px-2 py-1 rounded-md bg-muted border border-border/80 text-foreground text-[11px] font-mono font-medium leading-none shadow-[0_1px_0_0_hsl(var(--border))]">
+                      {i > 0 && <span className="text-xs text-subtle">or</span>}
+                      <kbd className="inline-flex items-center justify-center px-2 py-1 rounded-md bg-muted border border-border/80 text-foreground text-2xs font-mono font-medium leading-none shadow-[0_1px_0_0_hsl(var(--border))]">
                         {key}
                       </kbd>
                     </span>
@@ -340,7 +340,7 @@ function ShortcutsTab(): JSX.Element {
 function SectionLabel({ children }: { children: React.ReactNode }): JSX.Element {
   return (
     <div className="flex items-center gap-2">
-      <p className="text-[11px] font-bold text-muted-foreground/60 uppercase tracking-[0.12em]">{children}</p>
+      <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-[0.12em]">{children}</p>
       <div className="flex-1 h-px bg-border/60" />
     </div>
   )
@@ -360,14 +360,14 @@ function ModeCard({ icon, title, badge, badgeColor, desc }: {
         <div className="flex items-center gap-2 mb-1">
           <p className="text-sm font-semibold text-foreground">{title}</p>
           {badge && (
-            <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border', badgeColor)}>
+            <span className={cn('text-2xs font-semibold px-2 py-0.5 rounded-full border', badgeColor)}>
               {badge}
             </span>
           )}
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
       </div>
-      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/20 shrink-0 mt-0.5" />
+      <ChevronRight className="w-3.5 h-3.5 text-subtle shrink-0 mt-0.5" />
     </div>
   )
 }

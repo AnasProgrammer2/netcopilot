@@ -949,17 +949,17 @@ export function TerminalTab({ session }: Props): JSX.Element {
               if (e.key === 'Escape') closeSearch()
             }}
             placeholder="Search..."
-            className="w-36 text-xs bg-transparent text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 rounded"
+            className="w-36 text-xs bg-transparent text-foreground placeholder:text-subtle focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 rounded"
           />
           {/* Result counter */}
           {searchQuery && (
             <span className={cn(
-              'text-[10px] tabular-nums shrink-0 min-w-[40px] text-center',
+              'text-2xs tabular-nums shrink-0 min-w-[40px] text-center',
               searchResult
                 ? searchResult.resultCount === 0
-                  ? 'text-red-400'
+                  ? 'text-danger'
                   : 'text-muted-foreground'
-                : 'text-muted-foreground/40'
+                : 'text-subtle'
             )}>
               {searchResult
                 ? searchResult.resultCount === 0
@@ -996,7 +996,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
       {/* Toolbar */}
       <div className="flex items-center justify-between px-3 py-1 border-b border-border/40 bg-background shrink-0">
         <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
-          <span className="text-[11px] text-muted-foreground/50 font-mono truncate">
+          <span className="text-2xs text-subtle font-mono truncate">
             {session.connection.protocol.toUpperCase()} · {session.connection.host}
           </span>
         </div>
@@ -1008,8 +1008,8 @@ export function TerminalTab({ session }: Props): JSX.Element {
             className={cn(
               'flex items-center gap-1 px-2 py-0.5 rounded text-xs transition-colors cursor-pointer',
               showSearch
-                ? 'bg-primary/15 text-primary'
-                : 'text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent'
+                ? 'bg-accent text-foreground'
+                : 'text-muted-foreground hover:text-muted-foreground hover:bg-accent'
             )}
           >
             <Search className="w-3.5 h-3.5" />
@@ -1023,16 +1023,16 @@ export function TerminalTab({ session }: Props): JSX.Element {
             <button
               onClick={stopLogging}
               title={`Logging to: ${session.loggingPath}\nClick to stop`}
-              className="flex items-center gap-1.5 px-2 py-0.5 rounded text-xs text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-2 py-0.5 rounded text-xs text-danger bg-danger/10 hover:bg-danger/20 transition-colors cursor-pointer"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse shrink-0" />
+              <span className="w-1.5 h-1.5 rounded-full bg-danger animate-pulse shrink-0" />
               REC · Stop
             </button>
           ) : (
             <button
               onClick={startLogging}
               title="Start session logging"
-              className="flex items-center gap-1 px-2 py-0.5 rounded text-xs text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent transition-colors cursor-pointer"
+              className="flex items-center gap-1 px-2 py-0.5 rounded text-xs text-muted-foreground hover:text-muted-foreground hover:bg-accent transition-colors cursor-pointer"
             >
               <span className="w-1.5 h-1.5 rounded-full border border-current shrink-0" />
               Log
@@ -1081,8 +1081,8 @@ export function TerminalTab({ session }: Props): JSX.Element {
         {/* Disconnected overlay */}
         {session.status === 'disconnected' && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center backdrop-blur-sm gap-4" style={{ background: `${termBg}e6` }}>
-            <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
-              <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <div className="w-12 h-12 rounded-full bg-danger/10 border border-danger/30 flex items-center justify-center">
+              <svg className="w-6 h-6 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 15.312a4.5 4.5 0 0 1-1.242-7.244l4.5-4.5a4.5 4.5 0 0 1 6.364 6.364l-1.757 1.757" />
               </svg>
@@ -1095,7 +1095,7 @@ export function TerminalTab({ session }: Props): JSX.Element {
             </div>
             {session.connection.autoReconnect ? (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-warning animate-pulse" />
                 Reconnecting…
               </div>
             ) : (
@@ -1112,8 +1112,8 @@ export function TerminalTab({ session }: Props): JSX.Element {
         {/* Error overlay */}
         {session.status === 'error' && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center backdrop-blur-sm gap-4" style={{ background: `${termBg}e6` }}>
-            <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
-              <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <div className="w-12 h-12 rounded-full bg-danger/10 border border-danger/30 flex items-center justify-center">
+              <svg className="w-6 h-6 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
               </svg>
             </div>
@@ -1175,7 +1175,7 @@ function CtxItem({ icon: Icon, label, onClick, hint }: {
     >
       <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
       <span className="flex-1">{label}</span>
-      {hint && <span className="text-[11px] text-muted-foreground/50 font-mono">{hint}</span>}
+      {hint && <span className="text-2xs text-subtle font-mono">{hint}</span>}
     </button>
   )
 }

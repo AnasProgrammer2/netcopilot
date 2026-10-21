@@ -18,6 +18,10 @@ module.exports = {
           DEFAULT: 'hsl(var(--secondary))',
           foreground: 'hsl(var(--secondary-foreground))'
         },
+        success: 'hsl(var(--success))',
+        warning: 'hsl(var(--warning))',
+        danger:  'hsl(var(--danger))',
+        subtle:  'hsl(var(--subtle))',
         destructive: {
           DEFAULT: 'hsl(var(--destructive))',
           foreground: 'hsl(var(--destructive-foreground))'
@@ -60,8 +64,16 @@ module.exports = {
         normal: '-0.01em',
         wide: '0.01em',
       },
+      // Five UI sizes (px, not rem: the root is 15px). Nothing smaller than 11px.
       fontSize: {
-        'xxs': ['10px', { lineHeight: '14px', letterSpacing: '0.02em' }],
+        '2xs':  ['11px', { lineHeight: '15px' }],   // captions, badges, metadata
+        'xs':   ['12px', { lineHeight: '16px' }],   // secondary UI text
+        'sm':   ['13px', { lineHeight: '19px' }],   // body / default UI text
+        'base': ['15px', { lineHeight: '22px' }],   // section titles
+        'lg':   ['17px', { lineHeight: '24px' }],   // dialog / page titles
+        'xl':   ['20px', { lineHeight: '28px' }],
+        '2xl':  ['24px', { lineHeight: '30px' }],
+        '3xl':  ['30px', { lineHeight: '36px' }],
       },
       fontFamily: {
         sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"Segoe UI Variable Text"', '"Segoe UI"', 'system-ui', 'Ubuntu', 'Cantarell', '"Noto Sans"', 'sans-serif'],

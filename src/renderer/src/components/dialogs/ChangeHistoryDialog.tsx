@@ -63,7 +63,7 @@ export function ChangeHistoryDialog(): JSX.Element | null {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search device, title, status…"
-                  className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/60"
+                  className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
                 />
               </div>
             </div>
@@ -85,14 +85,14 @@ export function ChangeHistoryDialog(): JSX.Element | null {
                     )}
                   >
                     <p className="text-xs font-medium text-foreground truncate">{r.plan.title}</p>
-                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                    <p className="text-2xs text-muted-foreground truncate mt-0.5">
                       {r.deviceName} · {new Date(r.createdAt).toLocaleString()}
                     </p>
                     <div className="flex items-center gap-1.5 mt-1">
-                      <span className={cn('px-1.5 py-px rounded border text-[10px] font-semibold', ENV_BADGE[r.environment].className)}>
+                      <span className={cn('px-1.5 py-px rounded border text-2xs font-semibold', ENV_BADGE[r.environment].className)}>
                         {ENV_BADGE[r.environment].label}
                       </span>
-                      <span className={cn('px-1.5 py-px rounded border text-[10px] font-medium', st.className)}>{st.label}</span>
+                      <span className={cn('px-1.5 py-px rounded border text-2xs font-medium', st.className)}>{st.label}</span>
                     </div>
                   </button>
                 )
@@ -106,7 +106,7 @@ export function ChangeHistoryDialog(): JSX.Element | null {
               <div className="space-y-3 select-text">
                 <div className="flex items-start gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-mono text-muted-foreground">{current.id}</p>
+                    <p className="text-2xs font-mono text-muted-foreground">{current.id}</p>
                     <p className="text-base font-semibold text-foreground leading-snug">{current.plan.title}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {current.deviceName} · {current.host} · {current.deviceType} · {current.environment}

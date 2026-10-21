@@ -1053,7 +1053,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 }))
 
 // ── Apply accent color as CSS variable ──────────────────────────────────────
-function hexToHsl(hex: string): string {
+function hexToHslParts(hex: string): [number, number, number] {
   const r = parseInt(hex.slice(1, 3), 16) / 255
   const g = parseInt(hex.slice(3, 5), 16) / 255
   const b = parseInt(hex.slice(5, 7), 16) / 255
@@ -1069,7 +1069,41 @@ function hexToHsl(hex: string): string {
       case b: h = ((r - g) / d + 4) / 6; break
     }
   }
-  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`
+  return [h * 360, s * 100, l * 100]
+}
+
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  s /= 100; l /= 100
+  const k = (n: number) => (n + h / 30) % 12
+  const a = s * Math.min(l, 1 - l)
+  const f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))
+  return [f(0), f(8), f(4)]
+}
+
+function relativeLuminance([r, g, b]: [number, number, number]): number {
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+}
+
+let currentAccent = '#8b5cf6'
+
+/**
+ * Keep the hue the user picked, but choose the shade: lightest one (up to a
+ * per-theme cap) that still keeps white button text at WCAG AA (≥ 4.5:1).
+ * Yellow or green accents therefore come out deeper than their swatch.
+ */
+export function applyAccentColor(hex: string): void {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return // ignore invalid hex values
+  currentAccent = hex
+  const [h, rawS] = hexToHslParts(hex)
+  const s = Math.min(rawS, 75)
+  let l = document.documentElement.classList.contains('light') ? 54 : 62
+  while (l > 20 && 1.05 / (relativeLuminance(hslToRgb(h, s, l)) + 0.05) < 4.5) l--
+  const hsl = `${Math.round(h)} ${Math.round(s)}% ${l}%`
+  document.documentElement.style.setProperty('--primary', hsl)
+  document.documentElement.style.setProperty('--ring', hsl)
+  document.documentElement.style.setProperty('--sidebar-primary', hsl)
+  document.documentElement.style.setProperty('--sidebar-ring', hsl)
 }
 
 export function applyTheme(theme: 'dark' | 'light' | 'system'): void {
@@ -1087,6 +1121,7 @@ export function applyTheme(theme: 'dark' | 'light' | 'system'): void {
     root.classList.add('light')
     root.classList.remove('dark')
   }
+  applyAccentColor(currentAccent)
 }
 
 
@@ -1102,11 +1137,3 @@ function resetDarkVars(): void {
   props.forEach((p) => document.documentElement.style.removeProperty(p))
 }
 
-export function applyAccentColor(hex: string): void {
-  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return // ignore invalid hex values
-  const hsl = hexToHsl(hex)
-  document.documentElement.style.setProperty('--primary', hsl)
-  document.documentElement.style.setProperty('--ring', hsl)
-  document.documentElement.style.setProperty('--sidebar-primary', hsl)
-  document.documentElement.style.setProperty('--sidebar-ring', hsl)
-}

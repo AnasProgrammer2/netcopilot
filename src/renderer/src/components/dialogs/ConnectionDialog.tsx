@@ -288,7 +288,7 @@ export function ConnectionDialog(): JSX.Element {
                         )}
                       >
                         <span className="block text-xs font-medium text-foreground">{label}</span>
-                        <span className="block text-[10.5px] text-muted-foreground">{hint}</span>
+                        <span className="block text-2xs text-muted-foreground">{hint}</span>
                       </button>
                     )
                   })}
@@ -490,7 +490,7 @@ export function ConnectionDialog(): JSX.Element {
                     }
                   </select>
                   {form.jumpHostId && (
-                    <p className="text-[11px] text-amber-500/80 mt-1 flex items-center gap-1">
+                    <p className="text-2xs text-warning/80 mt-1 flex items-center gap-1">
                       <span>⚡</span> Connection will tunnel through the selected host
                     </p>
                   )}
@@ -611,7 +611,7 @@ export function ConnectionDialog(): JSX.Element {
                     </span>
                   </label>
                   {form.agentForwarding && (
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-2xs text-muted-foreground">
                       Forwards your local SSH agent to the remote host. Allows connecting to other hosts from the remote without storing keys there.
                     </p>
                   )}
@@ -627,7 +627,7 @@ export function ConnectionDialog(): JSX.Element {
                         onChange={(e) => update('keepAliveInterval', parseInt(e.target.value) || 30)}
                         className={inputClass}
                       />
-                      <p className="text-[10px] text-muted-foreground mt-1">
+                      <p className="text-2xs text-muted-foreground mt-1">
                         0 to disable. Sends keepalive packets to prevent connection timeout.
                       </p>
                     </Field>
@@ -640,7 +640,7 @@ export function ConnectionDialog(): JSX.Element {
                         onChange={(e) => update('keepAliveCountMax', parseInt(e.target.value) || 3)}
                         className={inputClass}
                       />
-                      <p className="text-[10px] text-muted-foreground mt-1">
+                      <p className="text-2xs text-muted-foreground mt-1">
                         Max missed keepalives before disconnecting.
                       </p>
                     </Field>
@@ -655,7 +655,7 @@ export function ConnectionDialog(): JSX.Element {
                       onChange={(e) => update('readyTimeout', parseInt(e.target.value) || 30)}
                       className={inputClass}
                     />
-                    <p className="text-[10px] text-muted-foreground mt-1">
+                    <p className="text-2xs text-muted-foreground mt-1">
                       Timeout for SSH handshake completion.
                     </p>
                   </Field>
@@ -697,7 +697,7 @@ export function ConnectionDialog(): JSX.Element {
                         placeholder="\x00 for null byte"
                         className={cn(inputClass, 'font-mono')}
                       />
-                      <p className="text-[10px] text-muted-foreground mt-1">
+                      <p className="text-2xs text-muted-foreground mt-1">
                         Sent at intervals to keep session alive. Default is null byte (invisible).
                       </p>
                     </Field>
@@ -722,7 +722,7 @@ export function ConnectionDialog(): JSX.Element {
                   </span>
                 </label>
                 {form.zmodemEnabled && (
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-2xs text-muted-foreground">
                     Allows sending/receiving files over terminal using rz/sz commands. Requires lrzsz on the remote host.
                   </p>
                 )}
@@ -756,7 +756,7 @@ export function ConnectionDialog(): JSX.Element {
                   </span>
                 </label>
                 {(form.trueColorEnabled || form.sixelEnabled) && (
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-2xs text-muted-foreground">
                     Advanced terminal features. Requires remote support (e.g., tmux 3.4+, modern terminals).
                   </p>
                 )}
@@ -817,12 +817,12 @@ export function ConnectionDialog(): JSX.Element {
 }
 
 const inputClass =
-  'w-full px-3 py-2 text-sm bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40 transition-colors'
+  'w-full px-3 py-2 text-sm bg-background border border-border rounded-lg text-foreground placeholder:text-subtle focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40 transition-colors'
 
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wide">
+      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
         {label}
         {required && <span className="text-destructive ml-0.5 normal-case">*</span>}
       </label>

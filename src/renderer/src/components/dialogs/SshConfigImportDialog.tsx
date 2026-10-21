@@ -90,7 +90,7 @@ export function SshConfigImportDialog({ onImport, onCancel }: Props): JSX.Elemen
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground">Import from SSH Config</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Reading <code className="bg-secondary px-1 rounded text-[10px]">~/.ssh/config</code>
+              Reading <code className="bg-secondary px-1 rounded text-2xs">~/.ssh/config</code>
             </p>
           </div>
           <button
@@ -112,7 +112,7 @@ export function SshConfigImportDialog({ onImport, onCancel }: Props): JSX.Elemen
 
           {!loading && error && (
             <div className="flex flex-col items-center gap-3 py-12 px-6 text-center">
-              <AlertCircle className="w-8 h-8 text-amber-400" />
+              <AlertCircle className="w-8 h-8 text-warning" />
               <p className="text-sm text-muted-foreground">{error}</p>
               <button
                 onClick={loadCustom}
@@ -174,8 +174,8 @@ export function SshConfigImportDialog({ onImport, onCancel }: Props): JSX.Elemen
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-medium text-foreground truncate">{host.name}</p>
-                        <p className="text-[11px] text-muted-foreground font-mono truncate">
+                        <p className="text-sm font-medium text-foreground truncate">{host.name}</p>
+                        <p className="text-2xs text-muted-foreground font-mono truncate">
                           {host.username ? `${host.username}@` : ''}{host.hostname}:{host.port}
                         </p>
                       </div>
@@ -184,7 +184,7 @@ export function SshConfigImportDialog({ onImport, onCancel }: Props): JSX.Elemen
                       {hasExtras && (
                         <button
                           onClick={() => toggleExpand(host.name)}
-                          className="p-1 rounded hover:bg-accent text-muted-foreground/60 hover:text-foreground transition-colors cursor-pointer"
+                          className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                         >
                           {isExpanded
                             ? <ChevronDown className="w-3.5 h-3.5" />
@@ -196,12 +196,12 @@ export function SshConfigImportDialog({ onImport, onCancel }: Props): JSX.Elemen
 
                     {/* Expanded extra fields */}
                     {isExpanded && (
-                      <div className="mx-4 mb-1 px-3 py-2 bg-secondary/50 rounded-lg text-[11px] font-mono text-muted-foreground space-y-0.5">
+                      <div className="mx-4 mb-1 px-3 py-2 bg-secondary/50 rounded-lg text-2xs font-mono text-muted-foreground space-y-0.5">
                         {host.identityFile && (
-                          <p><span className="text-foreground/60">IdentityFile</span> {host.identityFile}</p>
+                          <p><span className="text-muted-foreground">IdentityFile</span> {host.identityFile}</p>
                         )}
                         {Object.entries(host.extra).map(([k, v]) => (
-                          <p key={k}><span className="text-foreground/60">{k}</span> {v}</p>
+                          <p key={k}><span className="text-muted-foreground">{k}</span> {v}</p>
                         ))}
                       </div>
                     )}
