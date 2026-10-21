@@ -20,11 +20,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Hand-written notes in docs/releases/<tag>.md lead the release body;
+      # GitHub's generated changelog is appended below them.
+      - name: Release notes
+        id: notes
+        run: |
+          f="docs/releases/${GITHUB_REF_NAME}.md"
+          if [ -f "$f" ]; then echo "path=$f" >> "$GITHUB_OUTPUT"; else : > /tmp/notes.md; echo "path=/tmp/notes.md" >> "$GITHUB_OUTPUT"; fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           draft: true
           prerelease: false
+          body_path: ${{ steps.notes.outputs.path }}
           generate_release_notes: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
