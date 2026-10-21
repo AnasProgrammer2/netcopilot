@@ -60,7 +60,7 @@ export function AiMessage({
   }
 
   return (
-    <div className={cn('flex px-3 py-1.5 group', isUser ? 'justify-end' : '')}>
+    <div className={cn('flex flex-col px-3 py-1.5 group', isUser ? 'items-end' : 'items-stretch')}>
       {/* No avatars: alignment and a neutral bubble already say who is speaking. */}
       <div
         dir={dir}
@@ -69,8 +69,8 @@ export function AiMessage({
           isUser
             ? 'max-w-[85%] rounded-lg px-3 py-2 bg-muted text-foreground'
             : isProactive
-              ? 'flex-1 px-1 text-xs text-muted-foreground'
-              : 'flex-1 px-1 text-foreground'
+              ? 'px-1 text-xs text-muted-foreground'
+              : 'px-1 text-foreground'
         )}
       >
         {isProactive && (
@@ -113,50 +113,51 @@ export function AiMessage({
           </div>
         )}
 
-        {/* Action toolbar — Copy always visible on hover; Edit/Regenerate
-            only on the LAST user/assistant message so the chat history stays
-            uncluttered. Excluded for proactive Auto-Watch and Plan cards. */}
-        {!isProactive && !message.streaming && (
-          <div
-            dir="ltr"
-            className={cn(
-              'flex items-center gap-1 mt-1.5 -mb-0.5 opacity-0 group-hover:opacity-100 transition-opacity',
-              isUser ? 'justify-end' : 'justify-start'
-            )}
+      </div>
+
+      {/* Action toolbar — Copy always visible on hover; Edit/Regenerate
+          only on the LAST user/assistant message so the chat history stays
+          uncluttered. Excluded for proactive Auto-Watch and Plan cards. */}
+      {!isProactive && !message.streaming && (
+        <div
+          dir="ltr"
+          className={cn(
+            'flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity',
+            isUser ? 'justify-end' : 'justify-start'
+          )}
+        >
+          <button
+            onClick={copyMessage}
+            title={copied ? 'Copied' : 'Copy message'}
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           >
+            {copied
+              ? <><Check className="w-3 h-3 text-success" /><span className="text-success">Copied</span></>
+              : <><Copy className="w-3 h-3" /><span>Copy</span></>
+            }
+          </button>
+          {isUser && isLastUser && onEditUser && (
             <button
-              onClick={copyMessage}
-              title={copied ? 'Copied' : 'Copy message'}
+              onClick={() => onEditUser(message.id)}
+              title="Edit & retry"
               className="flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
-              {copied
-                ? <><Check className="w-3 h-3 text-success" /><span className="text-success">Copied</span></>
-                : <><Copy className="w-3 h-3" /><span>Copy</span></>
-              }
+              <Pencil className="w-3 h-3" />
+              <span>Edit</span>
             </button>
-            {isUser && isLastUser && onEditUser && (
-              <button
-                onClick={() => onEditUser(message.id)}
-                title="Edit & retry"
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              >
-                <Pencil className="w-3 h-3" />
-                <span>Edit</span>
-              </button>
-            )}
-            {isAssistant && isLastAssistant && onRegenerate && (
-              <button
-                onClick={onRegenerate}
-                title="Regenerate response"
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>Regenerate</span>
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+          {isAssistant && isLastAssistant && onRegenerate && (
+            <button
+              onClick={onRegenerate}
+              title="Regenerate response"
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Regenerate</span>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
