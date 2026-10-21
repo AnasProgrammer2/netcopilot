@@ -33,7 +33,11 @@
 
 <!-- DEMO VIDEO: to update it, edit this file on github.com, drag the new .mp4 onto the line below,
      and delete the old link. GitHub uploads it and turns the link into a video player. -->
-https://github.com/user-attachments/assets/1be0a1d5-f7a2-45c8-b667-1f49f356d0f3
+
+
+https://github.com/user-attachments/assets/bad618df-1a7d-45e9-9c88-57b3bb8839b3
+
+
 
 ---
 
