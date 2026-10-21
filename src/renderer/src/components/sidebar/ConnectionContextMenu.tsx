@@ -61,9 +61,9 @@ export function ConnectionContextMenu({ position, onClose, onConnect, onOpenSftp
 
   const pingBadge = () => {
     if (pingState === 'idle')     return null
-    if (pingState === 'checking') return <span className="text-[10px] text-muted-foreground animate-pulse">...</span>
-    if (!pingState.alive)         return <span className="text-[10px] text-red-400 font-semibold">Timeout</span>
-    return <span className="text-[10px] text-emerald-400 font-semibold">{pingState.latency}ms</span>
+    if (pingState === 'checking') return <span className="text-2xs text-muted-foreground animate-pulse">...</span>
+    if (!pingState.alive)         return <span className="text-2xs text-danger font-semibold">Timeout</span>
+    return <span className="text-2xs text-success font-semibold">{pingState.latency}ms</span>
   }
 
   return (

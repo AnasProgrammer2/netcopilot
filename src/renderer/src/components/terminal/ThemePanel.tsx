@@ -40,8 +40,8 @@ export function ThemePanel(): JSX.Element {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <div>
-          <h3 className="text-[13px] font-semibold text-foreground">Terminal Themes</h3>
-          <p className="text-[10px] text-muted-foreground mt-0.5">
+          <h3 className="text-sm font-semibold text-foreground">Terminal Themes</h3>
+          <p className="text-2xs text-muted-foreground mt-0.5">
             {TERMINAL_THEMES.length} themes available
           </p>
         </div>
@@ -58,7 +58,7 @@ export function ThemePanel(): JSX.Element {
       {/* Font section */}
       <div className="px-3 pt-3 pb-2 border-b border-border shrink-0 space-y-3">
         <div>
-          <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest mb-2">Font</p>
+          <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">Font</p>
           <div className="relative">
             <button
               onClick={() => setFontOpen(!fontOpen)}
@@ -70,7 +70,7 @@ export function ThemePanel(): JSX.Element {
               )}
             >
               <span
-                className="text-[13px] font-medium text-foreground truncate"
+                className="text-sm font-medium text-foreground truncate"
                 style={{ fontFamily: `"${terminalSettings.fontFamily}", monospace` }}
               >
                 {terminalSettings.fontFamily}
@@ -93,7 +93,7 @@ export function ThemePanel(): JSX.Element {
                           : 'text-foreground hover:bg-accent'
                       )}
                     >
-                      <span style={{ fontFamily: `"${f}", monospace` }} className="text-[13px] truncate min-w-0">{f}</span>
+                      <span style={{ fontFamily: `"${f}", monospace` }} className="text-sm truncate min-w-0">{f}</span>
                       {terminalSettings.fontFamily === f && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
                     </button>
                   ))}
@@ -104,7 +104,7 @@ export function ThemePanel(): JSX.Element {
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-[13px] font-medium text-foreground">Text Size</span>
+          <span className="text-sm font-medium text-foreground">Text Size</span>
           <div className="flex items-center">
             <button
               onClick={() => updateSize(terminalSettings.fontSize - 1)}
@@ -114,7 +114,7 @@ export function ThemePanel(): JSX.Element {
             >
               <Minus className="w-3.5 h-3.5" />
             </button>
-            <div className="w-10 h-8 flex items-center justify-center border-y border-border bg-background text-[13px] font-semibold tabular-nums select-none">
+            <div className="w-10 h-8 flex items-center justify-center border-y border-border bg-background text-sm font-semibold tabular-nums select-none">
               {terminalSettings.fontSize}
             </div>
             <button
@@ -131,7 +131,7 @@ export function ThemePanel(): JSX.Element {
 
       {/* Themes label */}
       <div className="px-3 pt-3 pb-1 shrink-0">
-        <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Themes</p>
+        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-widest">Themes</p>
       </div>
 
       {/* Theme list */}
@@ -173,12 +173,12 @@ export function ThemePanel(): JSX.Element {
               {/* Name + badge */}
               <div className="flex-1 min-w-0">
                 <p className={cn(
-                  'text-[13px] font-medium leading-tight truncate',
+                  'text-sm font-medium leading-tight truncate',
                   isSelected ? 'text-primary' : 'text-foreground'
                 )}>
                   {theme.name}
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
+                <p className="text-2xs text-muted-foreground mt-0.5">
                   {theme.dark ? 'Dark' : 'Light'}
                 </p>
               </div>

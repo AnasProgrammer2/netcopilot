@@ -53,7 +53,7 @@ export function MasterPasswordLock({ onUnlocked, variant = 'startup' }: Props): 
         <div className="text-center">
           {!isIdle && <h1 className="text-xl font-semibold text-foreground">NetCopilot</h1>}
           {isIdle && (
-            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 mx-auto mb-4">
+            <div className="flex items-center justify-center w-16 h-16 rounded-xl bg-white/10 mx-auto mb-4">
               <Lock className="w-8 h-8 text-white/70" />
             </div>
           )}
@@ -97,7 +97,7 @@ export function MasterPasswordLock({ onUnlocked, variant = 'startup' }: Props): 
           </div>
 
           {error && (
-            <p className={cn('text-xs text-center', isIdle ? 'text-red-300' : 'text-destructive')}>{error}</p>
+            <p className={cn('text-xs text-center', isIdle ? 'text-danger' : 'text-destructive')}>{error}</p>
           )}
 
           <button

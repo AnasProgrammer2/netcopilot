@@ -182,7 +182,7 @@ export function QuickConnect(): JSX.Element {
         <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border">
           {isCommandMode
             ? <span className="text-xs font-semibold text-primary shrink-0">⌘</span>
-            : <Search className="w-4 h-4 text-muted-foreground/50 shrink-0" />
+            : <Search className="w-4 h-4 text-subtle shrink-0" />
           }
           <input
             ref={inputRef}
@@ -190,10 +190,10 @@ export function QuickConnect(): JSX.Element {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={isCommandMode ? 'Type a command...' : 'Search or user@host:port — type > for commands'}
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none"
+            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-subtle focus:outline-none"
           />
           {query && (
-            <kbd className="text-[11px] text-muted-foreground/60 border border-border rounded-md px-1.5 py-0.5 font-mono bg-muted">↵</kbd>
+            <kbd className="text-2xs text-muted-foreground border border-border rounded-md px-1.5 py-0.5 font-mono bg-muted">↵</kbd>
           )}
         </div>
 
@@ -211,26 +211,26 @@ export function QuickConnect(): JSX.Element {
               <div key={item.type === 'action' ? item.id : (item.type === 'connection' ? item.conn.id : `q-${idx}`)}>
                 {/* Section headers */}
                 {isFirstConn && (
-                  <p className="px-4 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
+                  <p className="px-4 pt-1.5 pb-1 text-2xs font-semibold uppercase tracking-widest text-subtle">
                     {!query ? 'Recent' : 'Results'}
                   </p>
                 )}
                 {isFirstAction && !isCommandMode && items.some(i => i.type !== 'action') && (
                   <div className="flex items-center gap-2 px-4 pt-3 pb-1">
                     <div className="h-px flex-1 bg-border/50" />
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">Actions</p>
+                    <p className="text-2xs font-semibold uppercase tracking-widest text-subtle">Actions</p>
                     <div className="h-px flex-1 bg-border/50" />
                   </div>
                 )}
                 {isFirstAction && isCommandMode && (
-                  <p className="px-4 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">Commands</p>
+                  <p className="px-4 pt-1.5 pb-1 text-2xs font-semibold uppercase tracking-widest text-subtle">Commands</p>
                 )}
 
                 <button
                   onClick={() => handleSelect(item)}
                   className={cn(
                     'w-full flex items-center gap-3 px-3 py-2 text-left transition-all mx-1 rounded-lg cursor-pointer',
-                    idx === selectedIdx ? 'bg-accent text-foreground' : 'text-foreground/80 hover:bg-accent/50'
+                    idx === selectedIdx ? 'bg-accent text-foreground' : 'text-foreground hover:bg-accent/50'
                   )}
                   style={{ width: 'calc(100% - 8px)' }}
                 >
@@ -256,7 +256,7 @@ export function QuickConnect(): JSX.Element {
                           {item.parsed?.username ? ` · ${item.parsed.username}` : ''}
                         </p>
                       </div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-md">Quick</span>
+                      <span className="text-2xs font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-md">Quick</span>
                     </>
                   ) : (
                     <>
@@ -272,7 +272,7 @@ export function QuickConnect(): JSX.Element {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <p className="text-sm font-semibold truncate">{item.conn.name}</p>
-                          {item.conn.lastConnectedAt && <History className="w-3 h-3 text-muted-foreground/40 shrink-0" />}
+                          {item.conn.lastConnectedAt && <History className="w-3 h-3 text-subtle shrink-0" />}
                         </div>
                         <p className="text-xs text-muted-foreground truncate">
                           {item.conn.username ? `${item.conn.username}@` : ''}{item.conn.host}
@@ -282,7 +282,7 @@ export function QuickConnect(): JSX.Element {
                       {(() => {
                         const accent = item.conn.color || getDeviceAccent(item.conn.deviceType, item.conn.protocol)
                         return (
-                          <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                          <span className="text-2xs font-mono font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
                             style={{ backgroundColor: `${accent}18`, color: accent }}>
                             {item.conn.protocol}
                           </span>
@@ -298,12 +298,12 @@ export function QuickConnect(): JSX.Element {
 
         {/* Footer hints */}
         <div className="flex items-center gap-2 px-4 py-2.5 border-t border-border">
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground/60">
+          <div className="flex items-center gap-2 text-2xs text-muted-foreground">
             <Hint keys={['↑', '↓']} label="navigate" />
             <Hint keys={['↵']} label="select" />
             <Hint keys={['esc']} label="close" />
           </div>
-          <span className="ml-auto text-[11px] text-muted-foreground/50">
+          <span className="ml-auto text-2xs text-subtle">
             {isCommandMode
               ? 'Command mode — type to filter'
               : <>Type <code className="bg-secondary text-muted-foreground px-1 py-0.5 rounded">&gt;</code> for commands</>
@@ -319,7 +319,7 @@ function Hint({ keys, label }: { keys: string[]; label: string }) {
   return (
     <span className="flex items-center gap-1">
       {keys.map((k) => (
-        <kbd key={k} className="border border-border rounded px-1 py-0.5 font-mono text-[10px] bg-secondary">
+        <kbd key={k} className="border border-border rounded px-1 py-0.5 font-mono text-2xs bg-secondary">
           {k}
         </kbd>
       ))}

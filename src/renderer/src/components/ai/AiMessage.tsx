@@ -1,6 +1,6 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { User, Eye, Copy, Check, Sparkles, Pencil, RotateCcw } from 'lucide-react'
+import { Eye, Copy, Check, Pencil, RotateCcw } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -38,7 +38,6 @@ export function AiMessage({
   const isProactive = message.role === 'auto'
   const isPlan      = message.role === 'plan'
   const dir         = detectDir(message.content)
-  const isRtl       = dir === 'rtl'
 
   const copyMessage = () => {
     const text = message.content + (message.toolCalls?.length
@@ -61,33 +60,22 @@ export function AiMessage({
   }
 
   return (
-    <div className={cn('flex gap-2.5 px-3 py-1.5 group', (isUser || isRtl) && !isProactive ? 'flex-row-reverse' : '')}>
-      {/* Avatar */}
-      <div className={cn(
-        'w-6 h-6 rounded-full shrink-0 flex items-center justify-center mt-1',
-        isUser      ? 'bg-primary/25 text-primary ring-1 ring-primary/20'
-        : isProactive ? 'bg-muted/80 text-muted-foreground'
-        :               'bg-gradient-to-br from-primary/30 to-primary/10 text-primary ring-1 ring-primary/15'
-      )}>
-        {isUser ? <User className="w-3 h-3" />
-          : isProactive ? <Eye className="w-3 h-3" />
-          : <Sparkles className="w-3 h-3" />}
-      </div>
-
-      {/* Bubble */}
+    <div className={cn('flex px-3 py-1.5 group', isUser ? 'justify-end' : '')}>
+      {/* No avatars: alignment and a neutral bubble already say who is speaking. */}
       <div
         dir={dir}
         className={cn(
-          'flex-1 min-w-0 rounded-2xl px-3 py-2.5 text-sm leading-relaxed relative',
+          'min-w-0 text-sm leading-relaxed relative',
           isUser
-            ? 'bg-primary/12 text-foreground ml-8 border border-primary/15'
+            ? 'max-w-[85%] rounded-lg px-3 py-2 bg-muted text-foreground'
             : isProactive
-              ? 'bg-muted/20 text-muted-foreground text-xs italic border border-border/30'
-              : 'bg-card/50 text-foreground border border-border/40'
+              ? 'flex-1 px-1 text-xs text-muted-foreground'
+              : 'flex-1 px-1 text-foreground'
         )}
       >
         {isProactive && (
-          <span className="text-[11px] font-semibold text-muted-foreground/50 uppercase tracking-wider block mb-1">
+          <span className="flex items-center gap-1 text-2xs font-medium text-subtle mb-0.5">
+            <Eye className="w-3 h-3" />
             Auto Watch
           </span>
         )}
@@ -133,16 +121,16 @@ export function AiMessage({
             dir="ltr"
             className={cn(
               'flex items-center gap-1 mt-1.5 -mb-0.5 opacity-0 group-hover:opacity-100 transition-opacity',
-              isUser || isRtl ? 'justify-start' : 'justify-end'
+              isUser ? 'justify-end' : 'justify-start'
             )}
           >
             <button
               onClick={copyMessage}
               title={copied ? 'Copied' : 'Copy message'}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground/60 hover:text-foreground hover:bg-muted/40 transition-colors"
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
               {copied
-                ? <><Check className="w-3 h-3 text-emerald-400" /><span className="text-emerald-400">Copied</span></>
+                ? <><Check className="w-3 h-3 text-success" /><span className="text-success">Copied</span></>
                 : <><Copy className="w-3 h-3" /><span>Copy</span></>
               }
             </button>
@@ -150,7 +138,7 @@ export function AiMessage({
               <button
                 onClick={() => onEditUser(message.id)}
                 title="Edit & retry"
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground/60 hover:text-primary hover:bg-primary/10 transition-colors"
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               >
                 <Pencil className="w-3 h-3" />
                 <span>Edit</span>
@@ -160,7 +148,7 @@ export function AiMessage({
               <button
                 onClick={onRegenerate}
                 title="Regenerate response"
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground/60 hover:text-primary hover:bg-primary/10 transition-colors"
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               >
                 <RotateCcw className="w-3 h-3" />
                 <span>Regenerate</span>
@@ -181,12 +169,15 @@ function MarkdownContent({ content }: { content: string }): JSX.Element {
       remarkPlugins={[remarkGfm]}
       components={{
         // ── Code blocks ────────────────────────────────────────────────────
-        code({ inline, className, children, ...props }: React.HTMLAttributes<HTMLElement> & { inline?: boolean }) {
+        // react-markdown 10 has no `inline` flag: a fenced block carries a
+        // language class or spans lines; anything else is inline code.
+        pre({ children }) { return <>{children}</> },
+        code({ className, children, ...props }: React.HTMLAttributes<HTMLElement>) {
           const code = String(children).replace(/\n$/, '')
-          if (inline) {
+          if (!/language-/.test(className ?? '') && !code.includes('\n')) {
             return (
               <code
-                className="px-1.5 py-0.5 rounded bg-muted border border-border/60 font-mono text-[12px] text-primary/90"
+                className="px-1 py-px rounded bg-muted font-mono text-[0.9em] text-foreground"
                 {...props}
               >
                 {code}
@@ -202,16 +193,16 @@ function MarkdownContent({ content }: { content: string }): JSX.Element {
         },
 
         // ── Headings ───────────────────────────────────────────────────────
-        h1({ children }) { return <h1 className="text-base font-bold mt-3 mb-1.5 text-foreground">{children}</h1> },
-        h2({ children }) { return <h2 className="text-sm font-bold mt-3 mb-1 text-foreground">{children}</h2> },
-        h3({ children }) { return <h3 className="text-sm font-semibold mt-2 mb-1 text-foreground/90">{children}</h3> },
+        h1({ children }) { return <h1 className="text-base font-semibold mt-3 mb-1.5 text-foreground">{children}</h1> },
+        h2({ children }) { return <h2 className="text-sm font-semibold mt-3 mb-1 text-foreground">{children}</h2> },
+        h3({ children }) { return <h3 className="text-sm font-semibold mt-2 mb-1 text-foreground">{children}</h3> },
 
         // ── Lists ──────────────────────────────────────────────────────────
         ul({ children }) {
-          return <ul className="mb-2 pl-4 space-y-0.5 list-disc marker:text-muted-foreground/60">{children}</ul>
+          return <ul className="mb-2 pl-4 space-y-0.5 list-disc marker:text-muted-foreground">{children}</ul>
         },
         ol({ children }) {
-          return <ol className="mb-2 pl-4 space-y-0.5 list-decimal marker:text-muted-foreground/60">{children}</ol>
+          return <ol className="mb-2 pl-4 space-y-0.5 list-decimal marker:text-muted-foreground">{children}</ol>
         },
         li({ children }) {
           return <li className="text-sm leading-relaxed">{children}</li>
@@ -220,7 +211,7 @@ function MarkdownContent({ content }: { content: string }): JSX.Element {
         // ── Blockquote ─────────────────────────────────────────────────────
         blockquote({ children }) {
           return (
-            <blockquote className="border-l-2 border-primary/40 pl-3 my-2 text-muted-foreground italic text-xs">
+            <blockquote className="border-l-2 border-border pl-3 my-2 text-muted-foreground">
               {children}
             </blockquote>
           )
@@ -236,7 +227,7 @@ function MarkdownContent({ content }: { content: string }): JSX.Element {
         },
         thead({ children }) { return <thead className="bg-muted/40">{children}</thead> },
         th({ children })   {
-          return <th className="px-3 py-1.5 text-left font-semibold text-foreground/80 border-b border-border/60">{children}</th>
+          return <th className="px-3 py-1.5 text-left font-semibold text-foreground border-b border-border/60">{children}</th>
         },
         td({ children })   {
           return <td className="px-3 py-1.5 border-b border-border/30 text-muted-foreground">{children}</td>
@@ -247,7 +238,7 @@ function MarkdownContent({ content }: { content: string }): JSX.Element {
 
         // ── Strong / Em ────────────────────────────────────────────────────
         strong({ children }) { return <strong className="font-semibold text-foreground">{children}</strong> },
-        em({ children })     { return <em className="italic text-foreground/80">{children}</em> },
+        em({ children })     { return <em className="italic text-foreground">{children}</em> },
 
         // ── Links ──────────────────────────────────────────────────────────
         a({ children, href }) {
@@ -308,18 +299,18 @@ function CodeBlock({ code, className }: { code: string; className?: string }): J
   }
 
   return (
-    <div className="my-2 rounded-lg border border-border/60 overflow-hidden bg-muted/80 dark:bg-muted/50">
+    <div className="my-2 rounded-md border border-border overflow-hidden bg-muted/50">
       {/* Header bar */}
-      <div className="flex items-center justify-between px-3 py-1.5 bg-muted border-b border-border/60">
-        <span className="text-[11px] font-mono text-muted-foreground/60 uppercase tracking-wider">
+      <div className="flex items-center justify-between px-3 h-7 border-b border-border">
+        <span className="text-2xs font-mono text-subtle">
           {rawLang || 'code'}
         </span>
         <button
           onClick={copy}
-          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-1 text-2xs text-muted-foreground hover:text-foreground transition-colors"
         >
           {copied
-            ? <><Check className="w-3 h-3 text-emerald-400" /><span className="text-emerald-400">Copied</span></>
+            ? <><Check className="w-3 h-3 text-success" /><span className="text-success">Copied</span></>
             : <><Copy className="w-3 h-3" />Copy</>
           }
         </button>
@@ -340,7 +331,7 @@ function CodeBlock({ code, className }: { code: string; className?: string }): J
           {code}
         </SyntaxHighlighter>
       ) : (
-        <pre className="px-3 py-2.5 overflow-x-auto text-[12px] leading-relaxed font-mono text-foreground whitespace-pre">
+        <pre className="px-3 py-2.5 overflow-x-auto text-xs leading-relaxed font-mono text-foreground whitespace-pre">
           <code>{code}</code>
         </pre>
       )}

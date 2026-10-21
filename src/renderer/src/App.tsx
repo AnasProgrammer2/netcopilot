@@ -278,7 +278,7 @@ export default function App(): JSX.Element {
           <div className="shrink-0 w-11 bg-sidebar border-r border-sidebar-border flex flex-col items-center pt-3 gap-2">
             <button
               onClick={() => setSidebarCollapsed(false)}
-              className="p-1.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg hover:bg-sidebar-accent text-subtle hover:text-sidebar-foreground transition-colors cursor-pointer"
               title="Show Sidebar (⌘B)"
             >
               <PanelLeftOpen className="w-4 h-4" />
@@ -375,7 +375,7 @@ export default function App(): JSX.Element {
           tabIndex={0}
         >
           <div className="text-center select-none pointer-events-none">
-            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 mx-auto mb-4">
+            <div className="flex items-center justify-center w-16 h-16 rounded-xl bg-white/10 mx-auto mb-4">
               <Lock className="w-8 h-8 text-white/70" />
             </div>
             <p className="text-lg font-semibold text-white">Session Locked</p>

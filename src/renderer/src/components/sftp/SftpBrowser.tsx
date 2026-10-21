@@ -294,7 +294,7 @@ export function SftpBrowser({ session }: Props): JSX.Element {
   if (status === 'error') {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
-        <AlertCircle className="w-8 h-8 text-red-400" />
+        <AlertCircle className="w-8 h-8 text-danger" />
         <span className="text-sm font-medium text-foreground">Connection failed</span>
         <span className="text-xs text-center max-w-xs">{errorMsg}</span>
       </div>
@@ -334,7 +334,7 @@ export function SftpBrowser({ session }: Props): JSX.Element {
         <div className="flex items-center gap-0.5 flex-1 mx-2 overflow-x-auto scrollbar-none">
           {breadcrumbs.map((crumb, i) => (
             <span key={crumb.path} className="flex items-center gap-0.5 shrink-0">
-              {i > 0 && <ChevronRight className="w-3 h-3 text-muted-foreground/40 shrink-0" />}
+              {i > 0 && <ChevronRight className="w-3 h-3 text-subtle shrink-0" />}
               <button
                 onClick={() => loadDirectory(crumb.path)}
                 className={cn(
@@ -393,9 +393,9 @@ export function SftpBrowser({ session }: Props): JSX.Element {
       {/* ── Column Headers ── */}
       <div className="grid grid-cols-[auto_1fr_100px_120px_80px] gap-0 px-4 py-1.5 border-b border-border/50 bg-sidebar/50 shrink-0">
         <div className="w-5" />
-        <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Name</span>
-        <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider text-right">Size</span>
-        <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider text-right">Modified</span>
+        <span className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider">Name</span>
+        <span className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Size</span>
+        <span className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider text-right">Modified</span>
         <div />
       </div>
 
@@ -421,7 +421,7 @@ export function SftpBrowser({ session }: Props): JSX.Element {
         {/* New folder input row */}
         {creatingFolder && (
           <div className="grid grid-cols-[auto_1fr_100px_120px_80px] gap-0 px-4 py-1 items-center border-b border-border/30 bg-primary/5">
-            <Folder className="w-4 h-4 text-amber-400 mr-3" />
+            <Folder className="w-4 h-4 text-warning mr-3" />
             <input
               ref={newFolderInputRef}
               value={newFolderName}
@@ -454,8 +454,8 @@ export function SftpBrowser({ session }: Props): JSX.Element {
             >
               {/* Icon */}
               {entry.isDirectory
-                ? <Folder className="w-4 h-4 text-amber-400 mr-3 shrink-0" />
-                : <File   className="w-4 h-4 text-muted-foreground/60 mr-3 shrink-0" />
+                ? <Folder className="w-4 h-4 text-warning mr-3 shrink-0" />
+                : <File   className="w-4 h-4 text-muted-foreground mr-3 shrink-0" />
               }
 
               {/* Name */}
@@ -479,7 +479,7 @@ export function SftpBrowser({ session }: Props): JSX.Element {
 
                 {/* Transfer progress */}
                 {transfer && (
-                  <span className="text-[10px] text-primary shrink-0">
+                  <span className="text-2xs text-primary shrink-0">
                     {Math.round((transfer.transferred / transfer.total) * 100)}%
                   </span>
                 )}
@@ -512,12 +512,12 @@ export function SftpBrowser({ session }: Props): JSX.Element {
 
       {/* ── Status Bar ── */}
       <div className="flex items-center gap-3 px-4 py-1.5 border-t border-border bg-sidebar shrink-0">
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-2xs text-muted-foreground">
           {entries.length} item{entries.length !== 1 ? 's' : ''}
           {selected.size > 0 && ` · ${selected.size} selected`}
         </span>
         {transfers.size > 0 && (
-          <span className="text-[11px] text-primary ml-auto flex items-center gap-1">
+          <span className="text-2xs text-primary ml-auto flex items-center gap-1">
             <Loader2 className="w-3 h-3 animate-spin" />
             {transfers.size} transfer{transfers.size > 1 ? 's' : ''} in progress
           </span>

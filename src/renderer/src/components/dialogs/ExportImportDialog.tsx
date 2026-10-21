@@ -74,12 +74,12 @@ export function ExportImportDialog({ mode, hasEncryptedCredentials, onConfirm, o
                   includeCredentials && 'translate-x-4'
                 )} />
               </div>
-              <span className="text-sm text-foreground/80">Include passwords (encrypted)</span>
+              <span className="text-sm text-foreground">Include passwords (encrypted)</span>
             </label>
           )}
 
           {isImport && hasEncryptedCredentials && (
-            <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-400/10 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-2 text-xs text-warning bg-warning/10 rounded-lg px-3 py-2">
               <Lock className="w-3.5 h-3.5 shrink-0" />
               This file contains encrypted credentials. Enter the export password to restore them.
             </div>
@@ -118,7 +118,7 @@ export function ExportImportDialog({ mode, hasEncryptedCredentials, onConfirm, o
                 />
               )}
 
-              {error && <p className="text-xs text-red-400">{error}</p>}
+              {error && <p className="text-xs text-danger">{error}</p>}
             </div>
           )}
         </div>

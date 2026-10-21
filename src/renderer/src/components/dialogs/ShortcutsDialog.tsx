@@ -87,7 +87,7 @@ export function ShortcutsDialog({ open, onClose }: Props): JSX.Element | null {
         <div className="overflow-y-auto p-5 space-y-6">
           {sections.map((section) => (
             <div key={section.title}>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">
+              <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-widest mb-2.5">
                 {section.title}
               </p>
               <div className="space-y-1">
@@ -96,17 +96,17 @@ export function ShortcutsDialog({ open, onClose }: Props): JSX.Element | null {
                     key={sc.label}
                     className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-accent/50 transition-colors"
                   >
-                    <span className="text-sm text-foreground/80">{sc.label}</span>
+                    <span className="text-sm text-foreground">{sc.label}</span>
                     <div className="flex items-center gap-1.5">
                       {sc.keys.map((key, i) => (
                         <span key={key} className="flex items-center gap-1">
                           {i > 0 && (
-                            <span className="text-xs text-muted-foreground/40">or</span>
+                            <span className="text-xs text-subtle">or</span>
                           )}
                           <kbd className={cn(
                             'inline-flex items-center justify-center px-2 py-1 rounded-md',
                             'bg-muted border border-border/80 text-foreground',
-                            'text-[11px] font-mono font-medium leading-none',
+                            'text-2xs font-mono font-medium leading-none',
                             'shadow-[0_1px_0_0_hsl(var(--border))]'
                           )}>
                             {key}
@@ -123,8 +123,8 @@ export function ShortcutsDialog({ open, onClose }: Props): JSX.Element | null {
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-border bg-muted/30 shrink-0">
-          <p className="text-[11px] text-muted-foreground/60 text-center">
-            Press <kbd className="px-1 py-0.5 rounded bg-muted border border-border text-[10px] font-mono">Esc</kbd> or click outside to close
+          <p className="text-2xs text-muted-foreground text-center">
+            Press <kbd className="px-1 py-0.5 rounded bg-muted border border-border text-2xs font-mono">Esc</kbd> or click outside to close
           </p>
         </div>
       </div>

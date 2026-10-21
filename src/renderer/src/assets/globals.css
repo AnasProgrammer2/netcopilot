@@ -16,37 +16,47 @@
     --popover: 220 18% 14%;
     --popover-foreground: 210 18% 92%;
 
-    /* ── Purple accent — kept for brand ────────────── */
-    --primary: 258 90% 66%;      /* #8B5CF6 */
+    /* ── One accent: interaction, selection and brand only ─
+       Tuned so white text on a filled button stays ≥ 4.5:1. */
+    --primary: 258 72% 62%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 16% 18%;    /* #1C2130 — visible step above card */
     --secondary-foreground: 210 14% 82%;
 
     --muted: 220 16% 18%;        /* #1C2130 */
-    --muted-foreground: 215 14% 58%; /* #8B949E — comfortable gray */
+    /* Three text levels, all WCAG AA on background, card and sidebar:
+       foreground ≈ 15:1 · muted-foreground ≈ 6.5:1 · subtle ≈ 4.6:1 */
+    --muted-foreground: 215 14% 66%;
+    --subtle: 215 12% 56%;
 
     --accent: 220 16% 22%;       /* #222C3A — hover/active state */
     --accent-foreground: 210 18% 92%;
 
-    --destructive: 0 62% 50%;
+    /* Destructive = solid fills (white text ≥ 4.5:1); danger = text and tints. */
+    --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 100%;
+
+    /* ── Status colors — only for states that need attention ── */
+    --success: 152 52% 50%;
+    --warning: 38 88% 56%;
+    --danger:  0 75% 64%;
 
     --border: 220 14% 26%;       /* #30363D — visible, not harsh */
     --input: 220 14% 26%;
-    --ring: 258 90% 66%;
+    --ring: 258 72% 62%;
 
     --radius: 0.5rem;
 
     /* ── Sidebar — clearly distinct from main area ─── */
     --sidebar-background: 220 22% 7%;   /* #0A0D14 — deeper than bg */
     --sidebar-foreground: 210 14% 75%;  /* #B4BCC8 — readable */
-    --sidebar-primary: 258 90% 66%;
+    --sidebar-primary: 258 72% 62%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 18% 14%;      /* #161B22 — matches card */
     --sidebar-accent-foreground: 210 18% 92%;
     --sidebar-border: 220 16% 20%;      /* #222B38 */
-    --sidebar-ring: 258 90% 66%;
+    --sidebar-ring: 258 72% 62%;
   }
 }
 
@@ -89,7 +99,15 @@ html.light {
   --secondary: 220 16% 92%;         /* #E5E8F0 */
   --secondary-foreground: 222 22% 22%;
   --muted: 220 16% 92%;
-  --muted-foreground: 220 14% 38%;  /* #4D5568 — readable medium gray */
+  --muted-foreground: 220 14% 36%;
+  --subtle: 220 10% 44%;
+  --primary: 258 66% 54%;
+  --ring: 258 66% 54%;
+  --sidebar-primary: 258 66% 54%;
+  --sidebar-ring: 258 66% 54%;
+  --success: 152 70% 30%;
+  --warning: 30 92% 36%;
+  --danger:  0 70% 46%;
   --accent: 220 18% 88%;            /* #DBE1EF — visible hover */
   --accent-foreground: 222 25% 12%;
   --border: 220 16% 82%;            /* #C8CEDD — clear borders */
@@ -120,10 +138,10 @@ code, kbd, samp, pre, .font-mono {
 
 /* ── 5% glow — sparingly on key elements ──────────── */
 .glow-primary {
-  box-shadow: 0 0 20px hsl(258 90% 66% / 0.35);
+  box-shadow: 0 0 20px hsl(var(--primary) / 0.35);
 }
 .glow-primary-sm {
-  box-shadow: 0 0 10px hsl(258 90% 66% / 0.25);
+  box-shadow: 0 0 10px hsl(var(--primary) / 0.25);
 }
 
 /* Shake animation for master password lock */

@@ -7,28 +7,30 @@ import { useAppStore } from '../../store'
 import { cn } from '../../lib/utils'
 import type { ChangeRecord, ChangeStatus, Environment } from '../../../../shared/changeControl'
 
+// Colour only where the engineer has to act (amber) or something went wrong
+// (red). Finished and informational states stay neutral.
 export const CHANGE_STATUS: Record<ChangeStatus, { label: string; className: string }> = {
-  'proposed':              { label: 'Waiting for your approval',  className: 'text-amber-500 bg-amber-500/10 border-amber-500/25' },
-  'applying':              { label: 'Applying…',                  className: 'text-primary bg-primary/10 border-primary/25' },
-  'awaiting-confirmation': { label: 'Applied — keep or roll back', className: 'text-amber-500 bg-amber-500/10 border-amber-500/25' },
-  'confirmed':             { label: 'Confirmed',                  className: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/25' },
-  'rolled-back':           { label: 'Rolled back',                className: 'text-sky-500 bg-sky-500/10 border-sky-500/25' },
-  'reverted-by-device':    { label: 'Reverted by the device',     className: 'text-sky-500 bg-sky-500/10 border-sky-500/25' },
-  'failed':                { label: 'Failed',                     className: 'text-red-500 bg-red-500/10 border-red-500/25' },
-  'rejected':              { label: 'Rejected',                   className: 'text-muted-foreground bg-muted/60 border-border' },
-  'expired':               { label: 'Expired',                    className: 'text-muted-foreground bg-muted/60 border-border' },
+  'proposed':              { label: 'Waiting for your approval',   className: 'text-warning border-warning/40' },
+  'applying':              { label: 'Applying…',                   className: 'text-foreground border-border' },
+  'awaiting-confirmation': { label: 'Applied — keep or roll back', className: 'text-warning border-warning/40' },
+  'confirmed':             { label: 'Confirmed',                   className: 'text-foreground border-border' },
+  'rolled-back':           { label: 'Rolled back',                 className: 'text-muted-foreground border-border' },
+  'reverted-by-device':    { label: 'Reverted by the device',      className: 'text-muted-foreground border-border' },
+  'failed':                { label: 'Failed',                      className: 'text-danger border-danger/40' },
+  'rejected':              { label: 'Rejected',                    className: 'text-muted-foreground border-border' },
+  'expired':               { label: 'Expired',                     className: 'text-muted-foreground border-border' },
 }
 
 export const ENV_BADGE: Record<Environment, { label: string; className: string }> = {
-  production: { label: 'PROD', className: 'text-red-500 bg-red-500/10 border-red-500/25' },
-  staging:    { label: 'STG',  className: 'text-amber-500 bg-amber-500/10 border-amber-500/25' },
-  lab:        { label: 'LAB',  className: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/25' },
+  production: { label: 'PROD', className: 'text-muted-foreground border-border' },
+  staging:    { label: 'STG',  className: 'text-muted-foreground border-border' },
+  lab:        { label: 'LAB',  className: 'text-muted-foreground border-border' },
 }
 
 const RISK_CLASS = {
-  low:    'text-emerald-500 bg-emerald-500/10 border-emerald-500/25',
-  medium: 'text-amber-500 bg-amber-500/10 border-amber-500/25',
-  high:   'text-red-500 bg-red-500/10 border-red-500/25',
+  low:    'text-muted-foreground border-border',
+  medium: 'text-warning border-warning/40',
+  high:   'text-danger border-danger/40',
 }
 
 const PHASE_LABEL: Record<string, string> = {
@@ -38,7 +40,7 @@ const PHASE_LABEL: Record<string, string> = {
 
 function Badge({ className, children }: { className: string; children: React.ReactNode }): JSX.Element {
   return (
-    <span className={cn('inline-flex items-center shrink-0 whitespace-nowrap px-1.5 py-px rounded border text-[10px] font-semibold tracking-wide leading-4', className)}>
+    <span className={cn('inline-flex items-center shrink-0 whitespace-nowrap px-1.5 rounded border text-2xs font-medium leading-[17px]', className)}>
       {children}
     </span>
   )
@@ -56,7 +58,7 @@ function useNow(active: boolean): number {
 
 function CommandList({ commands }: { commands: string[] }): JSX.Element {
   return (
-    <pre className="font-mono text-[11px] leading-relaxed rounded-md bg-muted/70 border border-border/50 px-2.5 py-2 whitespace-pre-wrap break-all text-foreground/85 max-h-56 overflow-y-auto select-text">
+    <pre className="font-mono text-2xs leading-relaxed rounded-md bg-muted/70 border border-border/50 px-2.5 py-2 whitespace-pre-wrap break-all text-foreground max-h-56 overflow-y-auto select-text">
       {commands.length ? commands.join('\n') : '(none)'}
     </pre>
   )
@@ -68,7 +70,7 @@ function Section({ title, children, defaultOpen = false }: { title: string; chil
     <div>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+        className="flex items-center gap-1 text-2xs font-medium text-muted-foreground hover:text-foreground transition-colors"
       >
         <ChevronRight className={cn('w-3 h-3 transition-transform', open && 'rotate-90')} />
         {title}
@@ -82,14 +84,14 @@ function Section({ title, children, defaultOpen = false }: { title: string; chil
 export function ChangeDetails({ record: r, compact }: { record: ChangeRecord; compact?: boolean }): JSX.Element {
   return (
     <div className="space-y-2.5">
-      {!compact && <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap select-text">{r.plan.rationale}</p>}
+      {!compact && <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap select-text">{r.plan.rationale}</p>}
 
-      <div className="flex items-start gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-2">
-        <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-        <div className="text-[11px] leading-relaxed text-foreground/80 space-y-1">
+      <div className="flex items-start gap-2 rounded-md bg-muted/50 px-2.5 py-2">
+        <ShieldCheck className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+        <div className="text-2xs leading-relaxed text-foreground space-y-1">
           <p>{r.safetyNet.description}</p>
           {r.safetyNet.warning && (
-            <p className="flex items-start gap-1 text-amber-500">
+            <p className="flex items-start gap-1 text-warning">
               <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
               {r.safetyNet.warning}
             </p>
@@ -98,16 +100,16 @@ export function ChangeDetails({ record: r, compact }: { record: ChangeRecord; co
       </div>
 
       <div>
-        <p className="text-[11px] font-medium text-muted-foreground mb-1">Changes</p>
+        <p className="text-2xs font-medium text-muted-foreground mb-1">Changes</p>
         <CommandList commands={r.plan.changes} />
       </div>
 
       {!compact && (
         <>
           <Section title={`Pre-checks and verification (${r.plan.prechecks.length} / ${r.plan.verify.length})`}>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">Before</p>
+            <p className="text-2xs uppercase tracking-wider text-muted-foreground mb-1">Before</p>
             <CommandList commands={r.plan.prechecks} />
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mt-2 mb-1">After</p>
+            <p className="text-2xs uppercase tracking-wider text-muted-foreground mt-2 mb-1">After</p>
             <CommandList commands={r.plan.verify} />
           </Section>
           <Section title="Rollback commands">
@@ -123,11 +125,11 @@ export function ChangeDetails({ record: r, compact }: { record: ChangeRecord; co
               <div className="space-y-1 max-h-72 overflow-y-auto">
                 {r.steps.map((s, i) => (
                   <details key={i} className="rounded border border-border/50 bg-muted/30">
-                    <summary className="cursor-pointer px-2 py-1 text-[11px] flex items-center gap-1.5">
+                    <summary className="cursor-pointer px-2 py-1 text-2xs flex items-center gap-1.5">
                       <span className="text-muted-foreground w-16 shrink-0">{PHASE_LABEL[s.phase] ?? s.phase}</span>
-                      <code className="font-mono truncate text-foreground/85">{s.command === '\x18' ? '<Ctrl+X>' : s.command}</code>
+                      <code className="font-mono truncate text-foreground">{s.command === '\x18' ? '<Ctrl+X>' : s.command}</code>
                     </summary>
-                    <pre className="px-2 py-1.5 border-t border-border/50 font-mono text-[10.5px] whitespace-pre-wrap break-all text-foreground/75 max-h-48 overflow-y-auto select-text">
+                    <pre className="px-2 py-1.5 border-t border-border/50 font-mono text-2xs whitespace-pre-wrap break-all text-foreground max-h-48 overflow-y-auto select-text">
                       {s.output}
                     </pre>
                   </details>
@@ -139,20 +141,17 @@ export function ChangeDetails({ record: r, compact }: { record: ChangeRecord; co
       )}
 
       {r.recommendation && (
-        <div className={cn(
-          'flex items-start gap-2 rounded-md border px-2.5 py-2 text-[11px] leading-relaxed',
-          r.recommendation.decision === 'confirm' ? 'border-emerald-500/25 bg-emerald-500/5' : 'border-red-500/25 bg-red-500/5',
-        )}>
+        <div className="flex items-start gap-2 rounded-md border border-border px-2.5 py-2 text-2xs leading-relaxed">
           <Sparkles className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
           <p>
             <span className="font-semibold">ARIA recommends {r.recommendation.decision === 'confirm' ? 'keeping' : 'rolling back'} this change.</span>{' '}
-            <span className="text-foreground/75">{r.recommendation.note}</span>
+            <span className="text-foreground">{r.recommendation.note}</span>
           </p>
         </div>
       )}
 
       {r.outcomeNote && (
-        <p className={cn('text-[11px] leading-relaxed', r.status === 'failed' ? 'text-red-500' : 'text-muted-foreground')}>
+        <p className={cn('text-2xs leading-relaxed', r.status === 'failed' ? 'text-danger' : 'text-muted-foreground')}>
           {r.outcomeNote}
         </p>
       )}
@@ -192,22 +191,22 @@ export function ChangeCard({ changeId, compact }: { changeId: string; compact?: 
   const lastStep = r.steps[r.steps.length - 1]
 
   return (
-    <div dir="ltr" className="rounded-xl border border-border/70 bg-card/60 overflow-hidden text-xs">
+    <div dir="ltr" className="rounded-lg border border-border bg-card overflow-hidden text-xs">
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-muted/30">
-        <GitCompareArrows className="w-3.5 h-3.5 text-primary shrink-0" />
-        <span className="text-[11px] font-semibold text-foreground/80 whitespace-nowrap">Change plan</span>
-        <span className="flex-1 min-w-0 text-[10px] font-mono text-muted-foreground/70 truncate" title={r.id}>{r.id}</span>
+      <div className="flex items-center gap-2 px-3 h-9 border-b border-border">
+        <GitCompareArrows className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+        <span className="text-2xs font-semibold text-foreground whitespace-nowrap">Change plan</span>
+        <span className="flex-1 min-w-0 text-2xs font-mono text-muted-foreground truncate" title={r.id}>{r.id}</span>
         <Badge className={env.className}>{env.label}</Badge>
         <Badge className={RISK_CLASS[r.plan.risk]}>{r.plan.risk.toUpperCase()}</Badge>
       </div>
 
       <div className="px-3 py-2.5 space-y-2.5">
         <div>
-          <p className="text-[13px] font-semibold text-foreground leading-snug">{r.plan.title}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+          <p className="text-sm font-semibold text-foreground leading-snug">{r.plan.title}</p>
+          <p className="text-2xs text-muted-foreground mt-0.5 truncate">
             {r.deviceName} · {r.host} · {r.deviceType}
-            {r.plan.affectsManagementPath && <span className="text-amber-500"> · touches the management path</span>}
+            {r.plan.affectsManagementPath && <span className="text-warning"> · touches the management path</span>}
           </p>
         </div>
 
@@ -217,20 +216,20 @@ export function ChangeCard({ changeId, compact }: { changeId: string; compact?: 
         <div className="flex items-center gap-2">
           <Badge className={statusMeta.className}>{statusMeta.label}</Badge>
           {r.status === 'applying' && lastStep && (
-            <span className="flex items-center gap-1 text-[11px] text-muted-foreground min-w-0">
+            <span className="flex items-center gap-1 text-2xs text-muted-foreground min-w-0">
               <Loader2 className="w-3 h-3 animate-spin shrink-0" />
               <span className="truncate">{PHASE_LABEL[lastStep.phase]}: {lastStep.command === '\x18' ? '<Ctrl+X>' : lastStep.command}</span>
             </span>
           )}
           {r.status === 'awaiting-confirmation' && mmss && (
-            <span className={cn('flex items-center gap-1 text-[11px] font-medium tabular-nums', remaining! < 60 ? 'text-red-500' : 'text-amber-500')}>
+            <span className={cn('flex items-center gap-1 text-2xs font-medium tabular-nums', remaining! < 60 ? 'text-danger' : 'text-warning')}>
               <Clock className="w-3 h-3" />
               Device reverts in {mmss}
             </span>
           )}
         </div>
         {r.status === 'applying' && (
-          <p className="text-[11px] text-muted-foreground">NetCopilot is typing into the terminal — don&apos;t type in it until this finishes.</p>
+          <p className="text-2xs text-muted-foreground">NetCopilot is typing into the terminal — don&apos;t type in it until this finishes.</p>
         )}
 
         {/* Approval */}
@@ -238,7 +237,7 @@ export function ChangeCard({ changeId, compact }: { changeId: string; compact?: 
           <div className="space-y-2">
             {r.needsOverride && (
               <div className="space-y-1">
-                <p className="flex items-center gap-1 text-[11px] text-amber-500">
+                <p className="flex items-center gap-1 text-2xs text-warning">
                   <AlertTriangle className="w-3 h-3" />
                   Outside the maintenance window — give a reason to approve.
                 </p>
@@ -262,7 +261,7 @@ export function ChangeCard({ changeId, compact }: { changeId: string; compact?: 
               <button
                 disabled={busy}
                 onClick={() => decide({ action: 'reject' })}
-                className="flex items-center justify-center gap-1.5 h-7 px-3 rounded-md bg-muted text-foreground/80 text-xs font-medium hover:bg-accent disabled:opacity-40 transition-colors"
+                className="flex items-center justify-center gap-1.5 h-7 px-3 rounded-md bg-muted text-foreground text-xs font-medium hover:bg-accent disabled:opacity-40 transition-colors"
               >
                 <XCircle className="w-3 h-3" />
                 Reject
@@ -277,7 +276,7 @@ export function ChangeCard({ changeId, compact }: { changeId: string; compact?: 
             <button
               disabled={busy}
               onClick={() => decide({ action: 'confirm' })}
-              className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-600/90 disabled:opacity-40 transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 disabled:opacity-40 transition-colors"
             >
               {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
               Keep change
@@ -285,7 +284,7 @@ export function ChangeCard({ changeId, compact }: { changeId: string; compact?: 
             <button
               disabled={busy}
               onClick={() => decide({ action: 'rollback' })}
-              className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-md bg-red-500/15 text-red-500 text-xs font-medium hover:bg-red-500/25 disabled:opacity-40 transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-md border border-border text-foreground text-xs font-medium hover:bg-accent disabled:opacity-40 transition-colors"
             >
               <RotateCcw className="w-3 h-3" />
               Roll back
@@ -293,12 +292,12 @@ export function ChangeCard({ changeId, compact }: { changeId: string; compact?: 
           </div>
         )}
 
-        {error && <p className="text-[11px] text-red-500">{error}</p>}
+        {error && <p className="text-2xs text-danger">{error}</p>}
 
         {!compact && ['confirmed', 'rolled-back', 'reverted-by-device', 'failed'].includes(r.status) && (
           <button
             onClick={() => window.api.changes.export(r.id)}
-            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-1 text-2xs text-muted-foreground hover:text-foreground transition-colors"
           >
             <Download className="w-3 h-3" />
             Export change record

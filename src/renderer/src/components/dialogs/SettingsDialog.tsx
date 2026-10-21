@@ -91,7 +91,7 @@ const DEFAULTS: AppSettings = {
   toggleSidebar: 'Mod+B',
 }
 
-const inputCls = 'w-full px-3 py-2 rounded-lg bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40 transition-colors'
+const inputCls = 'w-full px-3 py-2 rounded-lg bg-background border border-border text-sm text-foreground placeholder:text-subtle focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40 transition-colors'
 
 const ACCENT_COLORS = [
   { label: 'Violet',  value: '#8b5cf6' },
@@ -193,10 +193,10 @@ export function SettingsDialog(): JSX.Element {
                 key={id}
                 onClick={() => setSection(id)}
                 className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left transition-all cursor-pointer',
+                  'w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md text-sm text-left transition-colors cursor-pointer',
                   section === id
-                    ? 'bg-primary/15 text-primary font-semibold'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                    ? 'bg-accent text-foreground font-medium'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'
                 )}
               >
                 <Icon className="w-4 h-4 shrink-0" />
@@ -232,7 +232,7 @@ export function SettingsDialog(): JSX.Element {
               className={cn(
                 'flex items-center gap-1.5 px-5 py-2 text-sm font-semibold rounded-lg transition-all min-w-[120px] justify-center cursor-pointer',
                 saved
-                  ? 'bg-emerald-600 text-white'
+                  ? 'bg-primary/90 text-primary-foreground'
                   : 'bg-primary text-primary-foreground hover:bg-primary/90'
               )}
             >
@@ -354,7 +354,7 @@ function TerminalSection({ settings, update }: SectionProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-foreground truncate">{theme.name}</p>
-                  <p className="text-[10px] text-muted-foreground">{theme.dark ? 'Dark' : 'Light'}</p>
+                  <p className="text-2xs text-muted-foreground">{theme.dark ? 'Dark' : 'Light'}</p>
                 </div>
                 {isSelected && (
                   <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
@@ -510,7 +510,7 @@ function TerminalSection({ settings, update }: SectionProps) {
           {settings.backgroundImage && (
             <button
                onClick={() => update('backgroundImage', null)}
-               className="px-4 py-2 text-sm bg-red-500/10 text-red-500 rounded-lg border border-red-500/20 hover:bg-red-500/20 transition-colors cursor-pointer"
+               className="px-4 py-2 text-sm bg-danger/10 text-danger rounded-lg border border-danger/20 hover:bg-danger/20 transition-colors cursor-pointer"
             >
                Remove
             </button>
@@ -730,7 +730,7 @@ function LoggingSection({ settings, update }: SectionProps) {
                 Browse
               </button>
             </div>
-            <p className="text-[11px] text-muted-foreground/60">
+            <p className="text-2xs text-muted-foreground">
               Files are named: <span className="font-mono">connection_YYYY-MM-DD_HH-MM.log</span>
             </p>
           </div>
@@ -775,7 +775,7 @@ function LoggingSection({ settings, update }: SectionProps) {
                     onChange={(e) => update('logRotationSize', Math.max(1, parseInt(e.target.value) || 10))}
                     className={inputCls}
                   />
-                  <p className="text-[10px] text-muted-foreground/60 mt-1">
+                  <p className="text-2xs text-muted-foreground mt-1">
                     Create new file when current reaches this size
                   </p>
                 </div>
@@ -791,14 +791,14 @@ function LoggingSection({ settings, update }: SectionProps) {
                     onChange={(e) => update('logRotationMaxFiles', Math.max(1, parseInt(e.target.value) || 10))}
                     className={inputCls}
                   />
-                  <p className="text-[10px] text-muted-foreground/60 mt-1">
+                  <p className="text-2xs text-muted-foreground mt-1">
                     Delete oldest files after this limit
                   </p>
                 </div>
               </div>
 
               <div className="p-2.5 rounded-md bg-muted/30 border border-border/50">
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-2xs text-muted-foreground">
                   <span className="font-medium text-foreground">Example:</span> connection_2024-06-01_12-30.log
                   reaches {settings.logRotationSize}MB → renamed to connection_2024-06-01_12-30.log.1,
                   new file created. Oldest .log.{settings.logRotationMaxFiles} is deleted.
@@ -811,9 +811,9 @@ function LoggingSection({ settings, update }: SectionProps) {
 
       {/* Preview */}
       <Group title="Preview">
-        <div className="p-3 rounded-md bg-[#0d0f14] border border-border font-mono text-[11px] space-y-0.5">
+        <div className="p-3 rounded-md bg-[#0d0f14] border border-border font-mono text-2xs space-y-0.5">
           {settings.logTimestamp && (
-            <span className="text-muted-foreground/50">[12:34:56] </span>
+            <span className="text-subtle">[12:34:56] </span>
           )}
           {settings.logStripAnsi ? (
             <span style={{ color: '#92e991' }}>router#</span>
@@ -823,7 +823,7 @@ function LoggingSection({ settings, update }: SectionProps) {
           <span style={{ color: '#e8eaf0' }}> show version</span>
           <br />
           {settings.logTimestamp && (
-            <span className="text-muted-foreground/50">[12:34:57] </span>
+            <span className="text-subtle">[12:34:57] </span>
           )}
           <span style={{ color: '#e8eaf0' }}>Cisco IOS XE Software, Version 17.9.4</span>
         </div>
@@ -878,7 +878,7 @@ function SecuritySection({ settings, update }: SectionProps) {
                 {hasMaster ? 'Required every time you open NetCopilot' : 'App opens without a password'}
               </p>
             </div>
-            <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', hasMaster ? 'bg-emerald-500/15 text-emerald-400' : 'bg-muted text-muted-foreground')}>
+            <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', hasMaster ? 'bg-muted text-foreground' : 'bg-muted text-muted-foreground')}>
               {hasMaster ? 'Active' : 'Off'}
             </span>
           </div>
@@ -937,7 +937,7 @@ function SecuritySection({ settings, update }: SectionProps) {
             </div>
           )}
 
-          {mpSuccess && <p className="text-xs text-emerald-400">{mpSuccess}</p>}
+          {mpSuccess && <p className="text-xs text-success">{mpSuccess}</p>}
         </div>
       </Group>
 
@@ -973,14 +973,14 @@ function SecuritySection({ settings, update }: SectionProps) {
             <p className="text-sm font-medium text-foreground">Encrypted storage</p>
             <p className="text-xs text-muted-foreground mt-0.5">All data is encrypted with SQLCipher (AES-256)</p>
           </div>
-          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-500/15 text-emerald-400">Active ✓</span>
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-muted text-foreground">Active</span>
         </div>
         <div className="flex items-center justify-between py-1">
           <div>
             <p className="text-sm font-medium text-foreground">Credential encryption</p>
             <p className="text-xs text-muted-foreground mt-0.5">Passwords encrypted via OS Keychain (safeStorage)</p>
           </div>
-          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-500/15 text-emerald-400">Active ✓</span>
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-muted text-foreground">Active</span>
         </div>
       </Group>
     </>
@@ -1086,7 +1086,7 @@ function AboutSection() {
 
         {/* Result banners */}
         {updateState === 'up-to-date' && (
-          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-400">
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-success/10 border border-success/20 text-sm text-success">
             <Check className="w-4 h-4 shrink-0" />
             <span>You're on the latest version <strong>v{appVersion}</strong></span>
           </div>
@@ -1110,7 +1110,7 @@ function AboutSection() {
         )}
 
         {updateState === 'error' && (
-          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-danger/10 border border-danger/20 text-sm text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>Couldn't check for updates. Check your connection.</span>
           </div>
@@ -1189,8 +1189,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <p className="text-[11px] font-bold text-muted-foreground/60 uppercase tracking-[0.12em]">{title}</p>
-        <div className="flex-1 h-px bg-border/60" />
+        <p className="text-sm font-semibold text-foreground">{title}</p>
       </div>
       <div className="space-y-3">{children}</div>
     </div>
@@ -1521,7 +1520,7 @@ function AiSection(): JSX.Element {
               id:    'byok' as AiSource,
               label: 'My own provider',
               desc:  'Claude, OpenAI or Grok with your API key — or a local model via Ollama / LM Studio. Requests go straight from this device.',
-              icon:  <Key className="w-4 h-4 text-sky-400" />,
+              icon:  <Key className="w-4 h-4 text-muted-foreground" />,
             },
           ]).map((opt) => (
             <button
@@ -1581,15 +1580,15 @@ function AiSection(): JSX.Element {
                   <button
                     key={preset.label}
                     onClick={() => { setBaseUrlInput(preset.url); persistBaseUrl(preset.url) }}
-                    className="text-[11px] px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+                    className="text-2xs px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
                   >
                     {preset.label}
                   </button>
                 ))}
-                <span className="text-[11px] text-muted-foreground/70">vLLM, LocalAI and other OpenAI-compatible servers work too.</span>
+                <span className="text-2xs text-muted-foreground">vLLM, LocalAI and other OpenAI-compatible servers work too.</span>
               </div>
               {aiInsecureEndpoint && (
-                <p className="flex items-start gap-1.5 text-[11px] text-amber-400 leading-relaxed">
+                <p className="flex items-start gap-1.5 text-2xs text-warning leading-relaxed">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" />
                   This endpoint uses plain HTTP on another machine — terminal output and commands travel unencrypted. Use https:// or keep the model on this machine.
                 </p>
@@ -1625,8 +1624,8 @@ function AiSection(): JSX.Element {
               className={cn(
                 'px-3 py-2 rounded-md text-xs font-medium transition-colors whitespace-nowrap',
                 testing
-                  ? 'bg-muted text-muted-foreground cursor-wait'
-                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                  ? 'border border-border text-muted-foreground cursor-wait'
+                  : 'border border-border text-foreground hover:bg-accent'
               )}
             >
               {testing ? 'Testing…' : 'Test'}
@@ -1635,10 +1634,10 @@ function AiSection(): JSX.Element {
 
           {aiHasKey && (
             <div className="flex items-center justify-between mt-2">
-              <p className="text-[11px] text-emerald-400">Saved · {keyHint}</p>
+              <p className="text-2xs text-success">Saved · {keyHint}</p>
               <button
                 onClick={handleClearApiKey}
-                className="text-[11px] text-muted-foreground hover:text-red-400 transition-colors"
+                className="text-2xs text-muted-foreground hover:text-danger transition-colors"
               >
                 Remove key
               </button>
@@ -1646,7 +1645,7 @@ function AiSection(): JSX.Element {
           )}
 
           {testMsg && (
-            <p className={cn('text-xs mt-1.5 px-1 leading-relaxed', testMsg.ok ? 'text-emerald-400' : 'text-red-400')}>
+            <p className={cn('text-xs mt-1.5 px-1 leading-relaxed', testMsg.ok ? 'text-success' : 'text-danger')}>
               {testMsg.text}
             </p>
           )}
@@ -1681,7 +1680,7 @@ function AiSection(): JSX.Element {
               </button>
             </div>
             {aiProvider === 'custom' && (
-              <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
+              <p className="text-2xs text-muted-foreground leading-relaxed">
                 ARIA runs commands through tool calling — pick a model that supports tools (Qwen 2.5+, Llama 3.1+, Mistral Nemo…) and give it a context window of 16K+ tokens.
               </p>
             )}
@@ -1695,8 +1694,10 @@ function AiSection(): JSX.Element {
         <div className={cn(
           'flex items-center gap-2 px-3 py-2 rounded-lg text-xs mb-3 border',
           licenseValid
-            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-            : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+            ? 'border-border text-foreground'
+            : aiSource === 'byok'
+              ? 'border-border text-muted-foreground'
+              : 'bg-warning/10 border-warning/30 text-warning'
         )}>
           {licenseValid
             ? <><Check className="w-3.5 h-3.5 shrink-0" /> <span>Active · Plan: <strong>{licensePlan.toUpperCase()}</strong>{licenseExpiry ? ` · Expires ${new Date(licenseExpiry).toLocaleDateString()}` : ' · Lifetime'}</span></>
@@ -1750,7 +1751,7 @@ function AiSection(): JSX.Element {
         </div>
 
         {activateMsg && (
-          <p className={cn('text-xs mt-1.5 px-1 leading-relaxed', activateMsg.ok ? 'text-emerald-400' : 'text-red-400')}>
+          <p className={cn('text-xs mt-1.5 px-1 leading-relaxed', activateMsg.ok ? 'text-success' : 'text-danger')}>
             {activateMsg.text}
           </p>
         )}
@@ -1758,8 +1759,8 @@ function AiSection(): JSX.Element {
         {/* Device fingerprint */}
         {deviceId && (
           <div className="mt-3 flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Device ID:</span>
-            <code className="text-[10px] font-mono text-muted-foreground/80 select-all">{deviceId.slice(0, 16)}…</code>
+            <span className="text-2xs text-muted-foreground uppercase tracking-wider">Device ID:</span>
+            <code className="text-2xs font-mono text-muted-foreground select-all">{deviceId.slice(0, 16)}…</code>
           </div>
         )}
       </SettingsGroup>
@@ -1772,25 +1773,25 @@ function AiSection(): JSX.Element {
               id: 'investigate',
               label: 'Investigate',
               desc:  'Read-only diagnosis. ARIA runs show / display / ping commands by itself and never changes the device.',
-              icon:  <Search className="w-4 h-4 text-emerald-500" />,
+              icon:  <Search className="w-4 h-4 text-muted-foreground" />,
               badge: 'Safest',
-              badgeCls: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
+              badgeCls: 'text-muted-foreground border-border',
             },
             {
               id: 'change',
               label: 'Change',
               desc:  'ARIA proposes change plans. Nothing runs until you approve; NetCopilot applies it with a safety net, verifies, and lets you keep it or roll back.',
-              icon:  <Wrench className="w-4 h-4 text-amber-500" />,
+              icon:  <Wrench className="w-4 h-4 text-muted-foreground" />,
               badge: 'You approve each change',
-              badgeCls: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
+              badgeCls: 'text-muted-foreground border-border',
             },
             {
               id: 'autopilot',
               label: 'Autopilot',
               desc:  'Lab and staging devices only: ARIA applies and confirms its own change plans, with the same safety nets. Production devices fall back to Change.',
-              icon:  <Zap className="w-4 h-4 text-red-500" />,
+              icon:  <Zap className="w-4 h-4 text-muted-foreground" />,
               badge: 'Lab / staging',
-              badgeCls: 'text-red-500 bg-red-500/10 border-red-500/20',
+              badgeCls: 'text-muted-foreground border-border',
             },
           ] as { id: AriaMode; label: string; desc: string; icon: JSX.Element; badge: string; badgeCls: string }[]).map((opt) => {
             const isActive = aiMode === opt.id
@@ -1809,7 +1810,7 @@ function AiSection(): JSX.Element {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium text-foreground">{opt.label}</span>
-                    <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full border font-medium', opt.badgeCls)}>
+                    <span className={cn('text-2xs px-1.5 py-0.5 rounded-full border font-medium', opt.badgeCls)}>
                       {opt.badge}
                     </span>
                     {isActive && <Check className="w-3 h-3 text-primary ml-auto shrink-0" />}
@@ -1838,7 +1839,7 @@ function AiSection(): JSX.Element {
               setBlacklistInput(defaults.join(', '))
               setAiBlacklist(defaults)
             }}
-            className="text-[11px] text-muted-foreground hover:text-primary transition-colors whitespace-nowrap shrink-0 mt-0.5"
+            className="text-2xs text-muted-foreground hover:text-primary transition-colors whitespace-nowrap shrink-0 mt-0.5"
           >
             Reset to defaults
           </button>
@@ -1850,7 +1851,7 @@ function AiSection(): JSX.Element {
           placeholder="reload, shutdown, rm -rf, write erase, ..."
           className={cn(inputCls, 'resize-y font-mono text-xs leading-relaxed')}
         />
-        <p className="text-[10px] text-muted-foreground/50 mt-1">
+        <p className="text-2xs text-subtle mt-1">
           {blacklistInput.split(',').filter(s => s.trim()).length} patterns · comma-separated · case-insensitive substring match
         </p>
       </SettingsGroup>
@@ -1947,7 +1948,7 @@ function ChangePolicyGroup({ policy, onChange, onOpenHistory }: {
                   onChange={(e) => e.target.value && setWindow({ end: e.target.value })}
                   className="h-7 px-2 rounded-md bg-background border border-border text-foreground text-xs"
                 />
-                <span className="text-muted-foreground/70">local time</span>
+                <span className="text-muted-foreground">local time</span>
               </div>
             </div>
           )}
@@ -1969,8 +1970,7 @@ function SettingsGroup({ label, children }: { label: string; children: React.Rea
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <h3 className="text-[11px] font-bold text-muted-foreground/60 uppercase tracking-[0.12em]">{label}</h3>
-        <div className="flex-1 h-px bg-border/60" />
+        <h3 className="text-sm font-semibold text-foreground">{label}</h3>
       </div>
       {children}
     </div>

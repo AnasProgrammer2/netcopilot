@@ -13,8 +13,8 @@ export function WelcomeScreen(): JSX.Element {
       title:  'Add your first host',
       desc:   'Save SSH, Telnet, or Serial connections to your library for one-click access.',
       action: { label: 'New Connection', onClick: () => setConnectionDialogOpen(true) },
-      color:  'text-violet-400',
-      bg:     'bg-violet-500/10 border-violet-500/20',
+      color: 'text-muted-foreground',
+      bg: 'bg-muted border-transparent',
     },
     {
       num:    '02',
@@ -22,8 +22,8 @@ export function WelcomeScreen(): JSX.Element {
       title:  'Or connect instantly',
       desc:   `Use Quick Connect (${mod}K) to jump into any host without saving.`,
       action: { label: 'Quick Connect', onClick: () => setQuickConnectOpen(true) },
-      color:  'text-amber-400',
-      bg:     'bg-amber-500/10 border-amber-500/20',
+      color: 'text-muted-foreground',
+      bg: 'bg-muted border-transparent',
     },
     {
       num:    '03',
@@ -31,18 +31,18 @@ export function WelcomeScreen(): JSX.Element {
       title:  'Let ARIA assist you',
       desc:   `Open the AI panel (${mod}⇧A) — ask ARIA to diagnose, configure, or explain anything on your device.`,
       action: null,
-      color:  'text-sky-400',
-      bg:     'bg-sky-500/10 border-sky-500/20',
+      color: 'text-muted-foreground',
+      bg: 'bg-muted border-transparent',
     },
   ]
 
   const features = [
-    { icon: Network,    label: 'SSH · Telnet · Serial',  color: 'text-violet-400' },
-    { icon: Cpu,        label: 'ARIA AI Assistant',       color: 'text-sky-400'    },
-    { icon: Shield,     label: 'Encrypted credential vault', color: 'text-emerald-400' },
-    { icon: Monitor,    label: 'Multi-tab sessions',      color: 'text-blue-400'   },
-    { icon: Key,        label: 'SSH key management',      color: 'text-amber-400'  },
-    { icon: GitBranch,  label: 'Port forwarding / SOCKS', color: 'text-pink-400'   },
+    { icon: Network,    label: 'SSH · Telnet · Serial',  color: 'text-muted-foreground' },
+    { icon: Cpu,        label: 'ARIA AI Assistant',       color: 'text-muted-foreground'    },
+    { icon: Shield,     label: 'Encrypted credential vault', color: 'text-muted-foreground' },
+    { icon: Monitor,    label: 'Multi-tab sessions',      color: 'text-muted-foreground'   },
+    { icon: Key,        label: 'SSH key management',      color: 'text-muted-foreground'  },
+    { icon: GitBranch,  label: 'Port forwarding / SOCKS', color: 'text-muted-foreground'   },
   ]
 
   return (
@@ -51,16 +51,13 @@ export function WelcomeScreen(): JSX.Element {
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <div className="flex flex-col items-center gap-5 text-center max-w-md mb-14">
         {/* Icon with layered glow */}
-        <div className="relative">
-          <div className="absolute inset-0 rounded-3xl bg-primary/20 blur-2xl scale-150 opacity-60" />
-          <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/30 flex items-center justify-center shadow-xl shadow-primary/20">
-            <Terminal className="w-9 h-9 text-primary drop-shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
-          </div>
+        <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center">
+          <Terminal className="w-7 h-7 text-foreground" />
         </div>
 
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">
-            Welcome to <span className="text-primary">NetCopilot</span>
+          <h1 className="text-2xl font-semibold text-foreground tracking-tight">
+            Welcome to NetCopilot
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">
             Your AI-powered network terminal. Manage connections across SSH, Telnet &amp; Serial — all with an intelligent assistant at your side.
@@ -71,16 +68,16 @@ export function WelcomeScreen(): JSX.Element {
         <div className="flex items-center gap-3 mt-1">
           <button
             onClick={() => setConnectionDialogOpen(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors cursor-pointer shadow-lg shadow-primary/25"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             New Host
           </button>
           <button
             onClick={() => setQuickConnectOpen(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-card border border-border text-foreground text-sm font-medium hover:bg-accent transition-all cursor-pointer"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-md border border-border text-foreground text-sm font-medium hover:bg-accent transition-colors cursor-pointer"
           >
-            <Zap className="w-4 h-4 text-amber-400" />
+            <Zap className="w-4 h-4 text-muted-foreground" />
             Quick Connect
           </button>
         </div>
@@ -88,13 +85,13 @@ export function WelcomeScreen(): JSX.Element {
 
       {/* ── Getting started — timeline layout ────────────────────────────── */}
       <div className="w-full max-w-lg mb-14">
-        <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-[0.15em] mb-5">
+        <p className="text-xs font-medium text-muted-foreground mb-4">
           Getting started
         </p>
 
         <div className="relative">
           {/* Vertical connector line */}
-          <div className="absolute left-[19px] top-10 bottom-10 w-px bg-gradient-to-b from-border via-border/50 to-transparent" />
+          <div className="absolute left-[19px] top-10 bottom-10 w-px bg-border" />
 
           <div className="space-y-3">
             {steps.map((step) => {
@@ -110,7 +107,7 @@ export function WelcomeScreen(): JSX.Element {
                   <div className="flex-1 flex items-center gap-3 p-3.5 rounded-xl border border-border bg-card hover:bg-accent/20 transition-colors group min-w-0">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-[10px] font-bold text-muted-foreground/40 font-mono">{step.num}</span>
+                        <span className="text-2xs font-semibold text-subtle font-mono">{step.num}</span>
                         <p className="text-sm font-semibold text-foreground">{step.title}</p>
                       </div>
                       <p className="text-xs text-muted-foreground leading-relaxed">{step.desc}</p>
@@ -135,7 +132,7 @@ export function WelcomeScreen(): JSX.Element {
 
       {/* ── Feature highlights ────────────────────────────────────────────── */}
       <div className="w-full max-w-lg mb-8">
-        <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-[0.15em] mb-4">
+        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-[0.15em] mb-4">
           What&apos;s included
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -152,8 +149,8 @@ export function WelcomeScreen(): JSX.Element {
       </div>
 
       {/* ── Keyboard hint ─────────────────────────────────────────────────── */}
-      <p className="text-xs text-muted-foreground/40 text-center">
-        Press <kbd className="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] font-mono mx-0.5">?</kbd> anytime to see keyboard shortcuts
+      <p className="text-xs text-subtle text-center">
+        Press <kbd className="px-1.5 py-0.5 rounded bg-muted border border-border text-2xs font-mono mx-0.5">?</kbd> anytime to see keyboard shortcuts
       </p>
     </div>
   )

@@ -90,9 +90,9 @@ export function SSHKeyDialog({ onClose }: Props): JSX.Element {
             <div className="p-4 space-y-2">
               {sshKeys.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 py-10 text-center">
-                  <Key className="w-10 h-10 text-muted-foreground/20" />
+                  <Key className="w-10 h-10 text-subtle" />
                   <p className="text-sm text-muted-foreground">No SSH keys stored yet</p>
-                  <p className="text-xs text-muted-foreground/60">Add a key to use key-based authentication</p>
+                  <p className="text-xs text-muted-foreground">Add a key to use key-based authentication</p>
                 </div>
               ) : (
                 sshKeys.map((key) => (
@@ -166,7 +166,7 @@ export function SSHKeyDialog({ onClose }: Props): JSX.Element {
                   rows={5}
                   className={cn(inputCls, 'resize-none font-mono text-xs', !showPrivate && privateKey && 'blur-[2px] focus:blur-0')}
                 />
-                <p className="text-[11px] text-muted-foreground/60">
+                <p className="text-2xs text-muted-foreground">
                   Stored encrypted using your OS secure storage
                 </p>
               </div>
@@ -234,7 +234,7 @@ function KeyRow({ sshKey, onDelete }: { sshKey: SSHKey; onDelete: () => void }) 
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground truncate">{sshKey.name}</p>
-        <p className="text-[11px] text-muted-foreground font-mono truncate">
+        <p className="text-2xs text-muted-foreground font-mono truncate">
           {sshKey.publicKey ? fingerprint : 'Private key only'}
         </p>
       </div>
