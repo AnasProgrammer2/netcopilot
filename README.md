@@ -28,7 +28,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/media/hero.webp" alt="NetCopilot: an SSH session to a Cisco switch, with ARIA proposing a change plan that waits for approval" />
+  <img src="docs/media/demo.webp" alt="NetCopilot in action: ARIA investigates a BGP neighbor with read-only checks, finds the root cause, proposes a change plan, and the engineer approves and keeps it" />
 </p>
 
 <!-- DEMO VIDEO: to update it, edit this file on github.com, drag the new .mp4 onto the line below,
