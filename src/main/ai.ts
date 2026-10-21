@@ -1532,6 +1532,9 @@ export function setupAiHandlers(
     if (p === 'custom' && draft.baseUrl !== undefined) {
       const parsed = normalizeBaseUrl(draft.baseUrl)
       if (!parsed.ok) return { error: parsed.error }
+      // The saved key belongs to the saved endpoint: never send it to a new,
+      // unsaved URL. Testing a new URL uses only a key typed in the form.
+      if (parsed.url !== cfg.baseUrl && !draft.key?.trim()) cfg.apiKey = null
       cfg.baseUrl = parsed.url
     }
     if (p === 'custom' && !cfg.baseUrl) return { error: 'Enter the endpoint URL first.' }

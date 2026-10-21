@@ -42,12 +42,16 @@ const TITLEBAR_OVERLAY = {
 }
 
 const RENDERER_INDEX = join(__dirname, '../renderer/index.html')
+// The dev-server URL is honoured only in an unpackaged (development) build.
+// In the shipped app an inherited ELECTRON_RENDERER_URL would otherwise load
+// any page with the preload bridge and DevTools enabled.
+const DEV_RENDERER_URL = app.isPackaged ? undefined : process.env['ELECTRON_RENDERER_URL']
 
 /** Only the app's own page may be loaded in the main window. */
 function isAppUrl(url: string): boolean {
   try {
     const target = new URL(url)
-    const devUrl = process.env['ELECTRON_RENDERER_URL']
+    const devUrl = DEV_RENDERER_URL
     if (devUrl) return target.origin === new URL(devUrl).origin
     return target.protocol === 'file:' && target.pathname === pathToFileURL(RENDERER_INDEX).pathname
   } catch {
@@ -103,7 +107,7 @@ function createWindow(): void {
     const mod = process.platform === 'darwin' ? input.meta : input.control
 
     // Block DevTools shortcuts in-window only (not OS-globally)
-    if (!process.env['ELECTRON_RENDERER_URL']) {
+    if (!DEV_RENDERER_URL) {
       if (input.key === 'F12' || (mod && input.shift && input.key === 'I')) {
         event.preventDefault()
         return
@@ -148,14 +152,14 @@ function createWindow(): void {
   })
 
   // Block DevTools in production (close if opened via other means)
-  if (!process.env['ELECTRON_RENDERER_URL']) {
+  if (!DEV_RENDERER_URL) {
     mainWindow.webContents.on('devtools-opened', () => {
       mainWindow?.webContents.closeDevTools()
     })
   }
 
-  if (process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+  if (DEV_RENDERER_URL) {
+    mainWindow.loadURL(DEV_RENDERER_URL)
   } else {
     mainWindow.loadFile(RENDERER_INDEX)
   }
