@@ -62,7 +62,8 @@ export function setupStoreHandlers(ipcMain: IpcMain): void {
           -- Zmodem
           zmodem_enabled = @zmodem_enabled,
           -- Terminal display
-          true_color_enabled = @true_color_enabled, sixel_enabled = @sixel_enabled
+          true_color_enabled = @true_color_enabled, sixel_enabled = @sixel_enabled,
+          proxy_config = @proxy_config, environment = @environment
         WHERE id = @id
       `).run(row)
     } else {
@@ -74,7 +75,7 @@ export function setupStoreHandlers(ipcMain: IpcMain): void {
          created_at, updated_at, last_connected_at,
          agent_forwarding, keepalive_interval, keepalive_count_max, ready_timeout,
          proxy_jump_chain, anti_idle, anti_idle_interval, anti_idle_string,
-         zmodem_enabled, true_color_enabled, sixel_enabled)
+         zmodem_enabled, true_color_enabled, sixel_enabled, proxy_config, environment)
         VALUES
         (@id, @name, @host, @port, @protocol, @username, @auth_type, @ssh_key_id, @group_id,
          @tags, @notes, @device_type, @color, @jump_host_id, @startup_commands,
@@ -82,7 +83,7 @@ export function setupStoreHandlers(ipcMain: IpcMain): void {
          @created_at, @updated_at, @last_connected_at,
          @agent_forwarding, @keepalive_interval, @keepalive_count_max, @ready_timeout,
          @proxy_jump_chain, @anti_idle, @anti_idle_interval, @anti_idle_string,
-         @zmodem_enabled, @true_color_enabled, @sixel_enabled)
+         @zmodem_enabled, @true_color_enabled, @sixel_enabled, @proxy_config, @environment)
       `).run(connToRow(connection))
     }
     return connection

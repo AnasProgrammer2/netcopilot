@@ -109,6 +109,8 @@ export interface Connection {
   // Terminal display
   trueColorEnabled?: boolean
   sixelEnabled?: boolean
+  /** Where the device sits — limits what ARIA may change on it. Default production. */
+  environment?: 'production' | 'staging' | 'lab'
   createdAt: number
   updatedAt: number
   lastConnectedAt?: number

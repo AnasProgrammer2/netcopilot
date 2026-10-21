@@ -11,6 +11,7 @@ import { setupFileDialogHandlers } from './fileDialog'
 import { setupLogHandlers } from './logger'
 import { setupMasterPasswordHandlers } from './masterPassword'
 import { setupAiHandlers } from './ai'
+import { setupChangeHandlers } from './changes'
 import { setupSftpHandlers } from './sftp'
 import { setupLicenseHandlers } from './license'
 import { setupAutoUpdater } from './updater'
@@ -210,6 +211,7 @@ app.whenReady().then(() => {
   setupSftpHandlers(ipcMain, () => mainWindow)
   setupTelnetHandlers(ipcMain, () => mainWindow)
   setupAiHandlers(ipcMain, () => mainWindow)
+  setupChangeHandlers(ipcMain, () => mainWindow)
   setupLicenseHandlers(ipcMain)
   setupCredentialHandlers(ipcMain)
   setupSerialHandlers(ipcMain, () => mainWindow)

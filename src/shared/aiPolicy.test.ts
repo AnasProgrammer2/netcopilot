@@ -301,40 +301,35 @@ describe('control and invisible characters', () => {
 describe('decideToolCall', () => {
   const BL = ['reload']
   const base = {
-    permission: 'full-access' as const,
-    approval: 'auto' as const,
     isProactive: false,
     sessionId: 's1',
     knownSessionIds: ['s1', 's2'],
+    changesAllowed: true,
   }
 
-  it('auto-approves a normal command only in Auto Pilot', () => {
-    expect(decideToolCall('show ip route', base, BL).autoApprove).toBe(true)
-    expect(decideToolCall('show ip route', { ...base, approval: 'ask' }, BL).autoApprove).toBe(false)
+  it('auto-runs plain read-only commands the user asked for', () => {
+    const v = decideToolCall('show ip route', base, BL)
+    expect(v).toEqual({ blockReason: null, requiresConfirmation: false, autoApprove: true })
+    expect(decideToolCall('show ip route | include 10.0', base, BL).autoApprove).toBe(true)
   })
 
-  it('never auto-approves in read-only mode, even if approval says auto', () => {
-    const v = decideToolCall('show ip route', { ...base, permission: 'troubleshoot' }, BL)
-    expect(v.blockReason).toBeNull()
-    expect(v.autoApprove).toBe(false)
+  it('never runs state-changing commands, in any mode', () => {
+    for (const cmd of ['configure terminal', 'ip route 0.0.0.0 0.0.0.0 192.0.2.1', 'sudo ip route add 10.9.0.0/16 via 10.0.0.1', 'set interfaces ge-0/0/0 disable']) {
+      const v = decideToolCall(cmd, base, BL)
+      expect(v.blockReason, cmd).toContain('propose_change')
+      expect(v.autoApprove).toBe(false)
+    }
+    expect(decideToolCall('configure terminal', { ...base, changesAllowed: false }, BL).blockReason).toContain('Investigate')
   })
 
-  it('enforces the read-only allowlist when the session is read-only', () => {
-    expect(decideToolCall('configure terminal', { ...base, permission: 'troubleshoot' }, BL).blockReason).not.toBeNull()
-  })
-
-  it('treats read-only lookups as safe but route changes as high-risk', () => {
-    expect(decideToolCall('show ip route 10.0.0.0', base, BL).requiresConfirmation).toBe(false)
-    expect(decideToolCall('ip route 0.0.0.0 0.0.0.0 192.0.2.1', base, BL).requiresConfirmation).toBe(true)
-    expect(decideToolCall('sudo ip route add 10.9.0.0/16 via 10.0.0.1', base, BL).requiresConfirmation).toBe(true)
-    expect(decideToolCall('show ip route | include 10.0', base, BL).requiresConfirmation).toBe(false)
-  })
-
-  it('does not auto-run Auto Watch turns or high-risk commands', () => {
+  it('needs a click for heavy read-only commands and Auto Watch turns', () => {
+    for (const cmd of ['show tech-support', 'show tech', 'ping 10.0.0.1 repeat 10000', 'tcpdump -i eth0']) {
+      const v = decideToolCall(cmd, base, BL)
+      expect(v.blockReason, cmd).toBeNull()
+      expect(v.requiresConfirmation, cmd).toBe(true)
+      expect(v.autoApprove, cmd).toBe(false)
+    }
     expect(decideToolCall('show ip route', { ...base, isProactive: true }, BL).autoApprove).toBe(false)
-    const hi = decideToolCall('configure terminal', base, BL)
-    expect(hi.requiresConfirmation).toBe(true)
-    expect(hi.autoApprove).toBe(false)
   })
 
   it('requires a click for another open session and rejects unknown ones', () => {
@@ -348,6 +343,6 @@ describe('decideToolCall', () => {
   it('still blocks blacklisted and control-character commands', () => {
     expect(decideToolCall('reload', base, BL).blockReason).not.toBeNull()
     expect(decideToolCall('reloadx\x7f', base, BL).blockReason).not.toBeNull()
+    expect(decideToolCall('', base, BL).blockReason).not.toBeNull()
   })
 })
-

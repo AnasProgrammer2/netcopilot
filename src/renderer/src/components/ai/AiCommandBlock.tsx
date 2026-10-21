@@ -7,13 +7,12 @@ import { useAppStore } from '../../store'
 interface Props {
   msgId:      string
   call:       AiToolCall
-  approval:   'ask' | 'auto' | 'blacklist'
   blacklist:  string[]
   onApprove:  (callId: string) => void
   onBlock:    (callId: string) => void
 }
 
-export function AiCommandBlock({ call, approval, blacklist, onApprove, onBlock }: Props): JSX.Element {
+export function AiCommandBlock({ call, blacklist, onApprove, onBlock }: Props): JSX.Element {
   const [expanded, setExpanded] = useState(false)
   const sessions = useAppStore(s => s.sessions)
 
@@ -67,14 +66,12 @@ export function AiCommandBlock({ call, approval, blacklist, onApprove, onBlock }
               <ShieldAlert className="w-3 h-3" />
               Blocked by blacklist
             </span>
-          ) : approval === 'ask' || call.requiresConfirmation ? (
+          ) : !call.autoApprove ? (
             <>
-              {call.requiresConfirmation && approval === 'auto' && (
-                <span className="flex items-center gap-1 text-amber-400 mr-1">
-                  <ShieldAlert className="w-3 h-3" />
-                  High-risk — confirm
-                </span>
-              )}
+              <span className="flex items-center gap-1 text-amber-500 mr-1">
+                <ShieldAlert className="w-3 h-3" />
+                {call.targetSession ? 'Runs on another device' : 'Needs your OK'}
+              </span>
               <button
                 onClick={() => onApprove(call.id)}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-primary/20 text-primary hover:bg-primary/30 transition-colors font-medium"
@@ -91,7 +88,7 @@ export function AiCommandBlock({ call, approval, blacklist, onApprove, onBlock }
               </button>
             </>
           ) : (
-            <span className="text-emerald-400/80">Auto-approved</span>
+            <span className="text-emerald-500/80">Read-only — running automatically</span>
           )}
         </div>
       )}

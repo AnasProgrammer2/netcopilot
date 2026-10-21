@@ -3,10 +3,10 @@ import appIcon from '../../assets/icon.png'
 import {
   X, Monitor, Terminal, Network, Lock, Info, FileText,
   Sun, Moon, Laptop, Check, FolderOpen,
-  Sparkles, Eye, EyeOff, ShieldCheck, Wrench, Zap,
+  Sparkles, Eye, EyeOff, Search, Wrench, Zap, GitCompareArrows,
   RefreshCw, ArrowUpCircle, AlertCircle, Minus, Plus, ChevronDown, Keyboard, Key, Cloud
 } from 'lucide-react'
-import { useAppStore, AiPermission, AiApproval, AiSource, AiProvider, AI_PROVIDER_LABELS } from '../../store'
+import { useAppStore, AriaMode, ChangePolicy, AiSource, AiProvider, AI_PROVIDER_LABELS } from '../../store'
 import { cn, getInstallerUrl } from '../../lib/utils'
 import { TERMINAL_THEMES, getTerminalTheme } from '../../lib/terminalThemes'
 
@@ -1306,8 +1306,8 @@ const LOCAL_ENDPOINT_PRESETS = [
 // ─── AI Copilot Settings Section ─────────────────────────────────────────────
 function AiSection(): JSX.Element {
   const {
-    aiPermission, aiApproval, aiBlacklist,
-    setAiPermission, setAiApproval, setAiBlacklist,
+    aiMode, aiChangePolicy, aiBlacklist,
+    setAiMode, setAiChangePolicy, setAiBlacklist, setChangeHistoryOpen,
     aiSource, aiProvider, aiModel, aiHasKey, aiBaseUrl, aiInsecureEndpoint,
     applyAiConfig, setAiHasKey,
     licenseKey: storedKey, licenseValid, licensePlan, licenseExpiry, deviceId,
@@ -1481,8 +1481,8 @@ function AiSection(): JSX.Element {
   }
 
   const saveOtherSettings = async () => {
-    await window.api.store.setSetting('ai.permission', aiPermission)
-    await window.api.store.setSetting('ai.approval',   aiApproval)
+    await window.api.store.setSetting('ai.mode', aiMode)
+    await window.api.store.setSetting('ai.changePolicy', aiChangePolicy)
     if (aiSource === 'byok') {
       if (aiProvider === 'custom') await persistBaseUrl()
       await persistModel()
@@ -1764,43 +1764,40 @@ function AiSection(): JSX.Element {
         )}
       </SettingsGroup>
 
-      {/* Agent Mode — unified 3-option selector */}
-      <SettingsGroup label="Agent Mode">
+      {/* Default mode for new ARIA conversations */}
+      <SettingsGroup label="Default Mode">
         <div className="space-y-2">
-          {[
+          {([
             {
-              permission: 'troubleshoot' as AiPermission,
-              approval:   'ask'          as AiApproval,
-              label: 'Read Only',
-              desc:  'Diagnose and inspect — read-only commands only (show, ping, ls…). Nothing is changed on the device.',
-              icon:  <ShieldCheck className="w-4 h-4 text-emerald-400" />,
+              id: 'investigate',
+              label: 'Investigate',
+              desc:  'Read-only diagnosis. ARIA runs show / display / ping commands by itself and never changes the device.',
+              icon:  <Search className="w-4 h-4 text-emerald-500" />,
               badge: 'Safest',
-              badgeCls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+              badgeCls: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
             },
             {
-              permission: 'full-access'  as AiPermission,
-              approval:   'ask'          as AiApproval,
-              label: 'Fix Mode',
-              desc:  'ARIA can apply configuration changes, but pauses and asks your approval before running each command.',
-              icon:  <Wrench className="w-4 h-4 text-amber-400" />,
-              badge: 'Confirm each step',
-              badgeCls: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+              id: 'change',
+              label: 'Change',
+              desc:  'ARIA proposes change plans. Nothing runs until you approve; NetCopilot applies it with a safety net, verifies, and lets you keep it or roll back.',
+              icon:  <Wrench className="w-4 h-4 text-amber-500" />,
+              badge: 'You approve each change',
+              badgeCls: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
             },
             {
-              permission: 'full-access'  as AiPermission,
-              approval:   'auto'         as AiApproval,
-              label: 'Auto Pilot',
-              desc:  'ARIA executes commands automatically without stopping. Fastest workflow — use only on non-production devices.',
-              icon:  <Zap className="w-4 h-4 text-red-400" />,
-              badge: 'Use with caution',
-              badgeCls: 'text-red-400 bg-red-500/10 border-red-500/20',
+              id: 'autopilot',
+              label: 'Autopilot',
+              desc:  'Lab and staging devices only: ARIA applies and confirms its own change plans, with the same safety nets. Production devices fall back to Change.',
+              icon:  <Zap className="w-4 h-4 text-red-500" />,
+              badge: 'Lab / staging',
+              badgeCls: 'text-red-500 bg-red-500/10 border-red-500/20',
             },
-          ].map((opt) => {
-            const isActive = aiPermission === opt.permission && aiApproval === opt.approval
+          ] as { id: AriaMode; label: string; desc: string; icon: JSX.Element; badge: string; badgeCls: string }[]).map((opt) => {
+            const isActive = aiMode === opt.id
             return (
               <button
-                key={opt.label}
-                onClick={() => { setAiPermission(opt.permission); setAiApproval(opt.approval) }}
+                key={opt.id}
+                onClick={() => setAiMode(opt.id)}
                 className={cn(
                   'w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-colors',
                   isActive
@@ -1825,13 +1822,15 @@ function AiSection(): JSX.Element {
         </div>
       </SettingsGroup>
 
+      <ChangePolicyGroup policy={aiChangePolicy} onChange={setAiChangePolicy} onOpenHistory={() => setChangeHistoryOpen(true)} />
+
       {/* Blocked command patterns */}
       <SettingsGroup label="Blocked Command Patterns">
         <div className="flex items-start justify-between mb-2 gap-2">
           <p className="text-xs text-muted-foreground leading-relaxed flex-1">
             Commands matching any pattern below are <strong className="text-foreground">always blocked</strong>, regardless of mode or approval setting.
             A locked core set (reload, write erase, rm -rf, …) is always enforced even if removed here.
-            High-risk config commands (configure, write memory, iptables, …) still pause for confirmation in Auto Pilot.
+            ARIA&apos;s own commands are read-only in every mode; this list also screens the lines of every change plan.
           </p>
           <button
             onClick={async () => {
@@ -1866,6 +1865,103 @@ function AiSection(): JSX.Element {
         </button>
       </div>
     </div>
+  )
+}
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+function ChangePolicyGroup({ policy, onChange, onOpenHistory }: {
+  policy:        ChangePolicy
+  onChange:      (p: ChangePolicy) => void
+  onOpenHistory: () => void
+}): JSX.Element {
+  const w = policy.maintenanceWindow
+  const setWindow = (patch: Partial<ChangePolicy['maintenanceWindow']>) =>
+    onChange({ ...policy, maintenanceWindow: { ...w, ...patch } })
+
+  return (
+    <SettingsGroup label="Change Policy">
+      <div className="space-y-4">
+        <div>
+          <p className="text-sm text-foreground">On production devices, ARIA may</p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {([
+              ['change',      'Propose changes', 'You approve every change'],
+              ['investigate', 'Only investigate', 'Production stays read-only'],
+            ] as const).map(([id, label, hint]) => (
+              <button
+                key={id}
+                onClick={() => onChange({ ...policy, productionMaxMode: id })}
+                className={cn(
+                  'p-2.5 rounded-lg border text-left transition-colors',
+                  policy.productionMaxMode === id ? 'border-primary/50 bg-primary/10' : 'border-border hover:bg-accent/50',
+                )}
+              >
+                <p className="text-sm font-medium text-foreground">{label}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+            Every device is production unless you mark it as staging or lab in its connection settings. Autopilot never runs on production.
+          </p>
+        </div>
+
+        <div className="space-y-2.5">
+          <Toggle
+            label="Maintenance window"
+            description="Production changes outside the window need a written reason when you approve them."
+            value={w.enabled}
+            onChange={(enabled) => setWindow({ enabled })}
+          />
+          {w.enabled && (
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex gap-1">
+                {WEEKDAYS.map((d, i) => {
+                  const on = w.days.includes(i)
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => setWindow({ days: on ? w.days.filter((x) => x !== i) : [...w.days, i].sort() })}
+                      className={cn(
+                        'w-9 h-7 rounded-md border text-xs font-medium transition-colors',
+                        on ? 'border-primary/50 bg-primary/15 text-primary' : 'border-border text-muted-foreground hover:bg-accent/50',
+                      )}
+                    >
+                      {d}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <input
+                  type="time"
+                  value={w.start}
+                  onChange={(e) => e.target.value && setWindow({ start: e.target.value })}
+                  className="h-7 px-2 rounded-md bg-background border border-border text-foreground text-xs"
+                />
+                to
+                <input
+                  type="time"
+                  value={w.end}
+                  onChange={(e) => e.target.value && setWindow({ end: e.target.value })}
+                  className="h-7 px-2 rounded-md bg-background border border-border text-foreground text-xs"
+                />
+                <span className="text-muted-foreground/70">local time</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={onOpenHistory}
+          className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+        >
+          <GitCompareArrows className="w-3.5 h-3.5" />
+          View change history
+        </button>
+      </div>
+    </SettingsGroup>
   )
 }
 

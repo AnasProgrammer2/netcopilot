@@ -1,4 +1,5 @@
 import { Connection, ConnectionGroup, SSHKey, SftpFileEntry, Snippet, SnippetFolder } from '.'
+import type { ChangeRecord, ExecutionPlan, PromptReply, StepPhase } from '../../../shared/changeControl'
 
 interface JumpHostPayload {
   host: string
@@ -90,6 +91,30 @@ interface SerialConnectPayload {
 }
 
 declare global {
+  interface ChangeStatusEvent {
+    chatSessionId:   string
+    targetSessionId: string
+    record:          ChangeRecord
+    execution:       ExecutionPlan
+  }
+
+  interface ChangeStepRequest {
+    stepId:    string
+    changeId:  string
+    sessionId: string
+    phase:     StepPhase
+    command:   string
+    raw:       boolean
+    replies:   PromptReply[]
+    timeoutMs: number
+  }
+
+  interface ChangeDecision {
+    action:          'approve' | 'reject' | 'confirm' | 'rollback'
+    overrideReason?: string
+    note?:           string
+  }
+
   type AiProviderId = 'anthropic' | 'openai' | 'xai' | 'custom'
 
   interface AiConfigView {
@@ -250,6 +275,15 @@ declare global {
       onToolCall(cb: (call: { sessionId: string; id: string; command: string; reason: string; targetSession?: string; policyBlock?: string; requiresConfirmation?: boolean; autoApprove?: boolean }) => void): () => void
       onError(cb: (evt: { sessionId: string; message: string }) => void): () => void
       onPlan(cb: (plan: { sessionId: string; objective: string; steps: string[] }) => void): () => void
+    }
+    changes: {
+      decide(changeId: string, decision: ChangeDecision): Promise<{ success: boolean; error?: string }>
+      stepResult(stepId: string, output: string): Promise<boolean>
+      list(limit?: number): Promise<ChangeRecord[]>
+      getSnapshot(id: string): Promise<string | null>
+      export(id: string, what?: 'record' | 'snapshot'): Promise<{ success: boolean; filePath?: string }>
+      onStatus(cb: (evt: ChangeStatusEvent) => void): () => void
+      onStep(cb: (req: ChangeStepRequest) => void): () => void
     }
     window: {
       minimize(): Promise<void>

@@ -118,18 +118,33 @@ ARIA carries deep, vendor-specific knowledge for every supported platform — no
 | **Multi-Session Intelligence** | Aware of all open sessions; routes commands to correct device |
 | **Session Summary** | Delivers a recap of all commands when closing a tab |
 
-### Permission & Safety
+### Modes & Change Control
 
-| Mode | Description |
+ARIA never types configuration into your devices by itself. Its own commands are **read-only in every mode**; any change goes through a **change plan** that NetCopilot applies with the platform's own safety net.
+
+| Mode | What ARIA can do |
 |:---|:---|
-| **Troubleshoot** | Read-only diagnostics (`show`, `display`, `ping`, `traceroute`) — no config changes |
-| **Full Access** | Any command including configuration — ARIA warns before destructive operations |
+| **Investigate** | Read-only diagnosis — `show`, `display`, `ping`, `traceroute`… run without clicks; heavy commands (`show tech`, captures) ask first |
+| **Change** | Proposes change plans. Nothing touches the device until you click **Approve** |
+| **Autopilot** | Lab and staging devices only — ARIA approves and confirms its own plans, with the same safety nets |
+
+Every connection is **Production**, **Staging** or **Lab** (set in the connection dialog). Production devices never run Autopilot, and the **Change Policy** in Settings → ARIA can keep production read-only or require a written reason for changes outside a maintenance window.
+
+**What happens when you approve a change plan**
+
+1. **Snapshot** — the running configuration is saved (encrypted, inside NetCopilot)
+2. **Pre-checks** — ARIA's read-only baseline commands
+3. **Safety net** — Junos `commit confirmed`, Arista EOS config session with `commit timer`, Cisco IOS `reload in` when the management path is touched, NX-OS checkpoint, RouterOS Safe Mode
+4. **Apply** — if the device rejects a line, NetCopilot backs the change out automatically
+5. **Verify** — the same checks again; ARIA compares before and after
+6. **Keep or roll back** — your click. On timer-based platforms the device reverts by itself if the session is lost
+
+Every plan — approved, rejected, rolled back or failed — is kept in **Change History** with the device diff and full execution log, exportable as Markdown for change tickets.
 
 | Control | Behavior |
 |:---|:---|
-| **Ask** | Shows every command and waits for approval |
-| **Auto** | Executes all commands immediately |
-| **Blocked Patterns** | `reload`, `rm -rf`, `write erase`, etc. — always enforced regardless of mode |
+| **Blocked Patterns** | `reload`, `rm -rf`, `write erase`, etc. — never run, and screened in every change plan |
+| **Untrusted output** | Device output reaches the model marked as data, so text on a device (banners, logs, descriptions) can't instruct ARIA |
 
 ### Auto Watch & Error Alert Badge
 

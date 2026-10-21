@@ -67,6 +67,7 @@ function emptyForm(cs: ConnectionSettings): Partial<Connection> {
     tags: [],
     notes: '',
     deviceType: 'auto',
+    environment: 'production',
     color: COLORS[0],
     autoReconnect: cs.autoReconnect,
     reconnectDelay: cs.reconnectDelay
@@ -145,7 +146,8 @@ export function ConnectionDialog(): JSX.Element {
         zmodemEnabled: form.zmodemEnabled,
         // Terminal display
         trueColorEnabled: form.trueColorEnabled,
-        sixelEnabled: form.sixelEnabled
+        sixelEnabled: form.sixelEnabled,
+        environment: form.environment ?? 'production',
       } as Omit<Connection, 'id' | 'createdAt' | 'updatedAt'> & { id?: string })
 
       if (password && (form.authType === 'password' || form.authType === 'key+password')) {
@@ -266,6 +268,32 @@ export function ConnectionDialog(): JSX.Element {
                   </select>
                 </Field>
               </div>
+
+              <Field label="Environment">
+                <div className="grid grid-cols-3 gap-1.5">
+                  {([
+                    ['production', 'Production', 'Changes need your approval'],
+                    ['staging',    'Staging',    'Autopilot allowed'],
+                    ['lab',        'Lab',        'Autopilot allowed'],
+                  ] as const).map(([id, label, hint]) => {
+                    const active = (form.environment ?? 'production') === id
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => update('environment', id)}
+                        className={cn(
+                          'px-2.5 py-1.5 rounded-md border text-left transition-colors',
+                          active ? 'border-primary/50 bg-primary/10' : 'border-border hover:bg-accent/50',
+                        )}
+                      >
+                        <span className="block text-xs font-medium text-foreground">{label}</span>
+                        <span className="block text-[10.5px] text-muted-foreground">{hint}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </Field>
 
               {!isSerial && (
                 <div className="grid grid-cols-3 gap-3">
