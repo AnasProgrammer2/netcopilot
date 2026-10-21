@@ -1,7 +1,7 @@
 <h1 align="center">NetCopilot</h1>
 
 <p align="center">
-  <strong>The first AI agent built for network engineers.</strong>
+  <strong>The SSH client for network engineers — with an AI copilot that asks first.</strong>
 </p>
 
 <!-- Status -->
@@ -33,14 +33,14 @@
 </p>
 
 <p align="center">
-  <a href="#download">Download</a> · <a href="#aria--the-ai-agent">ARIA Agent</a> · <a href="#features">Features</a> · <a href="#security">Security</a> · <a href="#getting-started">Dev Setup</a>
+  <a href="#download">Download</a> · <a href="#aria--the-ai-copilot">ARIA Copilot</a> · <a href="#features">Features</a> · <a href="#security">Security</a> · <a href="#getting-started">Dev Setup</a>
 </p>
 
 ---
 
-NetCopilot is not just a terminal — it is an **AI agent** that connects to your network devices, understands your infrastructure, and acts autonomously to diagnose, troubleshoot, and fix problems.
+NetCopilot is a full SSH, Telnet and Serial client with an **AI copilot** built in. It reads your sessions, checks your devices with read-only commands and explains what is wrong — and nothing changes on a device until you approve it.
 
-At its core is **ARIA** (Autonomous Real-time Infrastructure Agent): a real agentic system that plans investigations, executes commands, reads output, and delivers structured recommendations — all without leaving your terminal. You describe the problem; ARIA handles the rest.
+The copilot is **ARIA**. It plans an investigation, runs read-only checks you can see in the chat, reads the output and gives you a structured diagnosis — all without leaving your terminal. You describe the problem; ARIA does the legwork and you make the call. The AI is optional: the client works fully without it.
 
 ### See It in Action
 
@@ -68,13 +68,13 @@ Pre-built binaries for all platforms — no build step required.
 
 ---
 
-## ARIA — The AI Agent
+## ARIA — The AI Copilot
 
-ARIA is the core of NetCopilot. It is not a chatbot — it is a **real agentic system** built specifically for network and infrastructure engineers.
+ARIA is not a chatbot bolted onto a terminal. It works inside your sessions, checks devices with read-only commands and explains what it finds — built specifically for network and infrastructure engineers.
 
 ### How It Works
 
-When you describe a problem, ARIA doesn't just answer — it **acts**:
+When you describe a problem, ARIA **investigates before it answers**:
 
 ```
 You: "There's a BGP flapping issue on this router"
@@ -91,7 +91,7 @@ ARIA:
 ```
 
 1. **Plans** — generates a structured investigation plan before touching anything
-2. **Executes** — runs commands automatically, one after another
+2. **Checks** — runs read-only commands one after another, each one visible in the chat
 3. **Analyzes** — reads all output collectively, not per-command
 4. **Delivers** — complete, structured diagnosis with actionable recommendations
 
@@ -115,7 +115,7 @@ ARIA carries deep, vendor-specific knowledge for every supported platform — no
 | **Smart Retry** | Auto-retries with vendor-appropriate syntax when output is empty |
 | **Conversation Compression** | Summarizes older messages intelligently while preserving intent |
 | **L4 Planning Mode** | Visual investigation plan card with live step-by-step progress |
-| **Multi-Session Intelligence** | Aware of all open sessions; routes commands to correct device |
+| **Multi-Session Intelligence** | Aware of all open sessions; a command for another device waits for your Run |
 | **Session Summary** | Delivers a recap of all commands when closing a tab |
 
 ### Modes & Change Control
@@ -148,7 +148,7 @@ Every plan — approved, rejected, rolled back or failed — is kept in **Change
 
 ### Auto Watch & Error Alert Badge
 
-When enabled, ARIA silently monitors your terminal output in real time. If it detects errors, misconfigurations, or anomalies — it alerts you immediately without interrupting your work.
+When enabled, ARIA reads your terminal output when a command finishes. If it spots errors, misconfigurations or anomalies, it tells you in the side panel without interrupting your work — and any command it suggests waits for your click.
 
 Even when the AI panel is **closed**, a pulsing red badge appears on the ARIA button the moment an error pattern is detected (`%Error`, `command not found`, `connection refused`, etc.). Click it to open ARIA and analyze the issue instantly.
 
