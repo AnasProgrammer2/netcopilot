@@ -9,6 +9,7 @@ import {
 import { useAppStore, AriaMode, ChangePolicy, AiSource, AiProvider, AI_PROVIDER_LABELS } from '../../store'
 import { cn } from '../../lib/utils'
 import { useUpdater } from '../../lib/updater'
+import { showNotesFor, RELEASE_NOTES } from '../../lib/whatsNew'
 import { TERMINAL_THEMES, getTerminalTheme } from '../../lib/terminalThemes'
 
 // ─── Settings data model ────────────────────────────────────────────────────
@@ -1145,6 +1146,15 @@ function AboutSection() {
           />
         )}
       </div>
+
+      {RELEASE_NOTES.some((n) => n.version === appVersion) && (
+        <button
+          onClick={() => showNotesFor(appVersion)}
+          className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 cursor-pointer"
+        >
+          What&apos;s new in v{appVersion}
+        </button>
+      )}
 
       <a
         href="https://netcopilot.app/"

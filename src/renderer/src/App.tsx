@@ -18,6 +18,8 @@ import { TitleBar } from './components/TitleBar'
 import { MasterPasswordLock } from './components/MasterPasswordLock'
 import { useUpdaterEvents } from './lib/updater'
 import { UpdateBanner } from './components/UpdateBanner'
+import { WhatsNewDialog } from './components/dialogs/WhatsNewDialog'
+import { useWhatsNewOnUpdate, showNotesFor } from './lib/whatsNew'
 
 export default function App(): JSX.Element {
   const {
@@ -71,6 +73,7 @@ export default function App(): JSX.Element {
   }, [masterLocked])
 
   useUpdaterEvents()
+  useWhatsNewOnUpdate(masterLocked === false)
 
   // Auto-lock idle timer
   useEffect(() => {
@@ -229,6 +232,11 @@ export default function App(): JSX.Element {
         break
       case 'getting-started': setHelpTab('start');     setHelpOpen(true); break
       case 'shortcuts':       setHelpTab('shortcuts'); setHelpOpen(true); break
+      case 'whats-new':
+        window.api.appInfo.getVersion().then((v) => {
+          if (!showNotesFor(v)) toast.info(`No release notes bundled for ${v}`)
+        }).catch(() => {})
+        break
     }
   }), [])
 
@@ -309,6 +317,7 @@ export default function App(): JSX.Element {
       />
 
       <UpdateBanner />
+      <WhatsNewDialog />
 
       {locked && hasMasterPassword && (
         <MasterPasswordLock variant="idle" onUnlocked={unlock} />

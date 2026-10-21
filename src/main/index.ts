@@ -300,6 +300,7 @@ function buildAppMenu(): void {
       submenu: [
         { label: 'Getting Started', ...action('getting-started') },
         { label: 'Keyboard Shortcuts', ...action('shortcuts') },
+        { label: "What's New", ...action('whats-new') },
         { type: 'separator' },
         { label: 'NetCopilot Website', click: () => openExternalUrl('https://netcopilot.app') },
         { label: 'Report an Issue', click: () => openExternalUrl('https://github.com/AnasProgrammer2/netcopilot/issues') },
