@@ -1,0 +1,337 @@
+import { useEffect, useState } from 'react'
+import {
+  AlertTriangle, CheckCircle2, ChevronRight, Clock, Download, GitCompareArrows, Loader2,
+  RotateCcw, ShieldCheck, Sparkles, XCircle,
+} from 'lucide-react'
+import { useAppStore } from '../../store'
+import { cn } from '../../lib/utils'
+import type { ChangeRecord, ChangeStatus, Environment } from '../../../../shared/changeControl'
+
+export const CHANGE_STATUS: Record<ChangeStatus, { label: string; className: string }> = {
+  'proposed':              { label: 'Waiting for your approval',  className: 'text-amber-500 bg-amber-500/10 border-amber-500/25' },
+  'applying':              { label: 'Applying…',                  className: 'text-primary bg-primary/10 border-primary/25' },
+  'awaiting-confirmation': { label: 'Applied — keep or roll back', className: 'text-amber-500 bg-amber-500/10 border-amber-500/25' },
+  'confirmed':             { label: 'Confirmed',                  className: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/25' },
+  'rolled-back':           { label: 'Rolled back',                className: 'text-sky-500 bg-sky-500/10 border-sky-500/25' },
+  'reverted-by-device':    { label: 'Reverted by the device',     className: 'text-sky-500 bg-sky-500/10 border-sky-500/25' },
+  'failed':                { label: 'Failed',                     className: 'text-red-500 bg-red-500/10 border-red-500/25' },
+  'rejected':              { label: 'Rejected',                   className: 'text-muted-foreground bg-muted/60 border-border' },
+  'expired':               { label: 'Expired',                    className: 'text-muted-foreground bg-muted/60 border-border' },
+}
+
+export const ENV_BADGE: Record<Environment, { label: string; className: string }> = {
+  production: { label: 'PROD', className: 'text-red-500 bg-red-500/10 border-red-500/25' },
+  staging:    { label: 'STG',  className: 'text-amber-500 bg-amber-500/10 border-amber-500/25' },
+  lab:        { label: 'LAB',  className: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/25' },
+}
+
+const RISK_CLASS = {
+  low:    'text-emerald-500 bg-emerald-500/10 border-emerald-500/25',
+  medium: 'text-amber-500 bg-amber-500/10 border-amber-500/25',
+  high:   'text-red-500 bg-red-500/10 border-red-500/25',
+}
+
+const PHASE_LABEL: Record<string, string> = {
+  snapshot: 'Snapshot', precheck: 'Pre-check', arm: 'Safety net', apply: 'Apply',
+  verify: 'Verify', commit: 'Confirm', rollback: 'Roll back',
+}
+
+function Badge({ className, children }: { className: string; children: React.ReactNode }): JSX.Element {
+  return (
+    <span className={cn('inline-flex items-center shrink-0 whitespace-nowrap px-1.5 py-px rounded border text-[10px] font-semibold tracking-wide leading-4', className)}>
+      {children}
+    </span>
+  )
+}
+
+function useNow(active: boolean): number {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!active) return
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [active])
+  return now
+}
+
+function CommandList({ commands }: { commands: string[] }): JSX.Element {
+  return (
+    <pre className="font-mono text-[11px] leading-relaxed rounded-md bg-muted/70 border border-border/50 px-2.5 py-2 whitespace-pre-wrap break-all text-foreground/85 max-h-56 overflow-y-auto select-text">
+      {commands.length ? commands.join('\n') : '(none)'}
+    </pre>
+  )
+}
+
+function Section({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }): JSX.Element {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ChevronRight className={cn('w-3 h-3 transition-transform', open && 'rotate-90')} />
+        {title}
+      </button>
+      {open && <div className="mt-1.5">{children}</div>}
+    </div>
+  )
+}
+
+/** Read-only body of a change record — used by the live card and by Change History. */
+export function ChangeDetails({ record: r, compact }: { record: ChangeRecord; compact?: boolean }): JSX.Element {
+  return (
+    <div className="space-y-2.5">
+      {!compact && <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap select-text">{r.plan.rationale}</p>}
+
+      <div className="flex items-start gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-2">
+        <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+        <div className="text-[11px] leading-relaxed text-foreground/80 space-y-1">
+          <p>{r.safetyNet.description}</p>
+          {r.safetyNet.warning && (
+            <p className="flex items-start gap-1 text-amber-500">
+              <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
+              {r.safetyNet.warning}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-[11px] font-medium text-muted-foreground mb-1">Changes</p>
+        <CommandList commands={r.plan.changes} />
+      </div>
+
+      {!compact && (
+        <>
+          <Section title={`Pre-checks and verification (${r.plan.prechecks.length} / ${r.plan.verify.length})`}>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1">Before</p>
+            <CommandList commands={r.plan.prechecks} />
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mt-2 mb-1">After</p>
+            <CommandList commands={r.plan.verify} />
+          </Section>
+          <Section title="Rollback commands">
+            <CommandList commands={r.plan.rollback} />
+          </Section>
+          {r.diff && (
+            <Section title="Device diff" defaultOpen>
+              <CommandList commands={[r.diff.trim()]} />
+            </Section>
+          )}
+          {r.steps.length > 0 && (
+            <Section title={`Execution log (${r.steps.length} steps)`}>
+              <div className="space-y-1 max-h-72 overflow-y-auto">
+                {r.steps.map((s, i) => (
+                  <details key={i} className="rounded border border-border/50 bg-muted/30">
+                    <summary className="cursor-pointer px-2 py-1 text-[11px] flex items-center gap-1.5">
+                      <span className="text-muted-foreground w-16 shrink-0">{PHASE_LABEL[s.phase] ?? s.phase}</span>
+                      <code className="font-mono truncate text-foreground/85">{s.command === '\x18' ? '<Ctrl+X>' : s.command}</code>
+                    </summary>
+                    <pre className="px-2 py-1.5 border-t border-border/50 font-mono text-[10.5px] whitespace-pre-wrap break-all text-foreground/75 max-h-48 overflow-y-auto select-text">
+                      {s.output}
+                    </pre>
+                  </details>
+                ))}
+              </div>
+            </Section>
+          )}
+        </>
+      )}
+
+      {r.recommendation && (
+        <div className={cn(
+          'flex items-start gap-2 rounded-md border px-2.5 py-2 text-[11px] leading-relaxed',
+          r.recommendation.decision === 'confirm' ? 'border-emerald-500/25 bg-emerald-500/5' : 'border-red-500/25 bg-red-500/5',
+        )}>
+          <Sparkles className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+          <p>
+            <span className="font-semibold">ARIA recommends {r.recommendation.decision === 'confirm' ? 'keeping' : 'rolling back'} this change.</span>{' '}
+            <span className="text-foreground/75">{r.recommendation.note}</span>
+          </p>
+        </div>
+      )}
+
+      {r.outcomeNote && (
+        <p className={cn('text-[11px] leading-relaxed', r.status === 'failed' ? 'text-red-500' : 'text-muted-foreground')}>
+          {r.outcomeNote}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** Live change plan card: approve, watch it apply, then keep or roll back. */
+export function ChangeCard({ changeId, compact }: { changeId: string; compact?: boolean }): JSX.Element | null {
+  const evt = useAppStore((s) => s.aiChanges[changeId])
+  const [busy, setBusy]     = useState(false)
+  const [reason, setReason] = useState('')
+  const [error, setError]   = useState<string | null>(null)
+  const now = useNow(!!evt?.record.deadline)
+
+  // A new status means the last click has been handled.
+  const status = evt?.record.status
+  useEffect(() => { setBusy(false) }, [status])
+
+  if (!evt) return null
+  const r = evt.record
+  const statusMeta = CHANGE_STATUS[r.status]
+  const env = ENV_BADGE[r.environment]
+
+  const decide = async (decision: ChangeDecision): Promise<void> => {
+    setBusy(true)
+    setError(null)
+    const res = await window.api.changes.decide(r.id, decision)
+    if (!res.success) {
+      setBusy(false)
+      setError(res.error ?? 'Could not complete that action.')
+    }
+  }
+
+  const remaining = r.deadline ? Math.max(0, Math.round((r.deadline - now) / 1000)) : null
+  const mmss = remaining !== null ? `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}` : null
+  const lastStep = r.steps[r.steps.length - 1]
+
+  return (
+    <div dir="ltr" className="rounded-xl border border-border/70 bg-card/60 overflow-hidden text-xs">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-muted/30">
+        <GitCompareArrows className="w-3.5 h-3.5 text-primary shrink-0" />
+        <span className="text-[11px] font-semibold text-foreground/80 whitespace-nowrap">Change plan</span>
+        <span className="flex-1 min-w-0 text-[10px] font-mono text-muted-foreground/70 truncate" title={r.id}>{r.id}</span>
+        <Badge className={env.className}>{env.label}</Badge>
+        <Badge className={RISK_CLASS[r.plan.risk]}>{r.plan.risk.toUpperCase()}</Badge>
+      </div>
+
+      <div className="px-3 py-2.5 space-y-2.5">
+        <div>
+          <p className="text-[13px] font-semibold text-foreground leading-snug">{r.plan.title}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+            {r.deviceName} · {r.host} · {r.deviceType}
+            {r.plan.affectsManagementPath && <span className="text-amber-500"> · touches the management path</span>}
+          </p>
+        </div>
+
+        <ChangeDetails record={r} compact={compact} />
+
+        {/* Status line */}
+        <div className="flex items-center gap-2">
+          <Badge className={statusMeta.className}>{statusMeta.label}</Badge>
+          {r.status === 'applying' && lastStep && (
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground min-w-0">
+              <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+              <span className="truncate">{PHASE_LABEL[lastStep.phase]}: {lastStep.command === '\x18' ? '<Ctrl+X>' : lastStep.command}</span>
+            </span>
+          )}
+          {r.status === 'awaiting-confirmation' && mmss && (
+            <span className={cn('flex items-center gap-1 text-[11px] font-medium tabular-nums', remaining! < 60 ? 'text-red-500' : 'text-amber-500')}>
+              <Clock className="w-3 h-3" />
+              Device reverts in {mmss}
+            </span>
+          )}
+        </div>
+        {r.status === 'applying' && (
+          <p className="text-[11px] text-muted-foreground">NetCopilot is typing into the terminal — don&apos;t type in it until this finishes.</p>
+        )}
+
+        {/* Approval */}
+        {r.status === 'proposed' && (
+          <div className="space-y-2">
+            {r.needsOverride && (
+              <div className="space-y-1">
+                <p className="flex items-center gap-1 text-[11px] text-amber-500">
+                  <AlertTriangle className="w-3 h-3" />
+                  Outside the maintenance window — give a reason to approve.
+                </p>
+                <input
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="e.g. P1 outage, ticket INC-1234"
+                  className="w-full h-7 px-2 rounded-md bg-background border border-border text-xs outline-none focus:border-primary/60"
+                />
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                disabled={busy || (r.needsOverride && reason.trim().length < 5)}
+                onClick={() => decide({ action: 'approve', overrideReason: r.needsOverride ? reason.trim() : undefined })}
+                className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 disabled:opacity-40 transition-colors"
+              >
+                {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                Approve &amp; apply
+              </button>
+              <button
+                disabled={busy}
+                onClick={() => decide({ action: 'reject' })}
+                className="flex items-center justify-center gap-1.5 h-7 px-3 rounded-md bg-muted text-foreground/80 text-xs font-medium hover:bg-accent disabled:opacity-40 transition-colors"
+              >
+                <XCircle className="w-3 h-3" />
+                Reject
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Confirmation */}
+        {r.status === 'awaiting-confirmation' && (
+          <div className="flex gap-2">
+            <button
+              disabled={busy}
+              onClick={() => decide({ action: 'confirm' })}
+              className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-600/90 disabled:opacity-40 transition-colors"
+            >
+              {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+              Keep change
+            </button>
+            <button
+              disabled={busy}
+              onClick={() => decide({ action: 'rollback' })}
+              className="flex-1 flex items-center justify-center gap-1.5 h-7 rounded-md bg-red-500/15 text-red-500 text-xs font-medium hover:bg-red-500/25 disabled:opacity-40 transition-colors"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Roll back
+            </button>
+          </div>
+        )}
+
+        {error && <p className="text-[11px] text-red-500">{error}</p>}
+
+        {!compact && ['confirmed', 'rolled-back', 'reverted-by-device', 'failed'].includes(r.status) && (
+          <button
+            onClick={() => window.api.changes.export(r.id)}
+            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Download className="w-3 h-3" />
+            Export change record
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Active changes that aren't visible in the ARIA chat right now (panel closed,
+ * another tab active, or the conversation was cleared) — so an approval or a
+ * running safety timer is never out of sight.
+ */
+export function ChangeDock(): JSX.Element | null {
+  const changes         = useAppStore((s) => s.aiChanges)
+  const aiPanelOpen     = useAppStore((s) => s.aiPanelOpen)
+  const activeSessionId = useAppStore((s) => s.activeSessionId)
+  const aiMessages      = useAppStore((s) => s.aiMessages)
+
+  const items = Object.values(changes).filter((e) =>
+    ['proposed', 'applying', 'awaiting-confirmation'].includes(e.record.status) &&
+    !(aiPanelOpen && e.chatSessionId === activeSessionId && aiMessages.some((m) => m.changeId === e.record.id)),
+  )
+  if (items.length === 0) return null
+  return (
+    <div className="fixed bottom-4 right-4 z-[45] w-[360px] max-h-[70vh] overflow-y-auto space-y-2">
+      {items.map((e) => (
+        <div key={e.record.id} className="rounded-xl shadow-2xl bg-popover">
+          <ChangeCard changeId={e.record.id} compact />
+        </div>
+      ))}
+    </div>
+  )
+}

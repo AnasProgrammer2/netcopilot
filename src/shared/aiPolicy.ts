@@ -287,12 +287,7 @@ export function isBlacklisted(command: string, patterns: string[]): boolean {
   return false
 }
 
-/**
- * Patterns that always require a human click in full-access — even Auto Pilot.
- * Kept in shared so main + renderer + tests share one definition.
- * (Mirrored from aiDefaults HIGH_RISK_CONFIRM_PATTERNS; duplicated lightly to
- * avoid pulling main-process defaults into the renderer bundle.)
- */
+/** Commands that change device state in ways worth a second look (full-access evaluation). */
 const DEFAULT_HIGH_RISK_CONFIRM: string[] = [
   'configure terminal', 'configure', 'conf t', 'config t',
   'write memory', 'write mem', 'wr mem', 'wr ',
@@ -402,9 +397,27 @@ export function withLockedBlacklist(userList: string[], locked: string[]): strin
   return mergeBlacklists(locked, userList)
 }
 
+// Read-only, but heavy on a busy control plane or long-running.
+const HEAVY_READ_ONLY = [
+  /^sh(o(w)?)?\s+tech/i,
+  /^tcpdump\b/i,
+  /^diagnose\s+sniffer\b/i,
+  /^(ping|traceroute)\b.*\b(repeat|count|-c)\s*(\d{3,})/i,
+  /^ping\b.*\s-f\b/i,
+]
+
+/** Read-only, but costly enough on a busy device to need a click. */
+export function isHeavyReadOnly(command: string): boolean {
+  const c = command.trim()
+  return HEAVY_READ_ONLY.some((re) => re.test(c))
+}
+
+/** A command ARIA may run by itself through run_command: one plain read-only line. */
+export function isInspectionCommand(command: string): boolean {
+  return !hasUnsafeCharacters(command) && !hasShellChaining(command) && isReadOnlyCommand(command)
+}
+
 export interface ToolCallContext {
-  permission:       AiPermission
-  approval:         AiApproval
   /** Turn started by Auto Watch from device output, not by the user. */
   isProactive:      boolean
   /** Session the chat belongs to. */
@@ -413,46 +426,54 @@ export interface ToolCallContext {
   targetSession?:   string
   /** Sessions the user has open and shared with ARIA. */
   knownSessionIds:  string[]
+  /** Whether propose_change is available (Change / Autopilot mode). */
+  changesAllowed:   boolean
 }
 
 export interface ToolCallVerdict {
   blockReason:          string | null
+  /** Read-only but heavy, proactive or on another session: the UI waits for a click. */
   requiresConfirmation: boolean
   /** Main's decision that the command may run without a click. */
   autoApprove:          boolean
 }
 
 /**
- * Final decision for one agent command. Main makes it — the renderer only
- * auto-runs when `autoApprove` is true. Device output can steer the model, so
- * nothing a proactive (Auto Watch) turn or a cross-session command asks for
- * runs unattended.
+ * Final decision for one run_command call. run_command only inspects: it runs
+ * read-only commands in every mode, and anything that changes the device has
+ * to go through a change plan (propose_change). Main decides — the renderer
+ * only auto-runs when `autoApprove` is true. Device output can steer the
+ * model, so nothing a proactive (Auto Watch) turn or a cross-session command
+ * asks for runs unattended.
  */
 export function decideToolCall(
   command:   string,
   ctx:       ToolCallContext,
   blacklist: string[],
-  highRiskPatterns: string[] = DEFAULT_HIGH_RISK_CONFIRM,
 ): ToolCallVerdict {
+  const block = (reason: string): ToolCallVerdict => ({ blockReason: reason, requiresConfirmation: false, autoApprove: false })
+
   const target = ctx.targetSession || ctx.sessionId
   if (target !== ctx.sessionId && !ctx.knownSessionIds.includes(target)) {
-    return {
-      blockReason: '(rejected: target_session is not one of the sessions open in this conversation)',
-      requiresConfirmation: false,
-      autoApprove: false,
-    }
+    return block('(rejected: target_session is not one of the sessions open in this conversation)')
+  }
+  if (!command || typeof command !== 'string' || !command.trim()) {
+    return block('(rejected by safety policy: empty or non-string command)')
+  }
+  if (hasUnsafeCharacters(command)) {
+    return block('(rejected by safety policy: command contains control or invisible characters — send one plain printable command)')
+  }
+  if (isBlacklisted(command, blacklist)) {
+    return block('(rejected by the blocked-commands list — refine the command or ask the engineer)')
+  }
+  if (!isInspectionCommand(command)) {
+    return block(ctx.changesAllowed
+      ? '(rejected: run_command only runs single read-only commands. To change the device, call propose_change with a full change plan.)'
+      : '(rejected: Investigate mode is read-only. Describe the fix and ask the engineer to switch ARIA to Change mode.)')
   }
 
-  const decision = evaluatePolicy(command, ctx.permission, blacklist, highRiskPatterns)
-  if (decision.blockReason) return { ...decision, autoApprove: false }
-
+  const heavy        = isHeavyReadOnly(command)
   const crossSession = target !== ctx.sessionId
-  const autoApprove =
-    ctx.approval === 'auto' &&
-    ctx.permission === 'full-access' &&
-    !decision.requiresConfirmation &&
-    !ctx.isProactive &&
-    !crossSession
-
-  return { ...decision, autoApprove }
+  const needsClick   = heavy || ctx.isProactive || crossSession
+  return { blockReason: null, requiresConfirmation: needsClick, autoApprove: !needsClick }
 }

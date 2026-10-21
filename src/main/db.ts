@@ -3,6 +3,7 @@ import { app, safeStorage } from 'electron'
 import path from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { Connection, ConnectionGroup, SSHKey, Snippet, SnippetFolder } from '../types/shared'
+import { normalizeEnvironment } from '../shared/changeControl'
 import { randomBytes } from 'crypto'
 import {
   getDbKey, needsKeyUpgrade, stagePendingKey, promotePendingKey, discardPendingKey,
@@ -171,6 +172,7 @@ function initSchema(db: Database.Database): void {
       zmodem_enabled  INTEGER DEFAULT 0,
       true_color_enabled INTEGER DEFAULT 0,
       sixel_enabled   INTEGER DEFAULT 0,
+      environment     TEXT    NOT NULL DEFAULT 'production',
       created_at      INTEGER NOT NULL,
       updated_at      INTEGER NOT NULL,
       last_connected_at INTEGER
@@ -226,6 +228,21 @@ function initSchema(db: Database.Database): void {
       added_at    INTEGER NOT NULL,
       PRIMARY KEY (host, port, key_type)
     );
+
+    CREATE TABLE IF NOT EXISTS change_records (
+      id            TEXT    PRIMARY KEY,
+      connection_id TEXT,
+      device_name   TEXT    NOT NULL,
+      host          TEXT    NOT NULL,
+      environment   TEXT    NOT NULL,
+      status        TEXT    NOT NULL,
+      title         TEXT    NOT NULL,
+      data          TEXT    NOT NULL,
+      snapshot      TEXT,
+      created_at    INTEGER NOT NULL,
+      updated_at    INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS change_records_created ON change_records (created_at DESC);
   `)
 
   // ── Schema migrations (add columns if missing) ──
@@ -248,6 +265,7 @@ function initSchema(db: Database.Database): void {
     { name: 'zmodem_enabled', type: 'INTEGER DEFAULT 0' },
     { name: 'true_color_enabled', type: 'INTEGER DEFAULT 0' },
     { name: 'sixel_enabled', type: 'INTEGER DEFAULT 0' },
+    { name: 'environment', type: "TEXT NOT NULL DEFAULT 'production'" },
   ]
 
   for (const col of newColumns) {
@@ -428,6 +446,7 @@ export function rowToConnection(row: Row): Connection {
     // Terminal display
     trueColorEnabled: Boolean(row.true_color_enabled),
     sixelEnabled:     Boolean(row.sixel_enabled),
+    environment:      normalizeEnvironment(row.environment),
     createdAt:        row.created_at as number,
     updatedAt:        row.updated_at as number,
     lastConnectedAt:  (row.last_connected_at as number) || undefined,
@@ -471,6 +490,7 @@ export function connToRow(c: Connection): Row {
     // Terminal display
     true_color_enabled:  c.trueColorEnabled ? 1 : 0,
     sixel_enabled:       c.sixelEnabled ? 1 : 0,
+    environment:         normalizeEnvironment(c.environment),
     created_at:       c.createdAt,
     updated_at:       c.updatedAt,
     last_connected_at: c.lastConnectedAt ?? null,

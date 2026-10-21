@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { ChangeRecord, ExecutionPlan, PromptReply, StepPhase } from '../shared/changeControl'
 
 // ── Single-listener fanout ────────────────────────────────────────────────────
 // Instead of registering one ipcRenderer listener per session (causing
@@ -25,11 +26,20 @@ const onSerialClosed = makeFanout<[string]>('serial:closed')
 const onSerialError  = makeFanout<[string, string]>('serial:error')
 const onSftpProgress = makeFanout<[string, string, number, number]>('sftp:progress')
 const onSftpClosed   = makeFanout<[string]>('sftp:closed')
+type ChangeStatusEvent = { chatSessionId: string; targetSessionId: string; record: ChangeRecord; execution: ExecutionPlan }
+type ChangeStepRequest = {
+  stepId: string; changeId: string; sessionId: string; phase: StepPhase
+  command: string; raw: boolean; replies: PromptReply[]; timeoutMs: number
+}
+type ChangeDecision = { action: 'approve' | 'reject' | 'confirm' | 'rollback'; overrideReason?: string; note?: string }
+
 const onAiChunk     = makeFanout<[{ sessionId: string; text: string }]>('ai:chunk')
 const onAiDone      = makeFanout<[{ sessionId: string; inputTokens?: number; outputTokens?: number }]>('ai:done')
-const onAiToolCall  = makeFanout<[{ sessionId: string; id: string; command: string; reason: string; targetSession?: string; policyBlock?: string; requiresConfirmation?: boolean }]>('ai:tool-call')
+const onAiToolCall  = makeFanout<[{ sessionId: string; id: string; command: string; reason: string; targetSession?: string; policyBlock?: string; requiresConfirmation?: boolean; autoApprove?: boolean }]>('ai:tool-call')
 const onAiError     = makeFanout<[{ sessionId: string; message: string }]>('ai:error')
 const onAiPlan      = makeFanout<[{ sessionId: string; objective: string; steps: string[] }]>('ai:plan')
+const onChangeStatus = makeFanout<[ChangeStatusEvent]>('ai:change-status')
+const onChangeStep   = makeFanout<[ChangeStepRequest]>('ai:change-step')
 const onWindowMaximized  = makeFanout<[boolean]>('window:maximized-change')
 const onUpdaterAvailable = makeFanout<[{ version: string; releaseDate: string; releaseNotes: string | null }]>('updater:update-available')
 const onUpdaterError     = makeFanout<[string]>('updater:error')
@@ -251,6 +261,17 @@ const api = {
     onToolCall: onAiToolCall,
     onError:    onAiError,
     onPlan:     onAiPlan,
+  },
+
+  // ARIA change plans: approval, live status and the executor's terminal steps
+  changes: {
+    decide:      (changeId: string, decision: ChangeDecision) => ipcRenderer.invoke('ai:change-decision', changeId, decision),
+    stepResult:  (stepId: string, output: string) => ipcRenderer.invoke('ai:change-step-result', stepId, output),
+    list:        (limit?: number) => ipcRenderer.invoke('changes:list', limit),
+    getSnapshot: (id: string) => ipcRenderer.invoke('changes:get-snapshot', id),
+    export:      (id: string, what?: 'record' | 'snapshot') => ipcRenderer.invoke('changes:export', id, what),
+    onStatus:    onChangeStatus,
+    onStep:      onChangeStep,
   },
 
   connection: {

@@ -11,6 +11,9 @@ import { QuickConnect } from './components/dialogs/QuickConnect'
 import { SettingsDialog } from './components/dialogs/SettingsDialog'
 import { HelpDialog } from './components/dialogs/HelpDialog'
 import { HostKeyDialog } from './components/dialogs/HostKeyDialog'
+import { ChangeHistoryDialog } from './components/dialogs/ChangeHistoryDialog'
+import { ChangeDock } from './components/ai/ChangeCard'
+import { useChangeEvents } from './lib/changeRunner'
 import { TitleBar } from './components/TitleBar'
 import { MasterPasswordLock } from './components/MasterPasswordLock'
 import { cn, getInstallerUrl } from './lib/utils'
@@ -26,6 +29,7 @@ export default function App(): JSX.Element {
     selectedConnectionIds, clearSelection,
     keybindingSettings,
   } = useAppStore()
+  useChangeEvents()
   const aiReady = isAiReady({ aiSource, aiConfigured, licenseValid })
   const [masterLocked, setMasterLocked] = useState<boolean | null>(null)
   const [hasMasterPassword, setHasMasterPassword] = useState(false)
@@ -304,6 +308,8 @@ export default function App(): JSX.Element {
       <QuickConnect />
       <SettingsDialog />
       <HostKeyDialog />
+      <ChangeHistoryDialog />
+      <ChangeDock />
       <HelpDialog
         open={helpOpen}
         initialTab={helpTab}

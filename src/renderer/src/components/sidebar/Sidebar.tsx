@@ -8,6 +8,7 @@ import { SSHKeyDialog } from '../dialogs/SSHKeyDialog'
 import { ExportImportDialog } from '../dialogs/ExportImportDialog'
 import { SshConfigImportDialog } from '../dialogs/SshConfigImportDialog'
 import { CsvImportDialog } from '../dialogs/CsvImportDialog'
+import { EnvTag } from '../EnvTag'
 import { cn, timeAgo } from '../../lib/utils'
 
 const GROUP_COLORS = [
@@ -784,6 +785,9 @@ function ConnectionItem({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 min-w-0">
             <p className="text-[13px] font-medium truncate leading-tight text-sidebar-foreground">{connection.name}</p>
+            {connection.environment && connection.environment !== 'production' && (
+              <EnvTag environment={connection.environment} />
+            )}
           </div>
           <div className="flex items-center gap-1 mt-0.5 min-w-0">
             <p className="text-[11px] text-sidebar-foreground/50 truncate">

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { nanoid } from 'nanoid'
-import { X, Send, Sparkles, Trash2, Square, ShieldCheck, Wrench, AlertCircle, ChevronDown, Check, Eye, EyeOff, ShieldAlert, RotateCcw, Download, Zap } from 'lucide-react'
-import { useAppStore, AiMessage as AiMessageType, AiPermission, AiApproval, isAiReady, aiDestinationLabel, AI_PROVIDER_LABELS } from '../../store'
+import { X, Send, Sparkles, Trash2, Square, Search, Wrench, AlertCircle, ChevronDown, Check, Eye, EyeOff, ShieldAlert, RotateCcw, Download, Zap, History } from 'lucide-react'
+import { useAppStore, AiMessage as AiMessageType, AriaMode, ChangePolicy, isAiReady, aiDestinationLabel, AI_PROVIDER_LABELS } from '../../store'
+import { ChangeCard, ENV_BADGE } from './ChangeCard'
+import { normalizeEnvironment, resolveMode, type Environment } from '../../../../shared/changeControl'
 import { cn, stripAnsi, isCommandBlacklisted, hasUnsafeCharacters } from '../../lib/utils'
 import { AiMessage } from './AiMessage'
 import { Session } from '../../types'
@@ -48,34 +50,19 @@ function formatTokens(n: number): string {
   return String(n)
 }
 
-// ── Unified agent mode (combines permission + approval) ────────────────────────
-type AiMode = 'read-only' | 'fix' | 'auto-pilot'
-
-function modeToPermission(m: AiMode): AiPermission {
-  return m === 'read-only' ? 'troubleshoot' : 'full-access'
-}
-function modeToApproval(m: AiMode): AiApproval {
-  return m === 'auto-pilot' ? 'auto' : 'ask'
-}
-function permApprovalToMode(p: AiPermission, a: AiApproval): AiMode {
-  if (p === 'troubleshoot') return 'read-only'
-  if (a === 'auto') return 'auto-pilot'
-  return 'fix'
-}
-
 export function AiPanel({ activeSession, splitSession, allSessions, getTerminalContext, sendToTerminal, sendToSession }: Props): JSX.Element {
   const {
-    aiMessages, aiStreaming, aiAgentActive, aiPermission, aiApproval, aiBlacklist, aiAutoWatch, aiTokens,
+    aiMessages, aiStreaming, aiAgentActive, aiMode, aiChangePolicy, aiBlacklist, aiAutoWatch, aiTokens,
     licenseValid, licensePlan, aiSource, aiProvider, aiConfigured, aiBaseUrl, aiModel,
     addAiMessage, appendAiChunk, finalizeAiStream, updateAiToolCall, clearAiMessages,
     truncateAiMessagesAfter,
-    setAiStreaming, setAiAgentActive, setAiPanelOpen, setAiAutoWatch, setSettingsOpen,
+    setAiStreaming, setAiAgentActive, setAiPanelOpen, setAiAutoWatch, setSettingsOpen, setChangeHistoryOpen,
   } = useAppStore()
   const aiReady = isAiReady({ aiSource, aiConfigured, licenseValid })
 
   // Per-session overrides — start from global settings, can be changed mid-chat
   // Reset to global defaults when conversation is cleared
-  const [sessionMode,      setSessionMode]      = useState<AiMode>(() => permApprovalToMode(aiPermission, aiApproval))
+  const [sessionMode,      setSessionMode]      = useState<AriaMode>(aiMode)
   const [sessionBlacklist, setSessionBlacklist] = useState<string[]>(aiBlacklist)
   const autoWatch = aiAutoWatch
   const setAutoWatch = setAiAutoWatch
@@ -84,9 +71,10 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
     localStorage.getItem('aria-privacy-notice-accepted') === '1'
   )
 
-  // Derived — keeps the rest of the component working without changes
-  const sessionPermission = modeToPermission(sessionMode)
-  const sessionApproval   = modeToApproval(sessionMode)
+  // The device's environment and the change policy can lower the picked mode
+  // (main applies the same rule; this keeps the selector honest).
+  const activeEnv: Environment = normalizeEnvironment(activeSession?.connection.environment)
+  const modeResolution = resolveMode(sessionMode, activeEnv, aiChangePolicy)
   const prevMessageCount = useRef(0)
 
   // Sequential command queue — prevents race condition when auto-executing multiple commands
@@ -95,23 +83,21 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
   // Refs mirror per-session state so the long-lived IPC `onToolCall` closure
   // (registered once on mount) always sees the latest values without needing
   // to re-subscribe every time the user changes a toggle.
-  const sessionApprovalRef  = useRef<AiApproval>(sessionApproval)
   const sessionBlacklistRef = useRef<string[]>(sessionBlacklist)
   const autoWatchRef        = useRef<boolean>(autoWatch)
   const activeSessionIdRef  = useRef<string | null>(activeSession?.id ?? null)
 
-  useEffect(() => { sessionApprovalRef.current  = sessionApproval  }, [sessionApproval])
   useEffect(() => { sessionBlacklistRef.current = sessionBlacklist }, [sessionBlacklist])
   useEffect(() => { autoWatchRef.current        = autoWatch        }, [autoWatch])
   useEffect(() => { activeSessionIdRef.current  = activeSession?.id ?? null }, [activeSession?.id])
 
   useEffect(() => {
     if (aiMessages.length === 0 && prevMessageCount.current > 0) {
-      setSessionMode(permApprovalToMode(aiPermission, aiApproval))
+      setSessionMode(aiMode)
       setSessionBlacklist(aiBlacklist)
     }
     prevMessageCount.current = aiMessages.length
-  }, [aiMessages.length, aiPermission, aiApproval, aiBlacklist])
+  }, [aiMessages.length, aiMode, aiBlacklist])
 
   // Load Smart History for the active session's device type
   useEffect(() => {
@@ -207,7 +193,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       if (!targetMsg) return
 
       const toolCall = {
-        id, command, reason, status: 'pending' as const, targetSession, policyBlock, requiresConfirmation,
+        id, command, reason, status: 'pending' as const, targetSession, policyBlock, requiresConfirmation, autoApprove,
       }
 
       // Attach the tool call to the assistant message
@@ -222,7 +208,6 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       }
 
       // Read latest per-session values from refs (avoids stale closure)
-      const currentApproval  = sessionApprovalRef.current
       const currentBlacklist = sessionBlacklistRef.current
 
       if (isCommandBlacklisted(command, currentBlacklist)) {
@@ -231,9 +216,9 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         return
       }
 
-      // Only run unattended when main approved it (Auto Pilot, not high-risk,
-      // not an Auto Watch turn, same session) AND the user is still in Auto Pilot.
-      if (autoApprove === true && currentApproval === 'auto' && !requiresConfirmation) {
+      // Main clears plain read-only inspection for unattended runs; heavy
+      // commands, Auto Watch turns and other devices wait for a click.
+      if (autoApprove === true && !requiresConfirmation) {
         // Chain to queue so multiple auto-commands execute sequentially, not in parallel
         const msgId = targetMsg.id
         commandQueueRef.current = commandQueueRef.current.then(async () => {
@@ -244,7 +229,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         return
       }
 
-      // approval === 'ask' OR high-risk → wait for user click (AiCommandBlock → onApprove)
+      // Otherwise wait for a click (AiCommandBlock → onApprove)
     })
 
     return () => {
@@ -424,8 +409,15 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 
   /** Always reads fresh store state to avoid stale-closure issues with async state updates */
   const buildMessages = () => {
-    return useAppStore.getState().aiMessages
-      .filter((m) => m.role !== 'auto' && m.role !== 'plan')  // plan cards are UI-only, never sent to Claude
+    const { aiMessages: msgs, aiChanges } = useAppStore.getState()
+    return msgs
+      .filter((m) => m.role !== 'auto' && m.role !== 'plan')  // plan cards are UI-only
+      .map((m) => {
+        if (m.role !== 'change') return m
+        // Keep change IDs in the history so ARIA can refer back to them later.
+        const r = m.changeId ? aiChanges[m.changeId]?.record : undefined
+        return { ...m, role: 'assistant' as const, content: r ? `[change ${r.id} on ${r.deviceName}: "${r.plan.title}" — ${r.status}]` : '' }
+      })
       .map((m) => ({
         role:    m.role === 'user' ? 'user' : 'assistant',
         content: m.content + (m.toolCalls?.length
@@ -472,7 +464,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
       const history = buildMessages()
 
       const messages = isProactive
-        ? history.concat([{ role: 'user', content: `[AUTO] Analyze this terminal output:\n${ctx}` }])
+        ? history.concat([{ role: 'user', content: '[AUTO] Analyze the latest terminal output.' }])
         : history
 
       if (messages.length === 0) {
@@ -485,25 +477,29 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
         messages,
         terminalContext: ctx,
         deviceType:      resolvedDeviceType,
+        deviceName:      conn?.name,
+        connectionId:    conn?.id,
         host:            conn?.host ?? 'unknown',
         protocol:        conn?.protocol ?? 'ssh',
-        permission:      sessionPermission,
-        approval:        sessionApproval,
+        environment:     normalizeEnvironment(conn?.environment),
+        mode:            sessionMode,
         sessionBlacklist,
         isProactive,
-        sessions: allSessions?.map(s => ({
-          sessionId:  s.id,
-          name:       s.connection.name,
-          host:       s.connection.host,
-          deviceType: s.connection.deviceType ?? 'generic',
-          protocol:   s.connection.protocol ?? 'ssh',
+        sessions: allSessions?.filter(s => s.type !== 'sftp').map(s => ({
+          sessionId:    s.id,
+          name:         s.connection.name,
+          host:         s.connection.host,
+          deviceType:   s.connection.deviceType ?? 'generic',
+          protocol:     s.connection.protocol ?? 'ssh',
+          environment:  normalizeEnvironment(s.connection.environment),
+          connectionId: s.connection.id,
         })),
       })
     } catch {
       setAiStreaming(false)
       setAiAgentActive(false)
     }
-  }, [addAiMessage, setAiStreaming, finalizeAiStream, getTerminalContext, activeSession, sessionPermission, aiReady, aiSource])
+  }, [addAiMessage, setAiStreaming, finalizeAiStream, getTerminalContext, activeSession, allSessions, sessionMode, sessionBlacklist, aiReady, aiSource])
 
   // Subscribe to proactive analysis triggers from TerminalTab (Auto Watch).
   // Bridge replaces the previous `window.__aiSendProactive` global.
@@ -574,6 +570,12 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
               <span className={cn('text-[11px] font-medium truncate', color)}>
                 {activeSession.connection.name}
               </span>
+              <span
+                title={`${activeEnv} device — ${activeEnv === 'production' ? 'every change needs your approval' : 'Autopilot allowed'}`}
+                className={cn('shrink-0 px-1 rounded border text-[9px] font-semibold tracking-wide leading-[14px]', ENV_BADGE[activeEnv].className)}
+              >
+                {ENV_BADGE[activeEnv].label}
+              </span>
             </div>
           )
         })()}
@@ -610,6 +612,13 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
             <Download className="w-3.5 h-3.5" />
           </button>
         )}
+        <button
+          onClick={() => setChangeHistoryOpen(true)}
+          title="Change history"
+          className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+        >
+          <History className="w-3.5 h-3.5" />
+        </button>
         <button
           onClick={() => { clearAiMessages(); commandQueueRef.current = Promise.resolve() }}
           title="Clear conversation"
@@ -694,11 +703,14 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
                 if (lastAsstIdx === -1 && aiMessages[i].role === 'assistant') lastAsstIdx = i
                 if (lastUserIdx !== -1 && lastAsstIdx !== -1) break
               }
-              return aiMessages.map((msg, i) => (
+              return aiMessages.map((msg, i) => msg.role === 'change' && msg.changeId ? (
+                <div key={msg.id} className="px-3 py-1.5">
+                  <ChangeCard changeId={msg.changeId} />
+                </div>
+              ) : (
                 <AiMessage
                   key={msg.id}
                   message={msg}
-                  approval={sessionApproval}
                   blacklist={sessionBlacklist}
                   isLastUser={i === lastUserIdx && !aiStreaming && !aiAgentActive}
                   isLastAssistant={i === lastAsstIdx && !aiStreaming && !aiAgentActive}
@@ -749,7 +761,6 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
           </div>
 
           <PendingCommandBar
-            show={sessionApproval === 'ask'}
             messages={aiMessages}
             onApprove={handleApproveCommand}
             onBlock={handleBlockCommand}
@@ -902,7 +913,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 
                 {/* Toolbar */}
                 <div className="flex items-center gap-0.5 px-2.5 pb-2.5 pt-1 whitespace-nowrap">
-                  <AgentModeSelector value={sessionMode} onChange={setSessionMode} />
+                  <AgentModeSelector value={modeResolution.mode} onChange={setSessionMode} environment={activeEnv} policy={aiChangePolicy} />
                   <BlacklistButton blacklist={sessionBlacklist} onChange={setSessionBlacklist} />
 
                   <button
@@ -966,7 +977,7 @@ export function AiPanel({ activeSession, splitSession, allSessions, getTerminalC
 function PillSelect<T extends string>({
   options, value, onChange, align = 'left',
 }: {
-  options: { id: T; label: string; short: string; icon?: JSX.Element; dimColor: string; activeColor: string; desc?: string }[]
+  options: { id: T; label: string; short: string; icon?: JSX.Element; dimColor: string; activeColor: string; desc?: string; disabledReason?: string }[]
   value: T
   onChange: (v: T) => void
   align?: 'left' | 'right'
@@ -1012,23 +1023,28 @@ function PillSelect<T extends string>({
     >
       {options.map((opt) => {
         const isActive = value === opt.id
+        const disabled = !!opt.disabledReason
         return (
           <button
             key={opt.id}
+            disabled={disabled}
+            title={opt.disabledReason}
             onClick={() => { onChange(opt.id); setOpen(false) }}
             className={cn(
               'w-full flex items-start gap-2.5 px-3 py-2 text-[12px] transition-colors text-left',
-              isActive
-                ? `${opt.activeColor} bg-muted/60`
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+              disabled
+                ? 'text-muted-foreground/40 cursor-not-allowed'
+                : isActive
+                  ? `${opt.activeColor} bg-muted/60`
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
             )}
           >
             {opt.icon && <span className="shrink-0 mt-0.5">{opt.icon}</span>}
             <span className="flex-1 min-w-0">
               <span className="block font-medium leading-snug">{opt.label}</span>
-              {opt.desc && (
+              {(opt.disabledReason ?? opt.desc) && (
                 <span className={cn('block text-[10px] leading-relaxed mt-0.5', isActive ? 'opacity-70' : 'text-muted-foreground/60')}>
-                  {opt.desc}
+                  {opt.disabledReason ?? opt.desc}
                 </span>
               )}
             </span>
@@ -1062,29 +1078,37 @@ function PillSelect<T extends string>({
   )
 }
 
-function AgentModeSelector({ value, onChange }: { value: AiMode; onChange: (v: AiMode) => void }): JSX.Element {
+function AgentModeSelector({ value, onChange, environment, policy }: {
+  value:       AriaMode
+  onChange:    (v: AriaMode) => void
+  environment: Environment
+  policy:      ChangePolicy
+}): JSX.Element {
+  const prodLocked = environment === 'production' && policy.productionMaxMode === 'investigate'
   return (
     <PillSelect
       value={value}
       onChange={onChange}
       options={[
         {
-          id: 'read-only',   label: 'Read Only',   short: 'Read Only',
-          desc: 'Diagnose only — no changes to the device. Show, ping, ls, ps…',
-          icon: <ShieldCheck className="w-3 h-3" />,
-          dimColor: 'text-emerald-500/70', activeColor: 'text-emerald-400',
+          id: 'investigate', label: 'Investigate', short: 'Investigate',
+          desc: 'Read-only. ARIA runs show / display / ping commands to diagnose and never changes the device.',
+          icon: <Search className="w-3 h-3" />,
+          dimColor: 'text-emerald-500/70', activeColor: 'text-emerald-500',
         },
         {
-          id: 'fix',         label: 'Fix Mode',    short: 'Fix Mode',
-          desc: 'Can apply config changes, but asks your approval before each command.',
+          id: 'change', label: 'Change', short: 'Change',
+          desc: 'ARIA can propose change plans. Nothing runs until you approve; NetCopilot applies it with a safety net and rollback.',
           icon: <Wrench className="w-3 h-3" />,
-          dimColor: 'text-amber-500/70',   activeColor: 'text-amber-400',
+          dimColor: 'text-amber-500/70', activeColor: 'text-amber-500',
+          disabledReason: prodLocked ? 'Your change policy keeps production devices read-only.' : undefined,
         },
         {
-          id: 'auto-pilot',  label: 'Auto Pilot',  short: 'Auto Pilot',
-          desc: 'Executes commands automatically without stopping. Use with caution.',
+          id: 'autopilot', label: 'Autopilot', short: 'Autopilot',
+          desc: 'Lab and staging only: ARIA applies and confirms its own change plans, with the same safety nets.',
           icon: <Zap className="w-3 h-3" />,
-          dimColor: 'text-red-500/70',     activeColor: 'text-red-400',
+          dimColor: 'text-red-500/70', activeColor: 'text-red-500',
+          disabledReason: environment === 'production' ? 'Not available on production devices — mark the device as lab or staging.' : undefined,
         },
       ]}
     />
@@ -1220,16 +1244,13 @@ function collectTerminalOutput(cb: (data: string) => void, filterSessionId?: str
 // ── Pending command sticky bar ────────────────────────────────────────────────
 
 interface PendingCommandBarProps {
-  show:      boolean
   messages:  AiMessageType[]
   onApprove: (msgId: string, callId: string) => void
   onBlock:   (msgId: string, callId: string) => void
 }
 
-function PendingCommandBar({ show, messages, onApprove, onBlock }: PendingCommandBarProps): JSX.Element | null {
-  if (!show) return null
-
-  const pendingCall = messages.flatMap(m => m.toolCalls ?? []).find(t => t.status === 'pending')
+function PendingCommandBar({ messages, onApprove, onBlock }: PendingCommandBarProps): JSX.Element | null {
+  const pendingCall = messages.flatMap(m => m.toolCalls ?? []).find(t => t.status === 'pending' && !t.autoApprove)
   const pendingMsg  = pendingCall ? messages.find(m => m.toolCalls?.some(t => t.id === pendingCall.id)) : null
 
   if (!pendingCall || !pendingMsg) return null

@@ -2,11 +2,11 @@ import { create } from 'zustand'
 import { Connection, ConnectionGroup, SSHKey, Session, PortForwardRule, Snippet, SnippetFolder } from '../types'
 import { nanoid } from 'nanoid'
 import { encryptData, decryptData } from '../lib/cryptoUtils'
+import { type AriaMode, type ChangePolicy, DEFAULT_CHANGE_POLICY, normalizeMode, normalizePolicy } from '../../../shared/changeControl'
 
 // ── AI Copilot types ─────────────────────────────────────────────────────────
 
-export type AiPermission = 'troubleshoot' | 'full-access'
-export type AiApproval   = 'ask' | 'auto'
+export type { AriaMode, ChangePolicy }
 export type AiSource     = 'hosted' | 'byok'
 export type AiProvider   = 'anthropic' | 'openai' | 'xai' | 'custom'
 
@@ -42,7 +42,8 @@ export interface AiToolCall {
   output?:        string
   targetSession?: string  // session ID to run command on (multi-session support)
   policyBlock?:   string  // set when main-process policy gate rejected the command
-  requiresConfirmation?: boolean  // high-risk: pause even in Auto Pilot
+  requiresConfirmation?: boolean  // heavy / Auto Watch / other device: needs a click
+  autoApprove?:   boolean  // main cleared it to run without a click
 }
 
 export interface AiPlan {
@@ -52,8 +53,9 @@ export interface AiPlan {
 
 export interface AiMessage {
   id:        string
-  role:      'user' | 'assistant' | 'auto' | 'plan'  // plan = investigation plan card
+  role:      'user' | 'assistant' | 'auto' | 'plan' | 'change'  // plan = investigation plan card, change = change-plan card
   content:   string
+  changeId?: string
   streaming?: boolean
   toolCalls?: AiToolCall[]
   plan?:     AiPlan
@@ -239,8 +241,12 @@ interface AppState {
   setLicenseStatus: (status: { valid: boolean; plan: string; expiresAt: string | null }) => void
   setDeviceId:      (id: string) => void
 
-  aiPermission: AiPermission
-  aiApproval:   AiApproval
+  /** Default ARIA mode for new conversations. */
+  aiMode:       AriaMode
+  aiChangePolicy: ChangePolicy
+  /** Live and recent change plans, by change ID (not cleared when switching tabs). */
+  aiChanges:    Record<string, ChangeStatusEvent>
+  changeHistoryOpen: boolean
   aiBlacklist:  string[]
   aiAutoWatch:  boolean
   aiSource:     AiSource
@@ -256,8 +262,10 @@ interface AppState {
   aiTokens:     { input: number; output: number }
 
   setAiPanelOpen:    (open: boolean) => void
-  setAiPermission:   (p: AiPermission) => void
-  setAiApproval:     (a: AiApproval) => void
+  setAiMode:         (m: AriaMode) => void
+  setAiChangePolicy: (p: ChangePolicy) => void
+  upsertAiChange:    (evt: ChangeStatusEvent) => void
+  setChangeHistoryOpen: (open: boolean) => void
   setAiBlacklist:    (list: string[]) => void
   setAiAutoWatch:    (v: boolean) => void
   setAiSource:       (source: AiSource) => void
@@ -327,8 +335,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   snippetPanelOpen: false,
   setThemePanelOpen: (open) => set({ themePanelOpen: open }),
   setSnippetPanelOpen: (open) => set({ snippetPanelOpen: open }),
-  aiPermission: 'troubleshoot',
-  aiApproval:   'ask',
+  aiMode:       'investigate',
+  aiChangePolicy: DEFAULT_CHANGE_POLICY,
+  aiChanges:    {},
+  changeHistoryOpen: false,
   aiBlacklist:  [],
   aiAutoWatch:  true,
   aiSource:     'hosted',
@@ -372,13 +382,18 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const saved = await window.api.store.saveConnection(conn)
     set((state) => {
+      // Open tabs keep their own copy of the connection; carry over what ARIA
+      // relies on so a re-classified device takes effect without reconnecting.
+      const sessions = state.sessions.map((s) => s.connectionId === saved.id
+        ? { ...s, connection: { ...s.connection, name: saved.name, deviceType: saved.deviceType, environment: saved.environment } }
+        : s)
       const idx = state.connections.findIndex((c) => c.id === saved.id)
       if (idx >= 0) {
         const updated = [...state.connections]
         updated[idx] = saved
-        return { connections: updated }
+        return { connections: updated, sessions }
       }
-      return { connections: [...state.connections, saved] }
+      return { connections: [...state.connections, saved], sessions }
     })
     return saved
   },
@@ -645,8 +660,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     const sidebarWidth  = (await window.api.store.getSetting('sidebarWidth')  as number | null) ?? 260
     const accentColor   = (await window.api.store.getSetting('accentColor')   as string | null) ?? '#8b5cf6'
     const theme         = (await window.api.store.getSetting('theme')          as string | null) ?? 'light'
-    const aiPermission  = (await window.api.store.getSetting('ai.permission')  as AiPermission | null) ?? 'troubleshoot'
-    const aiApproval    = (await window.api.store.getSetting('ai.approval')    as AiApproval | null)   ?? 'ask'
+    // ai.mode replaced ai.permission + ai.approval; derive it once from those.
+    const storedMode    = await window.api.store.getSetting('ai.mode')
+    const aiMode: AriaMode = storedMode
+      ? normalizeMode(storedMode)
+      : (await window.api.store.getSetting('ai.permission')) === 'full-access'
+        ? ((await window.api.store.getSetting('ai.approval')) === 'auto' ? 'autopilot' : 'change')
+        : 'investigate'
+    const aiChangePolicy = normalizePolicy(await window.api.store.getSetting('ai.changePolicy'))
     const aiBlacklistRaw = await window.api.store.getSetting('ai.blacklist')
     const aiBlacklist   = Array.isArray(aiBlacklistRaw) ? aiBlacklistRaw as string[] : []
     let aiConfig: AiConfigView | null = null
@@ -663,8 +684,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       connectionSettings: { ...DEFAULT_CONNECTION_SETTINGS, ...cs },
       keybindingSettings: { ...DEFAULT_KEYBINDING_SETTINGS, ...ks },
       sidebarWidth,
-      aiPermission,
-      aiApproval,
+      aiMode,
+      aiChangePolicy,
       aiBlacklist,
       ...(aiConfig ? aiConfigToState(aiConfig) : {}),
       licenseKey: licenseKey ?? '',
@@ -833,8 +854,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // ── AI Copilot actions ─────────────────────────────────────────────────────
   setAiPanelOpen:  (open) => set({ aiPanelOpen: open }),
-  setAiPermission: (p) => set({ aiPermission: p }),
-  setAiApproval:   (a) => set({ aiApproval: a }),
+  setAiMode:       (m) => set({ aiMode: m }),
+  setAiChangePolicy: (p) => set({ aiChangePolicy: p }),
+  upsertAiChange:  (evt) => set((state) => ({ aiChanges: { ...state.aiChanges, [evt.record.id]: evt } })),
+  setChangeHistoryOpen: (open) => set({ changeHistoryOpen: open }),
   setAiBlacklist:  (list) => set({ aiBlacklist: list }),
   setAiAutoWatch:  (v) => set({ aiAutoWatch: v }),
   setAiSource:     (source) => set({ aiSource: source }),

@@ -12,7 +12,6 @@ import { AiPlanBlock } from './AiPlanBlock'
 
 interface Props {
   message:          AiMessageType
-  approval:         'ask' | 'auto' | 'blacklist'
   blacklist:        string[]
   isLastUser?:      boolean
   isLastAssistant?: boolean
@@ -30,7 +29,7 @@ function detectDir(text: string): 'rtl' | 'ltr' {
 }
 
 export function AiMessage({
-  message, approval, blacklist, isLastUser, isLastAssistant,
+  message, blacklist, isLastUser, isLastAssistant,
   onApproveCommand, onBlockCommand, onEditUser, onRegenerate,
 }: Props): JSX.Element {
   const [copied, setCopied] = useState(false)
@@ -118,7 +117,6 @@ export function AiMessage({
                 key={call.id}
                 msgId={message.id}
                 call={call}
-                approval={approval}
                 blacklist={blacklist}
                 onApprove={(callId) => onApproveCommand(message.id, callId)}
                 onBlock={(callId)   => onBlockCommand(message.id, callId)}

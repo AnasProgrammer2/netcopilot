@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { terminalRegistry } from '../../lib/terminalRegistry'
 import { useAppStore, isAiReady } from '../../store'
 import { Session } from '../../types'
+import { EnvTag } from '../EnvTag'
 import { cn } from '../../lib/utils'
 import { PortForwardDialog } from '../dialogs/PortForwardDialog'
 import { SessionSummaryDialog, SessionSummaryData } from '../ai/SessionSummaryDialog'
@@ -388,7 +389,12 @@ function Tab({ session, isActive, isSplit, groupColor, onActivate, onClose, onPi
           className="text-xs font-medium flex-1 min-w-0 bg-transparent border-b border-primary focus:outline-none"
         />
       ) : (
-        <span className="text-xs font-medium truncate flex-1 leading-none">{displayName}</span>
+        <>
+          <span className="text-xs font-medium truncate flex-1 leading-none">{displayName}</span>
+          {session.connection.environment && session.connection.environment !== 'production' && (
+            <EnvTag environment={session.connection.environment} />
+          )}
+        </>
       )}
 
       {/* Reconnect button — only when disconnected or error (terminal sessions only) */}
