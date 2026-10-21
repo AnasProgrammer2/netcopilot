@@ -490,8 +490,8 @@ export function ConnectionDialog(): JSX.Element {
                     }
                   </select>
                   {form.jumpHostId && (
-                    <p className="text-2xs text-warning/80 mt-1 flex items-center gap-1">
-                      <span>⚡</span> Connection will tunnel through the selected host
+                    <p className="text-2xs text-muted-foreground mt-1">
+                      Connects through the selected host first
                     </p>
                   )}
                 </Field>

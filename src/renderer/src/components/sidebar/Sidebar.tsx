@@ -549,23 +549,18 @@ export function Sidebar(): JSX.Element {
           )}>
             <div className="px-2 pb-2 space-y-0.5">
               {[
-                { icon: Key,      label: 'SSH Keys',           color: '#8b5cf6', action: () => setSshKeyDialogOpen(true) },
-                { icon: FileCode, label: 'Import SSH Config',  color: '#06b6d4', action: () => setSshConfigDialogOpen(true) },
-                { icon: FileSpreadsheet, label: 'Import from Termius / CSV…', color: '#0ea5e9', action: () => setCsvDialogOpen(true) },
-                { icon: Download, label: 'Export Connections', color: '#10b981', action: () => setExportDialogOpen(true) },
-                { icon: Upload,   label: 'Import Connections', color: '#f59e0b', action: () => setImportDialogOpen(true) },
-              ].map(({ icon: Icon, label, color, action }) => (
+                { icon: Key,      label: 'SSH Keys',           action: () => setSshKeyDialogOpen(true) },
+                { icon: FileCode, label: 'Import SSH Config',  action: () => setSshConfigDialogOpen(true) },
+                { icon: FileSpreadsheet, label: 'Import from Termius / CSV…', action: () => setCsvDialogOpen(true) },
+                { icon: Download, label: 'Export Connections', action: () => setExportDialogOpen(true) },
+                { icon: Upload,   label: 'Import Connections', action: () => setImportDialogOpen(true) },
+              ].map(({ icon: Icon, label, action }) => (
                 <button
                   key={label}
                   onClick={action}
-                  className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent transition-colors cursor-pointer group"
+                  className="w-full flex items-center gap-2.5 px-2.5 h-8 rounded-md text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors cursor-pointer group"
                 >
-                  <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: color + '22' }}
-                  >
-                    <Icon className="w-3.5 h-3.5" style={{ color }} />
-                  </div>
+                  <Icon className="w-4 h-4 shrink-0 text-muted-foreground" />
                   {label}
                 </button>
               ))}

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   X, BookOpen, Cpu, Keyboard,
   ShieldCheck, Wrench, Zap, ShieldAlert,
-  Terminal, Plus, Eye, PlayCircle, Network,
+  Terminal, Plus, PlayCircle, Network,
   ChevronRight,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
@@ -187,39 +187,37 @@ function AriaTab(): JSX.Element {
 
       {/* Agent Modes */}
       <div>
-        <SectionLabel>Agent Mode — what ARIA can do</SectionLabel>
+        <SectionLabel>Modes — what ARIA may do</SectionLabel>
         <div className="mt-4 space-y-2">
           <ModeCard
-            icon={<ShieldCheck className="w-4 h-4 text-warning" />}
-            title="Troubleshoot"
-            badge="Recommended"
-            badgeColor="text-warning bg-warning/10 border-warning/20"
-            desc="ARIA uses read-only commands only — show, ping, ls, ps, df, netstat, journalctl… Safe for monitoring without changing anything."
+            icon={<ShieldCheck className="w-4 h-4 text-muted-foreground" />}
+            title="Investigate"
+            badge="Default"
+            badgeColor="text-muted-foreground border-border"
+            desc="Read-only diagnosis — show, display, ping, traceroute… ARIA runs these by itself and never changes the device. Heavy commands (show tech, captures) ask first."
           />
           <ModeCard
-            icon={<Wrench className="w-4 h-4 text-danger" />}
-            title="Full Access"
-            desc="ARIA can run any command including configuration changes, writing files, restarting services, etc. Use with caution."
+            icon={<Wrench className="w-4 h-4 text-muted-foreground" />}
+            title="Change"
+            desc="ARIA proposes a change plan: the evidence, the exact lines, pre-checks, verification and rollback. Nothing runs until you approve; NetCopilot applies it with the device's own safety net, verifies, and you choose Keep or Roll back."
+          />
+          <ModeCard
+            icon={<PlayCircle className="w-4 h-4 text-muted-foreground" />}
+            title="Autopilot"
+            desc="Lab and staging devices only: ARIA approves and confirms its own change plans, with the same safety nets. Production devices always need your approval."
           />
         </div>
       </div>
 
-      {/* Command Execution */}
+      {/* Environments */}
       <div>
-        <SectionLabel>Command Execution — who approves?</SectionLabel>
-        <div className="mt-4 space-y-2">
-          <ModeCard
-            icon={<Eye className="w-4 h-4 text-primary" />}
-            title="Ask each time"
-            badge="Default"
-            badgeColor="text-primary bg-primary/10 border-primary/20"
-            desc="Every command ARIA wants to run will pause and ask for your approval first. You see exactly what will run before it runs."
-          />
-          <ModeCard
-            icon={<PlayCircle className="w-4 h-4 text-success" />}
-            title="Auto-approve"
-            desc="ARIA executes commands immediately without asking. Best for speed when you trust the task. Commands run sequentially."
-          />
+        <SectionLabel>Production, staging and lab</SectionLabel>
+        <div className="mt-4 p-4 rounded-xl border border-border bg-background/50">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Every connection is <strong className="text-foreground">Production</strong> unless you mark it Staging or Lab in its connection settings.
+            Settings → ARIA → Change Policy can keep production read-only or require a reason for changes outside a maintenance window.
+            Every plan is kept in <strong className="text-foreground">Change History</strong>.
+          </p>
         </div>
       </div>
 
@@ -232,7 +230,7 @@ function AriaTab(): JSX.Element {
             <p className="text-sm font-semibold text-foreground">Always-blocked safety list</p>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            In both Ask and Auto modes, any command matching your block list is <strong className="text-foreground">automatically rejected</strong> — no approval prompt. Add patterns like <code className="px-1 py-0.5 rounded bg-muted text-2xs font-mono">rm -rf</code>, <code className="px-1 py-0.5 rounded bg-muted text-2xs font-mono">reload</code>, <code className="px-1 py-0.5 rounded bg-muted text-2xs font-mono">write erase</code> to protect critical operations.
+            In every mode, any command matching your block list is <strong className="text-foreground">automatically rejected</strong> — no approval prompt. Add patterns like <code className="px-1 py-0.5 rounded bg-muted text-2xs font-mono">rm -rf</code>, <code className="px-1 py-0.5 rounded bg-muted text-2xs font-mono">reload</code>, <code className="px-1 py-0.5 rounded bg-muted text-2xs font-mono">write erase</code> to protect critical operations.
           </p>
           <p className="text-xs text-muted-foreground">Configure in Settings → ARIA → Blocked Command Patterns</p>
         </div>
@@ -245,8 +243,8 @@ function AriaTab(): JSX.Element {
           {[
             { icon: '', text: 'Ask ARIA in plain language — "why is eth0 down?" or "show me running processes sorted by CPU"' },
             { icon: '', text: 'ARIA reads your terminal output automatically. You don\'t need to paste it — just ask.' },
-            { icon: '⚡', text: 'Use Auto mode for routine tasks like health checks across multiple devices.' },
-            { icon: '', text: 'Keep Troubleshoot mode for production devices — it can\'t accidentally change config.' },
+            { icon: '', text: 'Mark lab and staging gear in the connection settings — Autopilot only works there.' },
+            { icon: '', text: 'In Change mode, read the plan\'s rollback lines before approving — they are what runs if you click Roll back.' },
           ].map(({ icon, text }) => (
             <div key={text} className="flex items-start gap-3 px-3.5 py-2.5 rounded-lg bg-background/50 border border-border/40">
               <span className="text-base shrink-0 mt-0.5">{icon}</span>
